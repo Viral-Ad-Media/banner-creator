@@ -1,5 +1,5 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { generateBannerPlan, generateImage, BannerPlan, AspectRatio } from '../services/geminiService';
 import { Button } from './ui/Button';
 import { 
@@ -7,6 +7,15 @@ import {
   Hash, Copy, Share2, Instagram, Linkedin, ChevronDown, MousePointer2, Facebook, Video, CheckCircle, Loader2, RefreshCcw
 } from 'lucide-react';
 import { CanvasEditor, CanvasElement, BackgroundState } from './CanvasEditor';
+
+type SocialPlatform = 'instagram' | 'facebook' | 'tiktok' | 'linkedin';
+
+const SOCIAL_LOGIN_URLS: Record<SocialPlatform, string> = {
+  facebook: 'https://www.facebook.com/login.php',
+  tiktok: 'https://www.tiktok.com/login',
+  instagram: 'https://www.instagram.com/accounts/login/',
+  linkedin: 'https://www.linkedin.com/login',
+};
 
 export const CopyGenerator: React.FC = () => {
   // --- Input State ---
@@ -35,7 +44,7 @@ export const CopyGenerator: React.FC = () => {
   const [generationErrors, setGenerationErrors] = useState<Record<string, boolean>>({});
 
   // --- Social State ---
-  const [connectedSocials, setConnectedSocials] = useState<string[]>([]);
+  const [connectedSocials, setConnectedSocials] = useState<SocialPlatform[]>([]);
   const [postingStatus, setPostingStatus] = useState<Record<string, boolean>>({});
   const [postedSuccess, setPostedSuccess] = useState<Record<string, boolean>>({});
 
@@ -47,10 +56,44 @@ export const CopyGenerator: React.FC = () => {
       elements: CanvasElement[];
       backgroundState?: BackgroundState;
   } | null>(null);
+  const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Refs
   const bgInputRef = useRef<HTMLInputElement>(null);
   const assetInputRef = useRef<HTMLInputElement>(null);
+  const generationRunRef = useRef(0);
+  const socialPollersRef = useRef<Record<string, number>>({});
+  const timeoutIdsRef = useRef<number[]>([]);
+
+  const clearSocialPoller = useCallback((platform: string) => {
+    const pollerId = socialPollersRef.current[platform];
+    if (pollerId) {
+      window.clearInterval(pollerId);
+      delete socialPollersRef.current[platform];
+    }
+  }, []);
+
+  const clearAllTimers = useCallback(() => {
+    timeoutIdsRef.current.forEach((id) => window.clearTimeout(id));
+    timeoutIdsRef.current = [];
+  }, []);
+
+  const scheduleTimeout = useCallback((task: () => void, delayMs: number) => {
+    const timeoutId = window.setTimeout(() => {
+      timeoutIdsRef.current = timeoutIdsRef.current.filter((id) => id !== timeoutId);
+      task();
+    }, delayMs);
+    timeoutIdsRef.current.push(timeoutId);
+    return timeoutId;
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      generationRunRef.current += 1;
+      clearAllTimers();
+      Object.keys(socialPollersRef.current).forEach(clearSocialPoller);
+    };
+  }, [clearAllTimers, clearSocialPoller]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, setter: (val: string | null) => void) => {
     const file = e.target.files?.[0];
@@ -61,11 +104,19 @@ export const CopyGenerator: React.FC = () => {
       };
       reader.readAsDataURL(file);
     }
+    e.target.value = '';
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!userPrompt) return;
+    const trimmedPrompt = userPrompt.trim();
+    if (!trimmedPrompt) return;
+
+    const runId = generationRunRef.current + 1;
+    generationRunRef.current = runId;
+    clearAllTimers();
+    Object.keys(socialPollersRef.current).forEach(clearSocialPoller);
+    setStatusMessage(null);
 
     setIsPlanning(true);
     setPlan(null);
@@ -79,11 +130,13 @@ export const CopyGenerator: React.FC = () => {
 
     try {
       const data = await generateBannerPlan({ 
-        userPrompt,
+        userPrompt: trimmedPrompt,
         aspectRatio: aspectRatio,
         hasBackgroundImage: !!backgroundImage,
         hasAssetImage: !!assetImage
       });
+      if (runId !== generationRunRef.current) return;
+
       setPlan(data);
       setIsPlanning(false);
 
@@ -94,43 +147,56 @@ export const CopyGenerator: React.FC = () => {
       // --- LOGIC: Background Handling ---
       // If user provided a background, we use it directly for all banners to ensure consistency.
       if (backgroundImage) {
-        setGeneratedImages(prev => ({ ...prev, 'main': backgroundImage }));
-        setRawBackgrounds(prev => ({ ...prev, 'main': backgroundImage }));
+        const nextGeneratedImages: Record<string, string> = { main: backgroundImage };
+        const nextRawBackgrounds: Record<string, string> = { main: backgroundImage };
         data.additional_banners.forEach((_, idx) => {
-            setGeneratedImages(prev => ({ ...prev, [`slide-${idx}`]: backgroundImage }));
-            setRawBackgrounds(prev => ({ ...prev, [`slide-${idx}`]: backgroundImage }));
+            const key = `slide-${idx}`;
+            nextGeneratedImages[key] = backgroundImage;
+            nextRawBackgrounds[key] = backgroundImage;
         });
+        setGeneratedImages(nextGeneratedImages);
+        setRawBackgrounds(nextRawBackgrounds);
       } else {
         // Otherwise, generate new backgrounds using AI
         if (data.main_banner.image_prompt) {
-            triggerImageGeneration('main', data.main_banner.image_prompt, aspectRatio, referenceImages);
+            triggerImageGeneration('main', data.main_banner.image_prompt, aspectRatio, referenceImages, runId);
         }
         
         data.additional_banners.forEach((slide, idx) => {
             if (slide.image_prompt) {
-            triggerImageGeneration(`slide-${idx}`, slide.image_prompt, aspectRatio, referenceImages);
+            triggerImageGeneration(`slide-${idx}`, slide.image_prompt, aspectRatio, referenceImages, runId);
             }
         });
       }
 
     } catch (error) {
+      if (runId !== generationRunRef.current) return;
       console.error(error);
-      alert('Failed to generate banner plan. Please try again.');
+      setStatusMessage({ type: 'error', text: 'Failed to generate banner plan. Please try again.' });
       setIsPlanning(false);
     }
   };
 
-  const triggerImageGeneration = async (id: string, prompt: string, ratio: AspectRatio, refImages: string[]) => {
+  const triggerImageGeneration = async (
+    id: string,
+    prompt: string,
+    ratio: AspectRatio,
+    refImages: string[],
+    runId = generationRunRef.current
+  ) => {
     setGeneratingStatus(prev => ({ ...prev, [id]: true }));
     setGenerationErrors(prev => ({ ...prev, [id]: false }));
     try {
       const imageUrl = await generateImage(prompt, ratio, refImages);
+      if (runId !== generationRunRef.current) return;
       setGeneratedImages(prev => ({ ...prev, [id]: imageUrl }));
       setRawBackgrounds(prev => ({ ...prev, [id]: imageUrl }));
     } catch (error) {
+      if (runId !== generationRunRef.current) return;
       console.error(`Failed to generate image for ${id}`, error);
       setGenerationErrors(prev => ({ ...prev, [id]: true }));
     } finally {
+      if (runId !== generationRunRef.current) return;
       setGeneratingStatus(prev => ({ ...prev, [id]: false }));
     }
   };
@@ -263,7 +329,8 @@ export const CopyGenerator: React.FC = () => {
         });
 
     } else {
-        const slideIndex = parseInt(id.replace('slide-', ''));
+        const slideIndex = Number.parseInt(id.replace('slide-', ''), 10);
+        if (Number.isNaN(slideIndex)) return;
         const slide = plan.additional_banners[slideIndex];
         
         if (slide) {
@@ -340,21 +407,14 @@ export const CopyGenerator: React.FC = () => {
   };
 
   // --- Social Media Connect Logic ---
-  const handleSocialAction = (platform: string) => {
+  const handleSocialAction = (platform: SocialPlatform) => {
     // If already connected, trigger "Post" logic
     if (connectedSocials.includes(platform)) {
         handlePostToSocial(platform);
         return;
     }
 
-    // Connect Flow
-    let url = '';
-    switch(platform) {
-        case 'facebook': url = 'https://www.facebook.com/login.php'; break;
-        case 'tiktok': url = 'https://www.tiktok.com/login'; break;
-        case 'instagram': url = 'https://www.instagram.com/accounts/login/'; break;
-        case 'linkedin': url = 'https://www.linkedin.com/login'; break;
-    }
+    const url = SOCIAL_LOGIN_URLS[platform];
 
     const width = 600, height = 700;
     const left = (window.innerWidth - width) / 2;
@@ -362,35 +422,65 @@ export const CopyGenerator: React.FC = () => {
     
     // Simulate connection flow
     const popup = window.open(url, `Connect ${platform}`, `width=${width},height=${height},top=${top},left=${left}`);
-    
-    const checkClosed = setInterval(() => {
-        if (popup?.closed) {
-            clearInterval(checkClosed);
-            setConnectedSocials(prev => [...prev, platform]);
-        }
+
+    if (!popup) {
+      setStatusMessage({
+        type: 'error',
+        text: 'Popup was blocked. Allow popups for this site to connect social accounts.',
+      });
+      return;
+    }
+
+    popup.focus();
+    clearSocialPoller(platform);
+
+    const checkClosed = window.setInterval(() => {
+      if (popup.closed) {
+        clearSocialPoller(platform);
+        setConnectedSocials(prev => (prev.includes(platform) ? prev : [...prev, platform]));
+        setStatusMessage({ type: 'success', text: `${platform} connected.` });
+      }
     }, 1000);
+    socialPollersRef.current[platform] = checkClosed;
   };
 
-  const handlePostToSocial = (platform: string) => {
+  const handlePostToSocial = (platform: SocialPlatform) => {
       setPostingStatus(prev => ({ ...prev, [platform]: true }));
       
       // Simulate API latency
-      setTimeout(() => {
+      scheduleTimeout(() => {
           setPostingStatus(prev => ({ ...prev, [platform]: false }));
           setPostedSuccess(prev => ({ ...prev, [platform]: true }));
+          setStatusMessage({ type: 'success', text: `Posted to ${platform}.` });
           
           // Reset success message after 3 seconds
-          setTimeout(() => {
+          scheduleTimeout(() => {
               setPostedSuccess(prev => ({ ...prev, [platform]: false }));
           }, 4000);
       }, 1500);
+  };
+
+  const handleCopyCaption = async () => {
+    if (!plan) return;
+    const copyText = `${plan.seo.caption} ${plan.seo.hashtags.map(t => `#${t}`).join(' ')}`;
+    if (!navigator.clipboard?.writeText) {
+      setStatusMessage({ type: 'error', text: 'Clipboard API unavailable. Please copy manually.' });
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(copyText);
+      setStatusMessage({ type: 'success', text: 'Caption copied to clipboard.' });
+    } catch (error) {
+      console.error('Clipboard write failed', error);
+      setStatusMessage({ type: 'error', text: 'Clipboard access failed. Please copy manually.' });
+    }
   };
 
   const getRetryProps = (id: string, prompt: string) => {
     const refs: string[] = [];
     if (backgroundImage) refs.push(backgroundImage);
     if (assetImage) refs.push(assetImage);
-    return () => triggerImageGeneration(id, prompt, aspectRatio, refs);
+    return () => triggerImageGeneration(id, prompt, aspectRatio, refs, generationRunRef.current);
   };
 
   return (
@@ -403,7 +493,10 @@ export const CopyGenerator: React.FC = () => {
             initialElements={editorData.elements}
             initialBackgroundState={editorData.backgroundState}
             aspectRatio={aspectRatio}
-            onClose={() => setIsEditorOpen(false)}
+            onClose={() => {
+              setIsEditorOpen(false);
+              setActiveEditorId(null);
+            }}
             onSave={handleSaveFromEditor}
           />
       )}
@@ -526,6 +619,12 @@ export const CopyGenerator: React.FC = () => {
                         <Wand2 className="w-5 h-5" /> Generate Campaign
                     </Button>
                 </div>
+
+                {statusMessage && (
+                  <p className={`text-xs ${statusMessage.type === 'error' ? 'text-red-400' : 'text-green-400'}`}>
+                    {statusMessage.text}
+                  </p>
+                )}
             </form>
         </div>
       </div>
@@ -725,7 +824,7 @@ export const CopyGenerator: React.FC = () => {
                     
                     {/* Share / Export Toolbar */}
                     <div className="flex flex-col sm:flex-row items-center gap-4">
-                         <Button variant="secondary" className="flex-1 w-full" onClick={() => navigator.clipboard.writeText(`${plan.seo.caption} ${plan.seo.hashtags.map(t=>`#${t}`).join(' ')}`)}>
+                         <Button variant="secondary" className="flex-1 w-full" onClick={handleCopyCaption}>
                              <Copy className="w-4 h-4" /> Copy Caption
                          </Button>
                          
@@ -820,6 +919,7 @@ export const CopyGenerator: React.FC = () => {
                             </button>
                          </div>
                     </div>
+
                 </div>
 
             </div>

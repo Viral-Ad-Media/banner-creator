@@ -3,39 +3,62 @@ import { editImageWithGemini } from '../services/geminiService';
 import { Button } from './ui/Button';
 import { Image as ImageIcon, Sparkles, Upload, Download, Undo2, Eraser, Wand2 } from 'lucide-react';
 
+const MAX_HISTORY_LENGTH = 12;
+const MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024;
+
 export const ImageStudio: React.FC = () => {
   const [currentImage, setCurrentImage] = useState<string | null>(null);
   const [history, setHistory] = useState<string[]>([]);
   const [prompt, setPrompt] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target;
     const file = e.target.files?.[0];
     if (file) {
+      if (!file.type.startsWith('image/')) {
+        setStatusMessage({ type: 'error', text: 'Please upload an image file.' });
+        input.value = '';
+        return;
+      }
+
+      if (file.size > MAX_UPLOAD_SIZE_BYTES) {
+        setStatusMessage({ type: 'error', text: 'Image too large. Use a file under 10MB.' });
+        input.value = '';
+        return;
+      }
+
       const reader = new FileReader();
       reader.onloadend = () => {
         const base64String = reader.result as string;
         setCurrentImage(base64String);
         setHistory([base64String]);
+        setPrompt('');
+        setStatusMessage({ type: 'success', text: 'Image loaded.' });
       };
       reader.readAsDataURL(file);
     }
+    input.value = '';
   };
 
   const handleEdit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentImage || !prompt) return;
+    const trimmedPrompt = prompt.trim();
+    if (!currentImage || !trimmedPrompt) return;
 
     setIsProcessing(true);
+    setStatusMessage(null);
     try {
-      const editedImage = await editImageWithGemini(currentImage, prompt);
-      setHistory(prev => [...prev, editedImage]);
+      const editedImage = await editImageWithGemini(currentImage, trimmedPrompt);
+      setHistory(prev => [...prev, editedImage].slice(-MAX_HISTORY_LENGTH));
       setCurrentImage(editedImage);
       setPrompt('');
+      setStatusMessage({ type: 'success', text: 'Edit generated successfully.' });
     } catch (error) {
       console.error(error);
-      alert('Failed to edit image. Ensure your request is supported by the model.');
+      setStatusMessage({ type: 'error', text: 'Failed to edit image. Try a simpler instruction.' });
     } finally {
       setIsProcessing(false);
     }
@@ -99,6 +122,8 @@ export const ImageStudio: React.FC = () => {
                     onClick={() => {
                         setCurrentImage(null);
                         setHistory([]);
+                        setPrompt('');
+                        setStatusMessage(null);
                     }} 
                     className="p-2 hover:bg-red-500/10 hover:text-red-400 rounded-lg text-muted transition-colors"
                     title="Clear All"
@@ -124,6 +149,12 @@ export const ImageStudio: React.FC = () => {
                     Generate Edit
                 </Button>
               </form>
+
+              {statusMessage && (
+                <p className={`text-xs ${statusMessage.type === 'error' ? 'text-red-400' : 'text-green-400'}`}>
+                  {statusMessage.text}
+                </p>
+              )}
             </div>
           )}
         </div>

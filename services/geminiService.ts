@@ -25,6 +25,25 @@ const getClient = () => {
   return ai;
 };
 
+const extractResponseText = (response: any): string | undefined => {
+  if (typeof response?.text === 'function') return response.text();
+  if (typeof response?.response?.text === 'function') return response.response.text();
+  if (typeof response?.text === 'string') return response.text;
+  return undefined;
+};
+
+const parseImageDataUrl = (imageDataUrl: string): { mimeType: string; data: string } => {
+  const match = imageDataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,([a-zA-Z0-9+/=\s]+)$/);
+  if (!match) {
+    throw new Error("Invalid image data URL format.");
+  }
+
+  return {
+    mimeType: match[1].toLowerCase() === 'image/jpg' ? 'image/jpeg' : match[1].toLowerCase(),
+    data: match[2].replace(/\s/g, ''),
+  };
+};
+
 // --- Type Definitions ---
 
 export type AspectRatio = '1:1' | '16:9' | '9:16' | '3:4' | '4:5';
@@ -169,12 +188,7 @@ export const generateBannerPlan = async (request: BannerRequest): Promise<Banner
     },
   });
 
-  const rawText = 
-    typeof response.text === 'function'
-      ? response.text()
-      : typeof (response as any).response?.text === 'function'
-        ? (response as any).response.text()
-        : (response as any).text;
+  const rawText = extractResponseText(response);
 
   if (!rawText) {
     throw new Error("No text returned from Gemini");
@@ -202,7 +216,24 @@ export const generateImage = async (prompt: string, aspectRatio: AspectRatio, re
   // Internal helper to execute generation
   const executeGen = async (promptText: string) => {
       const client = getClient();
-      const parts: any[] = [{ text: promptText }];
+      const referenceParts = referenceImages
+        .slice(0, 2)
+        .map((imageDataUrl) => {
+          try {
+            const parsedImage = parseImageDataUrl(imageDataUrl);
+            return {
+              inlineData: {
+                mimeType: parsedImage.mimeType,
+                data: parsedImage.data,
+              },
+            };
+          } catch {
+            return null;
+          }
+        })
+        .filter((part): part is { inlineData: { mimeType: string; data: string } } => part !== null);
+
+      const parts: any[] = [{ text: promptText }, ...referenceParts];
       const response = await client.models.generateContent({
         model: 'gemini-2.5-flash-image', 
         contents: { parts },
@@ -253,9 +284,7 @@ export const generateImage = async (prompt: string, aspectRatio: AspectRatio, re
 // --- Legacy Edit (Optional) ---
 export const editImageWithGemini = async (base64Image: string, prompt: string): Promise<string> => {
     if (!prompt) throw new Error("Prompt is required");
-  
-    const cleanBase64 = base64Image.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
-    const mimeType = base64Image.match(/^data:image\/(png|jpeg|jpg|webp);base64,/)?.[1] || 'png';
+    const parsedImage = parseImageDataUrl(base64Image);
   
     try {
       const client = getClient();
@@ -266,8 +295,8 @@ export const editImageWithGemini = async (base64Image: string, prompt: string): 
             { text: prompt },
             {
               inlineData: {
-                mimeType: `image/${mimeType}`,
-                data: cleanBase64,
+                mimeType: parsedImage.mimeType,
+                data: parsedImage.data,
               },
             },
           ],
@@ -282,6 +311,12 @@ export const editImageWithGemini = async (base64Image: string, prompt: string): 
           return `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`;
         }
       }
+
+      const textPart = parts.find((part) => part.text);
+      if (textPart?.text) {
+        throw new Error(`Model did not return an image: ${textPart.text}`);
+      }
+
       throw new Error("No image data found in response");
     } catch (error) {
       console.error("Image editing error:", error);

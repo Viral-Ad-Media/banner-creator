@@ -102,6 +102,26 @@ const SUGGESTED_BG_PROMPTS = [
     "Cyberpunk city street, rainy night"
 ];
 
+type HistoryEntry = {
+  elements: CanvasElement[];
+  bgValue: string;
+  bgType: 'image' | 'color' | 'gradient';
+  bgOpacity: number;
+  bgScale: number;
+  bgX: number;
+  bgY: number;
+};
+
+const cloneDeep = <T,>(value: T): T => {
+  if (typeof structuredClone === 'function') {
+    return structuredClone(value);
+  }
+  return JSON.parse(JSON.stringify(value)) as T;
+};
+
+const normalizeElements = (items: CanvasElement[]): CanvasElement[] =>
+  items.map((el) => ({ ...cloneDeep(el), scaleX: el.scaleX ?? 1, scaleY: el.scaleY ?? 1 }));
+
 export const CanvasEditor: React.FC<CanvasEditorProps> = ({ 
   backgroundImage, 
   initialElements,
@@ -127,9 +147,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
   const [activeLayerTab, setActiveLayerTab] = useState<'arrange' | 'layers'>('arrange');
 
   // Canvas State
-  const [elements, setElements] = useState<CanvasElement[]>(
-    JSON.parse(JSON.stringify(initialElements)).map((el: any) => ({ ...el, scaleX: el.scaleX ?? 1, scaleY: el.scaleY ?? 1 }))
-  );
+  const [elements, setElements] = useState<CanvasElement[]>(() => normalizeElements(initialElements));
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   
   // Tools State
@@ -138,7 +156,15 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
   const [isBgColorPickerOpen, setIsBgColorPickerOpen] = useState(false);
   
   // History
-  const [history, setHistory] = useState<any[]>([{ elements: initialElements, bgValue, bgType, bgOpacity, bgScale, bgX, bgY }]);
+  const [history, setHistory] = useState<HistoryEntry[]>(() => [{
+    elements: normalizeElements(initialElements),
+    bgValue,
+    bgType,
+    bgOpacity,
+    bgScale,
+    bgX,
+    bgY,
+  }]);
   const [historyIndex, setHistoryIndex] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -215,7 +241,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
     ) => {
     const newHistory = history.slice(0, historyIndex + 1);
     newHistory.push({
-        elements: JSON.parse(JSON.stringify(newElements)),
+        elements: cloneDeep(newElements),
         bgValue: newBg,
         bgType: newBgType,
         bgOpacity: newBgOpacity,
@@ -232,7 +258,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
     if (historyIndex > 0) {
       const prev = history[historyIndex - 1];
       setHistoryIndex(historyIndex - 1);
-      setElements(JSON.parse(JSON.stringify(prev.elements)));
+      setElements(cloneDeep(prev.elements));
       setBgValue(prev.bgValue);
       setBgType(prev.bgType);
       setBgOpacity(prev.bgOpacity ?? 1);
@@ -246,7 +272,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
     if (historyIndex < history.length - 1) {
       const next = history[historyIndex + 1];
       setHistoryIndex(historyIndex + 1);
-      setElements(JSON.parse(JSON.stringify(next.elements)));
+      setElements(cloneDeep(next.elements));
       setBgValue(next.bgValue);
       setBgType(next.bgType);
       setBgOpacity(next.bgOpacity ?? 1);
@@ -290,7 +316,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
           if (selectedIds.includes(el.id)) {
               const newId = `${el.type}-${Date.now()}-${Math.random()}`;
               const clone: CanvasElement = {
-                  ...JSON.parse(JSON.stringify(el)),
+                  ...cloneDeep(el),
                   id: newId,
                   x: el.x + 20,
                   y: el.y + 20
