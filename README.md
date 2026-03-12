@@ -1,63 +1,130 @@
-# Banner Creator (Social Studio AI)
+# Social Studio SaaS
 
-AI-assisted social content studio for generating campaign-ready banners, editing visuals, and exporting final assets.
+Full-stack social creative SaaS for generating banner plans, producing AI backgrounds, and editing images, with authenticated users, usage metering, and plan-based limits.
 
-## Overview
+## Features
 
-This project is a Vite + React + TypeScript application with two primary workflows:
+- Supabase Auth (email/password) for signup, login, and session persistence
+- Protected backend API (Gemini key never exposed to browser)
+- Banner campaign planning with structured JSON output
+- Image generation and image editing workflows
+- Project and generation history persistence
+- Monthly credit metering per plan tier
+- Mock billing upgrade and customer portal endpoints
+- Responsive React UI with authenticated workspace access
 
-1. `Banner Generator`: turns a user prompt into structured campaign copy, image prompts, generated visuals, and editable layouts.
-2. `Image Studio`: prompt-driven image editing with undo history and export.
+## Architecture
 
-The app uses the Gemini API through `@google/genai` for:
+### Frontend
 
-- structured banner plan generation (`gemini-2.5-flash`)
-- image generation and editing (`gemini-2.5-flash-image`)
+- React 19 + TypeScript + Vite
+- Supabase JS client for auth/session
+- Backend API client for app data and generation calls
 
-## Key Features
+### Backend
 
-- Multi-slide campaign planning from a single prompt.
-- Aspect ratio presets for social formats (`1:1`, `4:5`, `9:16`, `16:9`, `3:4` internal editor support).
-- Optional uploaded background and brand asset support.
-- Visual editor with:
-  - drag/resize/rotate
-  - text styling
-  - layer ordering
-  - background pan/zoom/opacity
-  - AI background generation and magic image edits
-- Image Studio with iterative edit history and undo.
-- Export/download as PNG.
+- Express + TypeScript
+- Supabase Postgres for application data
+- Supabase Auth token verification via service role
+- Gemini API integration through `@google/genai`
+- Zod request validation and centralized error handling
 
-## Tech Stack
+### Data + Auth Flow
 
-- React 19
-- TypeScript
-- Vite
-- Tailwind CSS (CDN config in `index.html`)
-- `@google/genai`
-- `lucide-react`
+1. User signs in from frontend via Supabase Auth (`signInWithPassword` / `signUp`).
+2. Frontend sends Supabase access token as `Authorization: Bearer ...` to backend.
+3. Backend validates token with Supabase Admin API.
+4. Backend creates/loads user profile in `app_users`.
+5. Protected routes use `req.auth.userId` + `req.auth.plan`.
+
+## Repository Structure
+
+```text
+.
+├── App.tsx
+├── .env.example
+├── components/
+│   ├── AuthScreen.tsx
+│   ├── CopyGenerator.tsx
+│   ├── ImageStudio.tsx
+│   ├── CanvasEditor.tsx
+│   └── ui/Button.tsx
+├── services/
+│   ├── apiClient.ts
+│   ├── authService.ts
+│   ├── geminiService.ts
+│   └── supabaseClient.ts
+├── backend/
+│   ├── .env.example
+│   ├── package.json
+│   ├── tsconfig.json
+│   ├── supabase/schema.sql
+│   └── src/
+│       ├── app.ts
+│       ├── server.ts
+│       ├── config/
+│       ├── db/
+│       ├── lib/
+│       ├── middleware/
+│       ├── routes/
+│       ├── services/
+│       └── types/
+└── vite.config.ts
+```
 
 ## Prerequisites
 
-- Node.js 18+ (recommended: Node.js 20+)
-- npm 9+
+- Node.js 20+
+- npm 10+
+- Supabase project
 - Gemini API key
 
-## Environment Configuration
+## Supabase Setup
 
-Create `.env.local` in the project root:
+1. Create a new Supabase project.
+2. Open Supabase SQL editor.
+3. Run [`backend/supabase/schema.sql`](backend/supabase/schema.sql).
+4. In Supabase Auth settings:
+   - Enable Email provider.
+   - For local testing, disable email confirmation if you want immediate sign-in after signup.
+
+## Environment Variables
+
+### Frontend (`.env.local` at repo root)
+
+Start from `.env.example`:
 
 ```bash
-VITE_GEMINI_API_KEY=your_api_key_here
+cp .env.example .env.local
 ```
 
-Supported fallback names in this codebase:
+Set:
 
-- `VITE_GEMINI_API_KEY` (recommended)
-- `GEMINI_API_KEY`
-- `API_KEY`
+```bash
+VITE_API_BASE_URL=/api
+VITE_BACKEND_URL=http://localhost:4000
+VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+```
 
-`vite.config.ts` also maps selected env values into `process.env.*` for compatibility with client code paths.
+### Backend (`backend/.env`)
+
+Start from `backend/.env.example`:
+
+```bash
+cp backend/.env.example backend/.env
+```
+
+Set:
+
+```bash
+NODE_ENV=development
+PORT=4000
+GEMINI_API_KEY=your-gemini-api-key
+CORS_ORIGIN=http://localhost:3000
+SUPABASE_URL=https://your-project-ref.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
+```
 
 ## Local Development
 
@@ -65,139 +132,172 @@ Supported fallback names in this codebase:
 
 ```bash
 npm install
+npm --prefix backend install
 ```
 
-2. Start development server:
+2. Start backend:
+
+```bash
+npm run backend:dev
+```
+
+3. Start frontend:
 
 ```bash
 npm run dev
 ```
 
-3. Open:
+4. Open:
 
-```text
-http://localhost:3000
-```
+- Frontend: `http://localhost:3000`
+- Backend: `http://localhost:4000`
 
-## Production Build
+## Build + Run
+
+Frontend:
 
 ```bash
 npm run build
 npm run preview
 ```
 
-## Scripts
+Backend:
 
-- `npm run dev`: start Vite dev server.
-- `npm run build`: create production bundle.
-- `npm run preview`: serve production build locally.
-
-## Project Structure
-
-```text
-.
-├── App.tsx
-├── index.tsx
-├── index.html
-├── components
-│   ├── CopyGenerator.tsx
-│   ├── ImageStudio.tsx
-│   ├── CanvasEditor.tsx
-│   └── ui
-│       └── Button.tsx
-├── services
-│   └── geminiService.ts
-├── vite.config.ts
-└── tsconfig.json
+```bash
+npm run backend:build
+npm run backend:start
 ```
 
-## Architecture Notes
+## API Reference
 
-### App Shell
+Base URL: `/api`
 
-- `App.tsx` controls tab state between `CopyGenerator` and `ImageStudio`.
+### Health
 
-### Banner Generator Flow (`components/CopyGenerator.tsx`)
+- `GET /health`
 
-1. Collect prompt/config/assets.
-2. Request a structured banner plan from `generateBannerPlan`.
-3. Generate images for each slot with `generateImage` (or use uploaded background).
-4. Open `CanvasEditor` per slide for manual refinement.
-5. Save edited assets and export.
+### Auth (requires bearer token)
 
-Important implementation details:
+- `GET /auth/me`
+- `PATCH /auth/me`
 
-- Async request guard (`generationRunRef`) prevents stale generation results from previous runs overwriting current state.
-- Image map initialization is batched when a shared uploaded background is used.
-- Popup polling/timers are tracked and cleaned up to avoid leaks.
+`PATCH /auth/me` body:
 
-### Canvas Editor (`components/CanvasEditor.tsx`)
+```json
+{
+  "name": "Updated Name"
+}
+```
 
-- Maintains canvas elements and background transform state.
-- Stores history snapshots for undo/redo.
-- Exports composed result via an offscreen `<canvas>`.
+### Projects (requires bearer token)
 
-Recent optimization in this codebase:
+- `GET /projects`
+- `POST /projects`
+- `GET /projects/:projectId`
+- `PATCH /projects/:projectId`
+- `DELETE /projects/:projectId`
 
-- history snapshots now use a shared deep-clone helper (`structuredClone` with JSON fallback) instead of repeated ad-hoc cloning paths.
+`POST /projects` body:
 
-### Image Studio (`components/ImageStudio.tsx`)
+```json
+{
+  "name": "Campaign Q2",
+  "prompt": "Summer campaign",
+  "aspectRatio": "1:1",
+  "data": {}
+}
+```
 
-- Upload source image.
-- Run iterative prompt edits with Gemini.
-- Keep bounded edit history (memory protection) and allow undo.
+### Generations (requires bearer token)
 
-### Gemini Service (`services/geminiService.ts`)
+- `GET /generations`
+- `POST /generations/plan`
+- `POST /generations/image`
+- `POST /generations/edit`
 
-- Lazy API client initialization.
-- Structured schema-driven JSON output for banner plans.
-- Data URL parsing/validation helpers for image generation/edit workflows.
-- Better error surfacing when image models return text refusals instead of image bytes.
+`POST /generations/plan` body:
 
-## Data & State Model (High Level)
+```json
+{
+  "userPrompt": "Launch campaign for product X",
+  "aspectRatio": "1:1",
+  "hasBackgroundImage": false,
+  "hasAssetImage": false,
+  "projectId": "optional-uuid"
+}
+```
 
-- `plan`: structured campaign object with `main_banner`, `additional_banners`, and `seo`.
-- `generatedImages`: rendered/edited preview images by slot id.
-- `rawBackgrounds`: pristine generated/uploaded backgrounds used when entering editor.
-- `savedLayers`: persisted editor element state per slot.
-- `editorBackgrounds`: persisted editor background mode/value/transform state.
+`POST /generations/image` body:
 
-## API and Model Behavior
+```json
+{
+  "prompt": "Luxury product shot with natural light",
+  "aspectRatio": "1:1",
+  "referenceImages": [],
+  "projectId": "optional-uuid"
+}
+```
 
-- Banner planning uses `gemini-2.5-flash` with JSON schema response.
-- Image generation/editing uses `gemini-2.5-flash-image`.
-- `4:5` is mapped to `3:4` in image generation config where required by model constraints.
+`POST /generations/edit` body:
 
-## Troubleshooting
+```json
+{
+  "base64Image": "data:image/png;base64,...",
+  "prompt": "Make background warm and cinematic",
+  "projectId": "optional-uuid"
+}
+```
 
-### “Missing Gemini API key”
+### Billing (requires bearer token)
 
-- Ensure `.env.local` exists and includes `VITE_GEMINI_API_KEY`.
-- Restart the dev server after changing env variables.
+- `GET /billing/summary`
+- `POST /billing/checkout-session` (mock)
+- `POST /billing/portal-session` (mock)
 
-### Popup-based social connect does not open
+`POST /billing/checkout-session` body:
 
-- Browser popup blocking is enabled. Allow popups for local dev host.
+```json
+{
+  "plan": "PRO"
+}
+```
 
-### Image generation/edit fails with refusal
+## Plan and Credit Model
 
-- Simplify prompts and avoid disallowed content.
-- Retry with less specific or less sensitive wording.
+Plan tiers:
 
-### Slow editor behavior with large assets
+- `FREE`: 120 monthly credits, 5 projects
+- `PRO`: 3000 monthly credits, 100 projects
+- `ENTERPRISE`: 50000 monthly credits, 1000 projects
 
-- Use smaller input files where possible.
-- Reduce number of stacked elements before export.
+Credit costs:
+
+- `BANNER_PLAN`: 3 credits
+- `IMAGE_GENERATION`: 5 credits
+- `IMAGE_EDIT`: 5 credits
+
+Usage is tracked in `usage_events` and rolled up monthly by backend logic.
 
 ## Security Notes
 
-- Do not commit `.env.local`.
-- Treat API keys as secrets.
-- Client-side API usage is acceptable for prototyping, but production deployments should usually proxy model calls through a secure backend.
+- Gemini API key is backend-only.
+- Backend validates Supabase JWT per request.
+- Rate limiting enabled on `/api` and stricter on `/api/auth`.
+- Schema includes RLS policies for user-scoped access.
 
-## Suggested Next Improvements
+## Billing Status
 
-1. Add automated tests for service parsing and core state reducers.
-2. Add explicit loading/error toasts (instead of inline status only).
-3. Move Tailwind config from CDN runtime setup to a build-time Tailwind pipeline.
-4. Add model/provider abstraction for easier provider swaps.
+Billing endpoints are currently mock implementations for SaaS flow wiring.
+
+To productionize billing:
+
+1. Integrate Stripe checkout + customer portal.
+2. Add webhook processing for subscription lifecycle.
+3. Sync subscription status and plan transitions from webhooks.
+
+## Troubleshooting
+
+- `401 Invalid or expired token`: verify Supabase frontend keys and active session.
+- `Backend environment validation failed`: check `backend/.env` against `backend/.env.example`.
+- `Monthly credit limit reached`: upgrade plan via billing endpoint or adjust limits in `backend/src/config/plans.ts`.
+- Signup requires email confirmation: disable confirmation for local testing or confirm inbox first.
