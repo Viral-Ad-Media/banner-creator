@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Lock, Mail, Sparkles, User } from 'lucide-react';
 import { Button } from './ui/Button';
 import { loginUser, registerUser } from '../services/authService';
@@ -8,15 +8,21 @@ type Mode = 'login' | 'register';
 
 interface AuthScreenProps {
   onAuthenticated: (user: AuthUser) => void;
+  initialMode?: Mode;
 }
 
-export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated }) => {
-  const [mode, setMode] = useState<Mode>('login');
+export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated, initialMode = 'login' }) => {
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setMode(initialMode);
+    setError(null);
+  }, [initialMode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

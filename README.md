@@ -11,13 +11,15 @@ Full-stack social creative SaaS for generating banner plans, producing AI backgr
 - Project and generation history persistence
 - Monthly credit metering per plan tier
 - Mock billing upgrade and customer portal endpoints
-- Responsive React UI with authenticated workspace access
+- Public SaaS pages (`Home`, `Features`, `Pricing`, `About`, `Contact`, `Privacy`, `Terms`)
+- Route-based app shell with protected `/app` workspace and dedicated `/auth` (login/signup)
 
 ## Architecture
 
 ### Frontend
 
 - React 19 + TypeScript + Vite
+- React Router for public and protected route management
 - Supabase JS client for auth/session
 - Backend API client for app data and generation calls
 
@@ -45,10 +47,21 @@ Full-stack social creative SaaS for generating banner plans, producing AI backgr
 ├── .env.example
 ├── components/
 │   ├── AuthScreen.tsx
+│   ├── AppWorkspace.tsx
 │   ├── CopyGenerator.tsx
 │   ├── ImageStudio.tsx
 │   ├── CanvasEditor.tsx
+│   ├── SiteLayout.tsx
 │   └── ui/Button.tsx
+├── pages/
+│   ├── HomePage.tsx
+│   ├── FeaturesPage.tsx
+│   ├── PricingPage.tsx
+│   ├── AboutPage.tsx
+│   ├── ContactPage.tsx
+│   ├── PrivacyPage.tsx
+│   ├── TermsPage.tsx
+│   └── AuthPage.tsx
 ├── services/
 │   ├── apiClient.ts
 │   ├── authService.ts
@@ -167,6 +180,27 @@ Backend:
 npm run backend:build
 npm run backend:start
 ```
+
+## Frontend Routes
+
+Public pages:
+
+- `/`
+- `/features`
+- `/pricing`
+- `/about`
+- `/contact`
+- `/privacy`
+- `/terms`
+
+Authentication:
+
+- `/auth` (login)
+- `/auth?mode=register` (signup)
+
+Protected app:
+
+- `/app`
 
 ## API Reference
 
