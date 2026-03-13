@@ -44,11 +44,20 @@ export const apiFetch = async <T>(path: string, options: ApiFetchOptions = {}): 
     }
   }
 
-  const response = await fetch(url, {
-    ...rest,
-    headers: mergedHeaders,
-    body,
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...rest,
+      headers: mergedHeaders,
+      body,
+    });
+  } catch (error) {
+    if (error instanceof TypeError) {
+      throw new Error(`Cannot reach API at ${url}. Check VITE_API_BASE_URL and backend CORS_ORIGIN.`);
+    }
+
+    throw error;
+  }
 
   const isJson = response.headers.get('content-type')?.includes('application/json');
   const payload = isJson ? await response.json() : await response.text();
