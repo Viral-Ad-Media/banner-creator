@@ -31,7 +31,7 @@ const App: React.FC = () => {
   useEffect(() => {
     let isMounted = true;
 
-    const bootstrap = async () => {
+    const syncCurrentUser = async () => {
       try {
         const currentUser = await getCurrentUser();
         if (isMounted) {
@@ -44,23 +44,30 @@ const App: React.FC = () => {
       }
     };
 
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event) => {
+    const queueUserSync = () => {
+      window.setTimeout(() => {
+        void syncCurrentUser();
+      }, 0);
+    };
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
       if (!isMounted) return;
 
       if (event === 'SIGNED_OUT') {
         setUser(null);
+        setIsAuthLoading(false);
         return;
       }
 
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
-        const currentUser = await getCurrentUser();
-        if (isMounted) {
-          setUser(currentUser);
-        }
+      if (
+        event === 'INITIAL_SESSION' ||
+        event === 'SIGNED_IN' ||
+        event === 'TOKEN_REFRESHED' ||
+        event === 'USER_UPDATED'
+      ) {
+        queueUserSync();
       }
     });
-
-    void bootstrap();
 
     return () => {
       isMounted = false;
