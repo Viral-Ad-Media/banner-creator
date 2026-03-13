@@ -6,11 +6,19 @@ import type { AuthUser } from '../services/authService';
 
 interface AuthPageProps {
   onAuthenticated: (user: AuthUser) => void;
+  onPasswordResetComplete: (user: AuthUser | null) => void;
+  isPasswordRecovery: boolean;
 }
 
-export const AuthPage: React.FC<AuthPageProps> = ({ onAuthenticated }) => {
+export const AuthPage: React.FC<AuthPageProps> = ({
+  onAuthenticated,
+  onPasswordResetComplete,
+  isPasswordRecovery,
+}) => {
   const [searchParams] = useSearchParams();
-  const initialMode = searchParams.get('mode') === 'register' ? 'register' : 'login';
+  const modeParam = searchParams.get('mode');
+  const initialMode =
+    modeParam === 'register' || modeParam === 'forgot' || modeParam === 'reset' ? modeParam : 'login';
 
   return (
     <div className="min-h-screen">
@@ -20,7 +28,12 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthenticated }) => {
           Back to home
         </Link>
       </div>
-      <AuthScreen onAuthenticated={onAuthenticated} initialMode={initialMode} />
+      <AuthScreen
+        onAuthenticated={onAuthenticated}
+        onPasswordResetComplete={onPasswordResetComplete}
+        initialMode={initialMode}
+        isPasswordRecovery={isPasswordRecovery}
+      />
     </div>
   );
 };

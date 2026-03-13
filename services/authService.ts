@@ -14,12 +14,12 @@ type MeResponse = {
   user: AuthUser;
 };
 
-const getSignupRedirectUrl = () => {
+const getAuthRedirectUrl = (path = '/auth', search = '') => {
   if (typeof window === 'undefined') {
     return undefined;
   }
 
-  return `${window.location.origin}/auth`;
+  return `${window.location.origin}${path}${search}`;
 };
 
 const fetchCurrentProfile = async (): Promise<AuthUser> => {
@@ -39,7 +39,7 @@ export const registerUser = async (payload: {
       data: {
         name: payload.name,
       },
-      emailRedirectTo: getSignupRedirectUrl(),
+      emailRedirectTo: getAuthRedirectUrl(),
     },
   });
 
@@ -68,6 +68,30 @@ export const loginUser = async (payload: {
   }
 
   return fetchCurrentProfile();
+};
+
+export const sendPasswordResetEmail = async (email: string) => {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: getAuthRedirectUrl('/auth', '?mode=reset'),
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+};
+
+export const resetPassword = async (password: string): Promise<AuthUser | null> => {
+  const { error } = await supabase.auth.updateUser({ password });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  try {
+    return await fetchCurrentProfile();
+  } catch {
+    return null;
+  }
 };
 
 export const getCurrentUser = async (): Promise<AuthUser | null> => {

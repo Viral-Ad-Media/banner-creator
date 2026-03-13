@@ -1,5 +1,5 @@
 import React, { Suspense, lazy, useEffect, useMemo, useState } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { SiteLayout } from './components/SiteLayout';
 import { HomePage } from './pages/HomePage';
 import { FeaturesPage } from './pages/FeaturesPage';
@@ -25,8 +25,13 @@ const AuthPage = lazy(() =>
 );
 
 const App: React.FC = () => {
+  const location = useLocation();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
+
+  const authMode = new URLSearchParams(location.search).get('mode');
+  const isResetRoute = location.pathname === '/auth' && authMode === 'reset';
 
   useEffect(() => {
     let isMounted = true;
@@ -55,7 +60,14 @@ const App: React.FC = () => {
 
       if (event === 'SIGNED_OUT') {
         setUser(null);
+        setIsPasswordRecovery(false);
         setIsAuthLoading(false);
+        return;
+      }
+
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsPasswordRecovery(true);
+        queueUserSync();
         return;
       }
 
@@ -80,7 +92,18 @@ const App: React.FC = () => {
       await logoutUser();
     } finally {
       setUser(null);
+      setIsPasswordRecovery(false);
     }
+  };
+
+  const handleAuthenticated = (nextUser: AuthUser) => {
+    setUser(nextUser);
+    setIsPasswordRecovery(false);
+  };
+
+  const handlePasswordResetComplete = (nextUser: AuthUser | null) => {
+    setUser(nextUser);
+    setIsPasswordRecovery(false);
   };
 
   const sitePage = useMemo(
@@ -121,7 +144,17 @@ const App: React.FC = () => {
 
         <Route
           path="/auth"
-          element={user ? <Navigate to="/app" replace /> : <AuthPage onAuthenticated={setUser} />}
+          element={
+            user && !isPasswordRecovery && !isResetRoute ? (
+              <Navigate to="/app" replace />
+            ) : (
+              <AuthPage
+                onAuthenticated={handleAuthenticated}
+                onPasswordResetComplete={handlePasswordResetComplete}
+                isPasswordRecovery={isPasswordRecovery || isResetRoute}
+              />
+            )
+          }
         />
 
         <Route
