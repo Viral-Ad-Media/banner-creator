@@ -14,6 +14,14 @@ type MeResponse = {
   user: AuthUser;
 };
 
+const getSignupRedirectUrl = () => {
+  if (typeof window === 'undefined') {
+    return undefined;
+  }
+
+  return `${window.location.origin}/auth`;
+};
+
 const fetchCurrentProfile = async (): Promise<AuthUser> => {
   const response = await apiFetch<MeResponse>('/auth/me');
   return response.user;
@@ -31,6 +39,7 @@ export const registerUser = async (payload: {
       data: {
         name: payload.name,
       },
+      emailRedirectTo: getSignupRedirectUrl(),
     },
   });
 
