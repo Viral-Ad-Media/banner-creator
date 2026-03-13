@@ -1,10 +1,20 @@
-import React, { useState } from 'react';
+import React, { Suspense, lazy, useState } from 'react';
 import { LayoutDashboard, Image as ImageIcon, Sparkles, LogOut, UserCircle2 } from 'lucide-react';
-import { CopyGenerator } from './CopyGenerator';
-import { ImageStudio } from './ImageStudio';
 import type { AuthUser } from '../services/authService';
 
 type Tab = 'copy' | 'studio';
+
+const CopyGenerator = lazy(() =>
+  import('./CopyGenerator').then((module) => ({
+    default: module.CopyGenerator,
+  }))
+);
+
+const ImageStudio = lazy(() =>
+  import('./ImageStudio').then((module) => ({
+    default: module.ImageStudio,
+  }))
+);
 
 interface AppWorkspaceProps {
   user: AuthUser;
@@ -76,7 +86,18 @@ export const AppWorkspace: React.FC<AppWorkspaceProps> = ({ user, onLogout }) =>
         </div>
 
         <div key={activeTab} className="animate-slide-up">
-          {activeTab === 'copy' ? <CopyGenerator /> : <ImageStudio />}
+          <Suspense
+            fallback={
+              <div className="min-h-[360px] flex items-center justify-center">
+                <div className="text-center">
+                  <div className="w-10 h-10 mx-auto border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  <p className="text-xs text-muted mt-3">Loading workspace...</p>
+                </div>
+              </div>
+            }
+          >
+            {activeTab === 'copy' ? <CopyGenerator /> : <ImageStudio />}
+          </Suspense>
         </div>
       </main>
     </div>

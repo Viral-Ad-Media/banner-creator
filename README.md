@@ -2,6 +2,11 @@
 
 Full-stack social creative SaaS for generating banner plans, producing AI backgrounds, and editing images, with authenticated users, usage metering, and plan-based limits.
 
+Current workspace layout:
+
+- Frontend repo: `banner-creator/`
+- Backend app: `../banner-creator-backend/`
+
 ## Features
 
 - Supabase Auth (email/password) for signup, login, and session persistence
@@ -39,50 +44,25 @@ Full-stack social creative SaaS for generating banner plans, producing AI backgr
 4. Backend creates/loads user profile in `app_users`.
 5. Protected routes use `req.auth.userId` + `req.auth.plan`.
 
-## Repository Structure
+## Workspace Structure
 
 ```text
-.
-├── App.tsx
-├── .env.example
-├── components/
-│   ├── AuthScreen.tsx
-│   ├── AppWorkspace.tsx
-│   ├── CopyGenerator.tsx
-│   ├── ImageStudio.tsx
-│   ├── CanvasEditor.tsx
-│   ├── SiteLayout.tsx
-│   └── ui/Button.tsx
-├── pages/
-│   ├── HomePage.tsx
-│   ├── FeaturesPage.tsx
-│   ├── PricingPage.tsx
-│   ├── AboutPage.tsx
-│   ├── ContactPage.tsx
-│   ├── PrivacyPage.tsx
-│   ├── TermsPage.tsx
-│   └── AuthPage.tsx
-├── services/
-│   ├── apiClient.ts
-│   ├── authService.ts
-│   ├── geminiService.ts
-│   └── supabaseClient.ts
-├── backend/
+banner-maker/
+├── banner-creator/
+│   ├── App.tsx
 │   ├── .env.example
+│   ├── components/
+│   ├── pages/
+│   ├── services/
 │   ├── package.json
-│   ├── tsconfig.json
-│   ├── supabase/schema.sql
-│   └── src/
-│       ├── app.ts
-│       ├── server.ts
-│       ├── config/
-│       ├── db/
-│       ├── lib/
-│       ├── middleware/
-│       ├── routes/
-│       ├── services/
-│       └── types/
-└── vite.config.ts
+│   ├── vercel.json
+│   └── vite.config.ts
+└── banner-creator-backend/
+    ├── .env.example
+    ├── package.json
+    ├── tsconfig.json
+    ├── supabase/schema.sql
+    └── src/
 ```
 
 ## Prerequisites
@@ -96,7 +76,7 @@ Full-stack social creative SaaS for generating banner plans, producing AI backgr
 
 1. Create a new Supabase project.
 2. Open Supabase SQL editor.
-3. Run [`backend/supabase/schema.sql`](backend/supabase/schema.sql).
+3. Run the SQL in `../banner-creator-backend/supabase/schema.sql`.
 4. In Supabase Auth settings:
    - Enable Email provider.
    - For local testing, disable email confirmation if you want immediate sign-in after signup.
@@ -120,12 +100,12 @@ VITE_SUPABASE_URL=https://your-project-ref.supabase.co
 VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
 ```
 
-### Backend (`backend/.env`)
+### Backend (`../banner-creator-backend/.env`)
 
-Start from `backend/.env.example`:
+Start from `../banner-creator-backend/.env.example`:
 
 ```bash
-cp backend/.env.example backend/.env
+cp ../banner-creator-backend/.env.example ../banner-creator-backend/.env
 ```
 
 Set:
@@ -145,7 +125,7 @@ SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
 
 ```bash
 npm install
-npm --prefix backend install
+npm --prefix ../banner-creator-backend install
 ```
 
 2. Start backend:
@@ -170,6 +150,7 @@ npm run dev
 Frontend:
 
 ```bash
+npm run typecheck
 npm run build
 npm run preview
 ```
@@ -177,9 +158,71 @@ npm run preview
 Backend:
 
 ```bash
+npm run backend:typecheck
 npm run backend:build
 npm run backend:start
 ```
+
+## Deploy to Vercel (Required Steps)
+
+With the current split layout, deploy the frontend and backend as **two separate projects**:
+
+- `social-studio-web` from `banner-creator/`
+- `social-studio-api` from `banner-creator-backend/`
+
+### 1. Prepare production services
+
+1. Create a production Supabase project.
+2. Run the SQL in `../banner-creator-backend/supabase/schema.sql` in Supabase SQL Editor.
+3. Get production keys:
+   - `SUPABASE_URL`
+   - `SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+4. Create/confirm your production Gemini API key.
+
+### 2. Deploy backend project on Vercel
+
+1. In Vercel, create a new project from the backend source directory or backend repo.
+2. Set **Root Directory** to `banner-creator-backend` (or use the backend repo directly if it is split out).
+3. Keep install/build defaults (`npm install`, `npm run build`).
+4. Add backend environment variables:
+   - `NODE_ENV=production`
+   - `PORT=4000`
+   - `GEMINI_API_KEY=...`
+   - `SUPABASE_URL=...`
+   - `SUPABASE_SERVICE_ROLE_KEY=...`
+   - `CORS_ORIGIN=https://<your-frontend-domain>`
+5. Deploy and verify:
+   - `https://<api-domain>/api/health` returns status JSON.
+
+### 3. Deploy frontend project on Vercel
+
+1. Create another Vercel project from the frontend source directory or frontend repo.
+2. Set **Root Directory** to `banner-creator`.
+3. Add frontend environment variables:
+   - `VITE_API_BASE_URL=https://<api-domain>/api`
+   - `VITE_BACKEND_URL=https://<api-domain>` (kept for proxy compatibility)
+   - `VITE_SUPABASE_URL=...`
+   - `VITE_SUPABASE_ANON_KEY=...`
+4. Deploy.
+5. Confirm deep-link routes work (`/pricing`, `/auth`, `/app`) using [`vercel.json`](vercel.json).
+
+### 4. Post-deploy checks
+
+1. Open frontend and complete signup/login.
+2. Confirm authenticated APIs work:
+   - `GET /api/auth/me`
+   - `POST /api/generations/plan`
+3. Verify CORS is correct (frontend domain allowed by backend `CORS_ORIGIN`).
+4. Trigger one generation and confirm rows appear in Supabase tables (`app_users`, `generations`, `usage_events`).
+
+### 5. Production hardening checklist
+
+1. Rotate all placeholder secrets and use production-only values.
+2. Configure Supabase Auth email templates and redirect URLs.
+3. Add custom domains for web + api projects.
+4. Replace mock billing endpoints with real Stripe checkout + webhooks.
+5. Add monitoring/alerts (Vercel + Supabase logs).
 
 ## Frontend Routes
 
@@ -332,6 +375,6 @@ To productionize billing:
 ## Troubleshooting
 
 - `401 Invalid or expired token`: verify Supabase frontend keys and active session.
-- `Backend environment validation failed`: check `backend/.env` against `backend/.env.example`.
-- `Monthly credit limit reached`: upgrade plan via billing endpoint or adjust limits in `backend/src/config/plans.ts`.
+- `Backend environment validation failed`: check `../banner-creator-backend/.env` against `../banner-creator-backend/.env.example`.
+- `Monthly credit limit reached`: upgrade plan via billing endpoint or adjust limits in `../banner-creator-backend/src/config/plans.ts`.
 - Signup requires email confirmation: disable confirmation for local testing or confirm inbox first.
