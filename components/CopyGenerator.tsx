@@ -41,7 +41,7 @@ export const CopyGenerator: React.FC = () => {
   const [editorBackgrounds, setEditorBackgrounds] = useState<Record<string, BackgroundState>>({});
   
   const [generatingStatus, setGeneratingStatus] = useState<Record<string, boolean>>({});
-  const [generationErrors, setGenerationErrors] = useState<Record<string, boolean>>({});
+  const [generationErrors, setGenerationErrors] = useState<Record<string, string>>({});
 
   // --- Social State ---
   const [connectedSocials, setConnectedSocials] = useState<SocialPlatform[]>([]);
@@ -185,7 +185,11 @@ export const CopyGenerator: React.FC = () => {
     runId = generationRunRef.current
   ) => {
     setGeneratingStatus(prev => ({ ...prev, [id]: true }));
-    setGenerationErrors(prev => ({ ...prev, [id]: false }));
+    setGenerationErrors(prev => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
     try {
       const imageUrl = await generateImage(prompt, ratio, refImages);
       if (runId !== generationRunRef.current) return;
@@ -194,7 +198,8 @@ export const CopyGenerator: React.FC = () => {
     } catch (error) {
       if (runId !== generationRunRef.current) return;
       console.error(`Failed to generate image for ${id}`, error);
-      setGenerationErrors(prev => ({ ...prev, [id]: true }));
+      const message = error instanceof Error ? error.message : 'Image generation failed.';
+      setGenerationErrors(prev => ({ ...prev, [id]: message }));
     } finally {
       if (runId !== generationRunRef.current) return;
       setGeneratingStatus(prev => ({ ...prev, [id]: false }));
@@ -688,6 +693,9 @@ export const CopyGenerator: React.FC = () => {
                                         ) : generationErrors['main'] ? (
                                             <div className="flex flex-col items-center gap-2">
                                                 <div className="text-red-400 text-xs">Generation Failed</div>
+                                                <div className="text-red-300/80 text-[11px] max-w-[220px] text-center">
+                                                  {generationErrors['main']}
+                                                </div>
                                                 <Button 
                                                     variant="secondary" 
                                                     onClick={(e) => { e.stopPropagation(); getRetryProps('main', plan.main_banner.image_prompt)(); }} 
@@ -755,6 +763,9 @@ export const CopyGenerator: React.FC = () => {
                                             ) : generationErrors[`slide-${idx}`] ? (
                                                 <div className="flex flex-col items-center gap-2">
                                                     <div className="text-red-400 text-xs">Generation Failed</div>
+                                                    <div className="text-red-300/80 text-[11px] max-w-[220px] text-center">
+                                                        {generationErrors[`slide-${idx}`]}
+                                                    </div>
                                                     <Button 
                                                         variant="secondary" 
                                                         onClick={(e) => { e.stopPropagation(); getRetryProps(`slide-${idx}`, slide.image_prompt)(); }} 
