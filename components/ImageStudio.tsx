@@ -1,18 +1,40 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { editImageWithGemini } from '../services/geminiService';
 import { Button } from './ui/Button';
 import { Image as ImageIcon, Sparkles, Upload, Download, Undo2, Eraser, Wand2 } from 'lucide-react';
+import { AvatarLibraryPicker } from './workspace/AvatarLibraryPicker';
+import type { AvatarAsset } from '../services/avatarLibrary';
 
 const MAX_HISTORY_LENGTH = 12;
 const MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024;
+const DEFAULT_AVATAR_STORAGE_KEY = 'social-studio:avatars:v1';
 
-export const ImageStudio: React.FC = () => {
+interface ImageStudioProps {
+  avatarStorageKey?: string;
+}
+
+export const ImageStudio: React.FC<ImageStudioProps> = ({
+  avatarStorageKey = DEFAULT_AVATAR_STORAGE_KEY,
+}) => {
   const [currentImage, setCurrentImage] = useState<string | null>(null);
   const [history, setHistory] = useState<string[]>([]);
   const [prompt, setPrompt] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [selectedAvatarId, setSelectedAvatarId] = useState<string | null>(null);
+  const [selectedAvatar, setSelectedAvatar] = useState<AvatarAsset | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!selectedAvatar) {
+      return;
+    }
+
+    setCurrentImage(selectedAvatar.imageDataUrl);
+    setHistory([selectedAvatar.imageDataUrl]);
+    setPrompt('');
+    setStatusMessage({ type: 'success', text: `${selectedAvatar.name} loaded into Image Studio.` });
+  }, [selectedAvatar]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const input = e.target;
@@ -33,6 +55,7 @@ export const ImageStudio: React.FC = () => {
       const reader = new FileReader();
       reader.onloadend = () => {
         const base64String = reader.result as string;
+        setSelectedAvatarId(null);
         setCurrentImage(base64String);
         setHistory([base64String]);
         setPrompt('');
@@ -85,15 +108,38 @@ export const ImageStudio: React.FC = () => {
 
   return (
     <div className="max-w-[1600px] mx-auto pb-20">
-      
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 h-[700px]">
+      <div className="mb-6 surface-card rounded-[32px] px-6 py-5">
+        <span className="section-kicker">Image Studio</span>
+        <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <h2 className="text-3xl font-semibold text-white">Refine a source image with cleaner, more directed edits.</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-7 text-[#c0d1de]">
+              Start from an uploaded image or a saved avatar, then iterate with natural-language instructions while keeping local undo history.
+            </p>
+          </div>
+          <div className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs text-muted">
+            Local history enabled
+          </div>
+        </div>
+      </div>
+
+      <div className="grid h-auto grid-cols-1 gap-8 lg:h-[700px] lg:grid-cols-12">
         {/* Editor Controls */}
-        <div className="lg:col-span-4 flex flex-col h-full">
+        <div className="lg:col-span-4 flex flex-col h-full gap-6 overflow-y-auto pr-1">
+          <AvatarLibraryPicker
+            storageKey={avatarStorageKey}
+            selectedAvatarId={selectedAvatarId}
+            onSelectedAvatarIdChange={setSelectedAvatarId}
+            onSelectedAvatarChange={setSelectedAvatar}
+            title="Avatar For Image Studio"
+            description="Create or select an avatar, then load it into the editor as the source image for new variations."
+          />
+
           {/* Upload Area */}
           {!currentImage ? (
              <div 
               onClick={triggerUpload}
-              className="flex-1 border border-dashed border-white/10 rounded-3xl flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-white/[0.02] transition-all p-8 group bg-surface/30 backdrop-blur-sm"
+              className="surface-card flex min-h-[280px] flex-1 cursor-pointer flex-col items-center justify-center rounded-[32px] border border-dashed p-8 transition-all group hover:border-primary/50 hover:bg-white/[0.02]"
             >
               <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*" className="hidden" />
               <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
@@ -103,7 +149,7 @@ export const ImageStudio: React.FC = () => {
               <p className="text-sm text-muted">Click or drag and drop to start editing</p>
             </div>
           ) : (
-            <div className="bg-surface/50 backdrop-blur-xl border border-white/5 p-6 rounded-2xl shadow-2xl space-y-6 flex-1 flex flex-col">
+            <div className="surface-card flex flex-1 flex-col space-y-6 rounded-[30px] p-6">
               <div className="flex items-center justify-between pb-4 border-b border-white/5">
                 <div className="flex items-center gap-2">
                     <Wand2 className="w-5 h-5 text-primary" />
@@ -120,6 +166,7 @@ export const ImageStudio: React.FC = () => {
                   </button>
                   <button 
                     onClick={() => {
+                        setSelectedAvatarId(null);
                         setCurrentImage(null);
                         setHistory([]);
                         setPrompt('');
@@ -160,7 +207,7 @@ export const ImageStudio: React.FC = () => {
         </div>
 
         {/* Image Preview Canvas */}
-        <div className="lg:col-span-8 bg-[#0a0a0a] border border-white/5 rounded-3xl overflow-hidden relative flex items-center justify-center p-8 shadow-2xl">
+        <div className="surface-card-strong relative flex items-center justify-center overflow-hidden rounded-[34px] border border-white/10 p-8 lg:col-span-8">
             {/* Checkerboard pattern for transparency */}
             <div className="absolute inset-0 opacity-10 pointer-events-none" 
                  style={{ backgroundImage: 'linear-gradient(45deg, #222 25%, transparent 25%), linear-gradient(-45deg, #222 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #222 75%), linear-gradient(-45deg, transparent 75%, #222 75%)', backgroundSize: '20px 20px', backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px' }}>

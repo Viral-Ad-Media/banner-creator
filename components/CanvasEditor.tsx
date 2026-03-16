@@ -82,15 +82,15 @@ const FONTS = [
 ];
 
 const COLORS = [
-    '#ffffff', '#000000', '#1f2937', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#ef4444'
+    '#ffffff', '#000000', '#1f2937', '#40d6c3', '#ffb166', '#10b981', '#3b82f6', '#ef4444', '#f5d0fe'
 ];
 
 const GRADIENTS = [
-    'linear-gradient(to right, #ec4899, #8b5cf6)', // Pink to Purple
-    'linear-gradient(to right, #3b82f6, #10b981)', // Blue to Green
-    'linear-gradient(to right, #f59e0b, #ef4444)', // Orange to Red
-    'linear-gradient(to right, #ffffff, #9ca3af)', // White to Gray
-    'linear-gradient(to right, #6366f1, #a855f7, #ec4899)', // Indigo Purple Pink
+    'linear-gradient(to right, #40d6c3, #3b82f6)',
+    'linear-gradient(to right, #ffb166, #ef4444)',
+    'linear-gradient(to right, #10b981, #40d6c3)',
+    'linear-gradient(to right, #ffffff, #9ca3af)',
+    'linear-gradient(to right, #1d4ed8, #40d6c3, #ffb166)',
 ];
 
 const SUGGESTED_BG_PROMPTS = [
@@ -472,7 +472,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
             fontWeight: 'bold',
             fontFamily: 'Inter',
             color: '#ffffff',
-            backgroundColor: '#8b5cf6', // Primary
+            backgroundColor: '#40d6c3',
             textAlign: 'center',
             borderRadius: 8,
             padding: 12,
@@ -482,8 +482,8 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
         newElement.x = centerX - 80;
     }
     else if (type === 'shape') {
-        newElement.content = '#8b5cf6'; // Default Color
-        newElement.style.backgroundColor = '#8b5cf6';
+        newElement.content = '#40d6c3';
+        newElement.style.backgroundColor = '#40d6c3';
         if (subType === 'circle') {
              newElement.width = 200;
              newElement.height = 200;
@@ -928,7 +928,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
       {/* 1. Left Sidebar (Navigation) */}
       <div className="w-[72px] bg-[#18181b] border-r border-white/5 flex flex-col items-center py-4 gap-6 shrink-0 z-50">
            <button onClick={onClose} className="p-2 mb-2 hover:bg-white/10 rounded-lg transition-colors">
-               <div className="w-8 h-8 rounded bg-gradient-to-br from-primary to-indigo-600 flex items-center justify-center font-bold text-white">S</div>
+               <div className="w-8 h-8 rounded bg-[linear-gradient(135deg,#83efe0_0%,#48d9c8_42%,#168d87_100%)] flex items-center justify-center font-bold text-[#04161a]">S</div>
            </button>
            
            {[
@@ -1194,7 +1194,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                 {/* AI Panel */}
                 {activeSidebar === 'ai' && (
                     <div className="space-y-6">
-                        <div className="bg-gradient-to-br from-indigo-900/50 to-purple-900/50 p-4 rounded-xl border border-white/10">
+                        <div className="bg-[linear-gradient(180deg,rgba(64,214,195,0.12),rgba(12,22,31,0.78))] p-4 rounded-xl border border-white/10">
                             <h4 className="font-bold flex items-center gap-2 mb-2 text-white"><Wand2 className="w-4 h-4 text-primary" /> Magic Edit</h4>
                             <p className="text-xs text-muted mb-3">Select an image and describe what to change.</p>
                             <textarea 
@@ -1205,7 +1205,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                             <Button size="sm" onClick={handleMagicEdit} disabled={!editPrompt} isLoading={isGenerating} className="w-full h-8 text-xs">Generate</Button>
                         </div>
                         
-                        <div className="bg-gradient-to-br from-indigo-900/50 to-purple-900/50 p-4 rounded-xl border border-white/10">
+                        <div className="bg-[linear-gradient(180deg,rgba(255,177,102,0.12),rgba(12,22,31,0.78))] p-4 rounded-xl border border-white/10">
                             <h4 className="font-bold flex items-center gap-2 mb-2 text-white"><Sparkles className="w-4 h-4 text-primary" /> Create Background</h4>
                             <p className="text-xs text-muted mb-3">Generate a unique background from text.</p>
                             <textarea 

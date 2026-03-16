@@ -12,6 +12,7 @@ export interface VideoGenerationRequest {
   durationSeconds: VideoDurationSeconds;
   modelPreset: VideoModelPreset;
   includeAudio: boolean;
+  sourceImageDataUrl?: string;
 }
 
 export interface VideoGenerationJobStatus {

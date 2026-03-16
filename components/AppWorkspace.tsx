@@ -73,10 +73,10 @@ const workspaceNav: WorkspaceNavItem[] = [
   {
     id: 'video-generator',
     label: 'Video Generator',
-    description: 'Prepare motion workflows',
+    description: 'Create motion clips and image-to-video',
     to: '/app/video-generator',
     icon: Video,
-    badge: 'Soon',
+    badge: 'Beta',
   },
   {
     id: 'activities',
@@ -109,9 +109,10 @@ export const AppWorkspace: React.FC<AppWorkspaceProps> = ({ user, onLogout, onUs
   }, [location.pathname]);
 
   const activeItem = workspaceNav.find((item) => location.pathname === item.to) ?? workspaceNav[0];
+  const ActiveIcon = activeItem.icon;
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(124,58,237,0.18),transparent_28%),linear-gradient(180deg,#050505_0%,#09090b_100%)] font-sans selection:bg-primary/30">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(64,214,195,0.15),transparent_24%),radial-gradient(circle_at_top_right,rgba(255,177,102,0.12),transparent_22%),linear-gradient(180deg,#071219_0%,#0b1620_100%)] font-sans selection:bg-primary/30">
       {isSidebarOpen && (
         <button
           type="button"
@@ -124,104 +125,113 @@ export const AppWorkspace: React.FC<AppWorkspaceProps> = ({ user, onLogout, onUs
       <div className="mx-auto max-w-[1720px] px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
         <div className="flex min-h-[calc(100vh-2rem)] gap-6">
           <aside
-            className={`fixed inset-y-0 left-0 z-50 flex w-[290px] flex-col border-r border-white/8 bg-[#09090bdd] p-4 backdrop-blur-2xl transition-transform duration-300 lg:sticky lg:top-4 lg:h-[calc(100vh-2rem)] lg:translate-x-0 lg:rounded-[32px] lg:border lg:bg-surface/80 ${
+            className={`fixed inset-y-0 left-0 z-50 flex w-[298px] flex-col p-4 transition-transform duration-300 lg:sticky lg:top-4 lg:h-[calc(100vh-2rem)] lg:translate-x-0 ${
               isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
             }`}
           >
-            <div className="flex items-center justify-between rounded-3xl border border-white/8 bg-white/5 px-4 py-4">
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-primary/60 to-indigo-500/60 blur-md" />
-                  <div className="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-[#111114]">
-                    <Sparkles className="h-5 w-5 text-white" />
+            <div className="surface-card-strong flex h-full flex-col rounded-[34px] border border-white/10 p-4">
+              <div className="flex items-center justify-between rounded-[26px] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] px-4 py-4">
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <div className="absolute -inset-1 rounded-[22px] bg-[linear-gradient(135deg,rgba(131,239,224,0.65),rgba(22,141,135,0.24))] blur-md" />
+                    <div className="relative flex h-12 w-12 items-center justify-center rounded-[20px] bg-[#0c161d] text-primary">
+                      <Sparkles className="h-5 w-5" />
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-[11px] uppercase tracking-[0.32em] text-primary">Workspace</p>
+                    <h1 className="text-lg font-semibold text-white">Social Studio</h1>
                   </div>
                 </div>
-                <div>
-                  <p className="text-xs uppercase tracking-[0.26em] text-primary">Workspace</p>
-                  <h1 className="text-lg font-semibold text-white">Social Studio</h1>
+
+                <button
+                  type="button"
+                  onClick={() => setIsSidebarOpen(false)}
+                  className="rounded-xl p-2 text-muted transition-colors hover:bg-white/10 hover:text-white lg:hidden"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="mt-4 rounded-[28px] border border-white/8 bg-black/20 p-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-[18px] bg-primary/10 text-primary">
+                    <UserCircle2 className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-white">{user.name}</p>
+                    <p className="truncate text-xs text-muted">{user.email}</p>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-3">
+                  <div className="flex items-center justify-between rounded-[22px] border border-primary/15 bg-primary/10 px-3 py-3">
+                    <span className="text-[11px] uppercase tracking-[0.24em] text-primary">Plan</span>
+                    <span className="text-sm font-semibold text-white">{user.plan}</span>
+                  </div>
+                  <div className="rounded-[22px] border border-white/8 bg-white/5 px-3 py-3">
+                    <p className="text-[11px] uppercase tracking-[0.24em] text-muted">Creative State</p>
+                    <p className="mt-2 text-sm leading-6 text-white/80">Banners, avatars, and motion tools are all available from this workspace.</p>
+                  </div>
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setIsSidebarOpen(false)}
-                className="rounded-xl p-2 text-muted transition-colors hover:bg-white/10 hover:text-white lg:hidden"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
+              <nav className="mt-5 flex-1 space-y-2">
+                {workspaceNav.map((item) => {
+                  const Icon = item.icon;
 
-            <div className="mt-4 rounded-[28px] border border-white/8 bg-black/20 p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                  <UserCircle2 className="h-5 w-5" />
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-white">{user.name}</p>
-                  <p className="truncate text-xs text-muted">{user.email}</p>
-                </div>
-              </div>
-
-              <div className="mt-4 flex items-center justify-between rounded-2xl border border-primary/15 bg-primary/10 px-3 py-2">
-                <span className="text-xs uppercase tracking-[0.24em] text-primary">Plan</span>
-                <span className="text-sm font-semibold text-white">{user.plan}</span>
-              </div>
-            </div>
-
-            <nav className="mt-5 flex-1 space-y-2">
-              {workspaceNav.map((item) => {
-                const Icon = item.icon;
-
-                return (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    className={({ isActive }) =>
-                      `group flex items-start gap-3 rounded-[24px] border px-4 py-4 transition-all ${
-                        isActive
-                          ? 'border-primary/25 bg-primary/10 shadow-lg shadow-primary/10'
-                          : 'border-white/0 text-muted hover:border-white/10 hover:bg-white/5 hover:text-white'
-                      }`
-                    }
-                  >
-                    {({ isActive }) => (
-                      <>
-                        <div
-                          className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${
-                            isActive ? 'bg-primary text-white' : 'bg-white/5 text-muted group-hover:text-white'
-                          }`}
-                        >
-                          <Icon className="h-4 w-4" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className={`text-sm font-medium ${isActive ? 'text-white' : ''}`}>{item.label}</span>
-                            {item.badge && (
-                              <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-primary">
-                                {item.badge}
-                              </span>
-                            )}
+                  return (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      className={({ isActive }) =>
+                        `group flex items-start gap-3 rounded-[26px] border px-4 py-4 transition-all ${
+                          isActive
+                            ? 'border-primary/22 bg-[linear-gradient(180deg,rgba(64,214,195,0.12),rgba(64,214,195,0.06))] shadow-[0_18px_40px_-28px_rgba(64,214,195,0.85)]'
+                            : 'border-white/0 text-muted hover:border-white/10 hover:bg-white/6 hover:text-white'
+                        }`
+                      }
+                    >
+                      {({ isActive }) => (
+                        <>
+                          <div
+                            className={`mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] ${
+                              isActive ? 'bg-primary/18 text-primary' : 'bg-white/5 text-muted group-hover:text-white'
+                            }`}
+                          >
+                            <Icon className="h-4 w-4" />
                           </div>
-                          <p className={`mt-1 text-xs leading-5 ${isActive ? 'text-white/70' : 'text-muted'}`}>{item.description}</p>
-                        </div>
-                      </>
-                    )}
-                  </NavLink>
-                );
-              })}
-            </nav>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className={`text-sm font-semibold ${isActive ? 'text-white' : ''}`}>{item.label}</span>
+                              {item.badge && (
+                                <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-primary">
+                                  {item.badge}
+                                </span>
+                              )}
+                            </div>
+                            <p className={`mt-1 text-xs leading-5 ${isActive ? 'text-white/72' : 'text-muted'}`}>{item.description}</p>
+                          </div>
+                        </>
+                      )}
+                    </NavLink>
+                  );
+                })}
+              </nav>
 
-            <div className="mt-5 rounded-[28px] border border-white/8 bg-black/20 p-4">
-              <Button variant="secondary" onClick={() => void onLogout()} className="w-full justify-center">
-                <LogOut className="h-4 w-4" />
-                Log Out
-              </Button>
+              <div className="mt-5 rounded-[28px] border border-white/8 bg-black/20 p-4">
+                <Button variant="secondary" onClick={() => void onLogout()} className="w-full justify-center">
+                  <LogOut className="h-4 w-4" />
+                  Log Out
+                </Button>
+              </div>
             </div>
           </aside>
 
           <div className="min-w-0 flex-1 lg:pl-0">
-            <header className="sticky top-4 z-30 rounded-[30px] border border-white/10 bg-black/35 p-4 shadow-2xl shadow-black/10 backdrop-blur-xl">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <header className="sticky top-4 z-30 overflow-hidden rounded-[34px] border border-white/10 bg-[linear-gradient(180deg,rgba(17,30,41,0.9),rgba(10,19,27,0.85))] p-4 shadow-[0_30px_80px_-44px_rgba(0,0,0,0.9)] backdrop-blur-xl sm:p-5">
+              <div className="absolute inset-x-0 top-0 h-24 bg-[radial-gradient(circle_at_top,rgba(64,214,195,0.12),transparent_65%)]" />
+              <div className="relative flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                 <div className="flex items-start gap-3">
                   <button
                     type="button"
@@ -231,20 +241,28 @@ export const AppWorkspace: React.FC<AppWorkspaceProps> = ({ user, onLogout, onUs
                     <Menu className="h-4 w-4" />
                   </button>
 
+                  <div className="flex h-12 w-12 items-center justify-center rounded-[18px] bg-primary/12 text-primary">
+                    <ActiveIcon className="h-5 w-5" />
+                  </div>
+
                   <div>
-                    <p className="text-xs uppercase tracking-[0.24em] text-primary">Current Section</p>
-                    <h2 className="mt-1 text-2xl font-semibold tracking-tight text-white">{activeItem.label}</h2>
-                    <p className="mt-1 text-sm text-muted">{activeItem.description}</p>
+                    <p className="text-[11px] uppercase tracking-[0.28em] text-primary">Current Section</p>
+                    <h2 className="mt-1 text-3xl font-semibold tracking-tight text-white">{activeItem.label}</h2>
+                    <p className="mt-2 max-w-2xl text-sm leading-6 text-[#c0d1de]">{activeItem.description}</p>
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-muted">
-                    Signed in as <span className="text-white">{user.name}</span>
-                  </span>
-                  <span className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary">
-                    {user.plan} workspace
-                  </span>
+                <div className="grid gap-3 sm:grid-cols-2 xl:min-w-[430px]">
+                  <div className="rounded-[24px] border border-white/10 bg-black/20 px-4 py-4">
+                    <p className="text-[11px] uppercase tracking-[0.24em] text-muted">Workspace Owner</p>
+                    <p className="mt-2 text-base font-semibold text-white">{user.name}</p>
+                    <p className="mt-1 text-sm text-muted">{user.email}</p>
+                  </div>
+                  <div className="rounded-[24px] border border-primary/15 bg-primary/8 px-4 py-4">
+                    <p className="text-[11px] uppercase tracking-[0.24em] text-primary">Plan Access</p>
+                    <p className="mt-2 text-base font-semibold text-white">{user.plan}</p>
+                    <p className="mt-1 text-sm text-white/70">Workspace tools, activity, and settings are ready.</p>
+                  </div>
                 </div>
               </div>
             </header>
@@ -252,7 +270,7 @@ export const AppWorkspace: React.FC<AppWorkspaceProps> = ({ user, onLogout, onUs
             <main className="mt-6">
               <Suspense
                 fallback={
-                  <div className="flex min-h-[360px] items-center justify-center rounded-[32px] border border-white/8 bg-surface/60">
+                  <div className="surface-card flex min-h-[360px] items-center justify-center rounded-[32px]">
                     <div className="text-center">
                       <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                       <p className="mt-3 text-sm text-muted">Loading workspace...</p>
@@ -264,12 +282,25 @@ export const AppWorkspace: React.FC<AppWorkspaceProps> = ({ user, onLogout, onUs
                   <Route index element={<Navigate to="banner-generator" replace />} />
                   <Route
                     path="banner-generator"
-                    element={<CopyGenerator draftStorageKey={`social-studio:banner-workspace-draft:${user.id}`} />}
+                    element={
+                      <CopyGenerator
+                        draftStorageKey={`social-studio:banner-workspace-draft:${user.id}`}
+                        avatarStorageKey={`social-studio:avatars:${user.id}`}
+                      />
+                    }
                   />
-                  <Route path="image-studio" element={<ImageStudio />} />
+                  <Route
+                    path="image-studio"
+                    element={<ImageStudio avatarStorageKey={`social-studio:avatars:${user.id}`} />}
+                  />
                   <Route
                     path="video-generator"
-                    element={<VideoGeneratorPanel draftStorageKey={`social-studio:video-generator:${user.id}`} />}
+                    element={
+                      <VideoGeneratorPanel
+                        draftStorageKey={`social-studio:video-generator:${user.id}`}
+                        avatarStorageKey={`social-studio:avatars:${user.id}`}
+                      />
+                    }
                   />
                   <Route path="activities" element={<ActivitiesPanel />} />
                   <Route path="settings" element={<SettingsPanel user={user} onUserUpdated={onUserUpdated} />} />

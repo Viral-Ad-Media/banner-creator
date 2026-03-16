@@ -7,6 +7,8 @@ import {
   Hash, Copy, Share2, Instagram, Linkedin, ChevronDown, MousePointer2, Facebook, Video, CheckCircle, Loader2, RefreshCcw
 } from 'lucide-react';
 import { CanvasEditor, CanvasElement, BackgroundState } from './CanvasEditor';
+import { AvatarLibraryPicker } from './workspace/AvatarLibraryPicker';
+import type { AvatarAsset } from '../services/avatarLibrary';
 
 type SocialPlatform = 'instagram' | 'facebook' | 'tiktok' | 'linkedin';
 const BANNER_COUNT_OPTIONS = [1, 2, 3, 4, 5, 6] as const;
@@ -15,6 +17,7 @@ const DEFAULT_BANNER_COUNT: BannerCount = 3;
 
 interface CopyGeneratorProps {
   draftStorageKey?: string;
+  avatarStorageKey?: string;
 }
 
 type PersistedWorkspaceDraft = {
@@ -22,6 +25,7 @@ type PersistedWorkspaceDraft = {
   userPrompt: string;
   backgroundImage: string | null;
   assetImage: string | null;
+  selectedAvatarId?: string | null;
   aspectRatio: AspectRatio;
   bannerCount?: BannerCount;
   plan: BannerPlan | null;
@@ -33,6 +37,7 @@ type PersistedWorkspaceDraft = {
 };
 
 const DEFAULT_DRAFT_STORAGE_KEY = 'social-studio:banner-workspace-draft:v1';
+const DEFAULT_AVATAR_STORAGE_KEY = 'social-studio:avatars:v1';
 
 const SOCIAL_LOGIN_URLS: Record<SocialPlatform, string> = {
   facebook: 'https://www.facebook.com/login.php',
@@ -41,11 +46,16 @@ const SOCIAL_LOGIN_URLS: Record<SocialPlatform, string> = {
   linkedin: 'https://www.linkedin.com/login',
 };
 
-export const CopyGenerator: React.FC<CopyGeneratorProps> = ({ draftStorageKey = DEFAULT_DRAFT_STORAGE_KEY }) => {
+export const CopyGenerator: React.FC<CopyGeneratorProps> = ({
+  draftStorageKey = DEFAULT_DRAFT_STORAGE_KEY,
+  avatarStorageKey = DEFAULT_AVATAR_STORAGE_KEY,
+}) => {
   // --- Input State ---
   const [userPrompt, setUserPrompt] = useState('');
   const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
   const [assetImage, setAssetImage] = useState<string | null>(null);
+  const [selectedAvatarId, setSelectedAvatarId] = useState<string | null>(null);
+  const [selectedAvatar, setSelectedAvatar] = useState<AvatarAsset | null>(null);
   
   // --- Config State ---
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1');
@@ -144,6 +154,7 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({ draftStorageKey = 
       setUserPrompt(draft.userPrompt ?? '');
       setBackgroundImage(draft.backgroundImage ?? null);
       setAssetImage(draft.assetImage ?? null);
+      setSelectedAvatarId(draft.selectedAvatarId ?? null);
       setAspectRatio(draft.aspectRatio ?? '1:1');
       setBannerCount(draft.bannerCount ?? DEFAULT_BANNER_COUNT);
       setPlan(draft.plan ?? null);
@@ -158,7 +169,8 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({ draftStorageKey = 
         !!draft.plan ||
         Object.keys(draft.generatedImages ?? {}).length > 0 ||
         !!draft.backgroundImage ||
-        !!draft.assetImage;
+        !!draft.assetImage ||
+        !!draft.selectedAvatarId;
 
       if (hasSavedContent) {
         setStatusMessage({ type: 'success', text: 'Restored your last banner workspace.' });
@@ -180,6 +192,7 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({ draftStorageKey = 
       userPrompt.trim().length > 0 ||
       !!backgroundImage ||
       !!assetImage ||
+      !!selectedAvatarId ||
       !!plan ||
       Object.keys(generatedImages).length > 0 ||
       Object.keys(rawBackgrounds).length > 0 ||
@@ -197,6 +210,7 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({ draftStorageKey = 
       userPrompt,
       backgroundImage,
       assetImage,
+      selectedAvatarId,
       aspectRatio,
       bannerCount,
       plan,
@@ -221,6 +235,7 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({ draftStorageKey = 
     bannerCount,
     assetImage,
     backgroundImage,
+    selectedAvatarId,
     draftStorageKey,
     editorBackgrounds,
     generatedImages,
@@ -279,6 +294,7 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({ draftStorageKey = 
       setIsPlanning(false);
 
       const referenceImages: string[] = [];
+      if (selectedAvatar) referenceImages.push(selectedAvatar.imageDataUrl);
       if (backgroundImage) referenceImages.push(backgroundImage);
       if (assetImage) referenceImages.push(assetImage);
 
@@ -407,7 +423,7 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({ draftStorageKey = 
         fontFamily: 'Inter',
         fontWeight: 'bold',
         color: '#ffffff',
-        backgroundColor: '#8b5cf6', // Primary violet
+        backgroundColor: '#40d6c3',
         textAlign: 'center' as 'center',
         borderRadius: 8,
         padding: 12,
@@ -622,6 +638,7 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({ draftStorageKey = 
   const getRetryProps = (id: string, prompt: string) => {
     const refs: string[] = [];
     if (backgroundImage) refs.push(backgroundImage);
+    if (selectedAvatar) refs.unshift(selectedAvatar.imageDataUrl);
     if (assetImage) refs.push(assetImage);
     return () => triggerImageGeneration(id, prompt, aspectRatio, refs, generationRunRef.current);
   };
@@ -781,6 +798,17 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({ draftStorageKey = 
                              )}
                         </button>
                     </div>
+                </div>
+
+                <div className="pt-4 border-t border-white/5">
+                    <AvatarLibraryPicker
+                        storageKey={avatarStorageKey}
+                        selectedAvatarId={selectedAvatarId}
+                        onSelectedAvatarIdChange={setSelectedAvatarId}
+                        onSelectedAvatarChange={setSelectedAvatar}
+                        title="Avatar For Images"
+                        description="Use a saved avatar as the subject reference for banner image generation."
+                    />
                 </div>
 
                 <div className="pt-4">

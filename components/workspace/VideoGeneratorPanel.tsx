@@ -21,7 +21,9 @@ import {
   type VideoGenerationJobStatus,
   type VideoModelPreset,
 } from '../../services/videoService';
+import type { AvatarAsset } from '../../services/avatarLibrary';
 import { Button } from '../ui/Button';
+import { AvatarLibraryPicker } from './AvatarLibraryPicker';
 
 const VIDEO_DURATION_OPTIONS = [4, 6, 8] as const;
 const VIDEO_MODEL_OPTIONS = [
@@ -29,6 +31,7 @@ const VIDEO_MODEL_OPTIONS = [
   { id: 'quality', label: 'Quality', description: 'Higher fidelity, slower jobs' },
 ] as const;
 const DEFAULT_STORAGE_KEY = 'social-studio:video-generator:v1';
+const DEFAULT_AVATAR_STORAGE_KEY = 'social-studio:avatars:v1';
 const MAX_STORED_JOBS = 8;
 const VIDEO_POLL_INTERVAL_MS = 10000;
 
@@ -51,12 +54,14 @@ type PersistedVideoWorkspace = {
   durationSeconds: VideoDurationSeconds;
   modelPreset: VideoModelPreset;
   includeAudio: boolean;
+  selectedAvatarId: string | null;
   selectedOperationName: string | null;
   jobs: PersistedVideoJob[];
 };
 
 interface VideoGeneratorPanelProps {
   draftStorageKey?: string;
+  avatarStorageKey?: string;
 }
 
 const formatTimestamp = (value: string) =>
@@ -81,6 +86,7 @@ const getVideoAspectRatioClass = (aspectRatio: VideoAspectRatio) =>
 
 export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
   draftStorageKey = DEFAULT_STORAGE_KEY,
+  avatarStorageKey = DEFAULT_AVATAR_STORAGE_KEY,
 }) => {
   const [prompt, setPrompt] = useState('');
   const [negativePrompt, setNegativePrompt] = useState('');
@@ -88,6 +94,8 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
   const [durationSeconds, setDurationSeconds] = useState<VideoDurationSeconds>(4);
   const [modelPreset, setModelPreset] = useState<VideoModelPreset>('fast');
   const [includeAudio, setIncludeAudio] = useState(false);
+  const [selectedAvatarId, setSelectedAvatarId] = useState<string | null>(null);
+  const [selectedAvatar, setSelectedAvatar] = useState<AvatarAsset | null>(null);
   const [jobs, setJobs] = useState<PersistedVideoJob[]>([]);
   const [selectedOperationName, setSelectedOperationName] = useState<string | null>(null);
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
@@ -130,6 +138,7 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
       setDurationSeconds(draft.durationSeconds ?? 4);
       setModelPreset(draft.modelPreset ?? 'fast');
       setIncludeAudio(draft.includeAudio ?? false);
+      setSelectedAvatarId(draft.selectedAvatarId ?? null);
       setJobs(draft.jobs ?? []);
       setSelectedOperationName(draft.selectedOperationName ?? draft.jobs?.[0]?.operationName ?? null);
 
@@ -153,6 +162,7 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
       prompt.trim().length > 0 ||
       negativePrompt.trim().length > 0 ||
       jobs.length > 0 ||
+      !!selectedAvatarId ||
       includeAudio ||
       aspectRatio !== '16:9' ||
       durationSeconds !== 4 ||
@@ -171,6 +181,7 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
       durationSeconds,
       modelPreset,
       includeAudio,
+      selectedAvatarId,
       selectedOperationName,
       jobs,
     };
@@ -186,6 +197,7 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
     modelPreset,
     negativePrompt,
     prompt,
+    selectedAvatarId,
     selectedOperationName,
   ]);
 
@@ -301,6 +313,7 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
         durationSeconds,
         modelPreset,
         includeAudio,
+        sourceImageDataUrl: selectedAvatar?.imageDataUrl,
       });
 
       const nextJob: PersistedVideoJob = {
@@ -351,13 +364,13 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
 
   return (
     <div className="grid grid-cols-1 gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
-      <section className="rounded-[30px] border border-white/10 bg-surface/75 p-6 shadow-2xl shadow-black/10">
+      <section className="surface-card rounded-[32px] p-6">
         <div className="border-b border-white/8 pb-5">
-          <h2 className="flex items-center gap-2 text-xl font-semibold text-white">
+          <span className="section-kicker">
             <Film className="h-5 w-5 text-primary" />
             Video Generator
-          </h2>
-          <p className="mt-2 text-sm leading-6 text-muted">
+          </span>
+          <p className="mt-4 text-sm leading-7 text-[#c0d1de]">
             Generate short Veo clips from a text prompt. Jobs usually take a bit longer than images, so this panel keeps
             polling until the result is ready.
           </p>
@@ -470,6 +483,22 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
             />
           </label>
 
+          <AvatarLibraryPicker
+            storageKey={avatarStorageKey}
+            selectedAvatarId={selectedAvatarId}
+            onSelectedAvatarIdChange={setSelectedAvatarId}
+            onSelectedAvatarChange={setSelectedAvatar}
+            title="Avatar For Video"
+            description="Select an avatar to switch this into image-to-video using the avatar as the starting frame."
+          />
+
+          {selectedAvatar && (
+            <div className="rounded-2xl border border-primary/15 bg-primary/5 p-4 text-xs leading-6 text-white/80">
+              Image-to-video enabled with <span className="font-medium text-white">{selectedAvatar.name}</span>. The selected
+              avatar will be used as the source frame for this render.
+            </div>
+          )}
+
           <Button type="submit" isLoading={isSubmitting} className="w-full py-4">
             <Wand2 className="h-4 w-4" />
             Generate Video
@@ -492,7 +521,7 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
       </section>
 
       <div className="space-y-6">
-        <section className="rounded-[32px] border border-white/10 bg-surface/75 p-6 shadow-2xl shadow-black/10">
+        <section className="surface-card rounded-[32px] p-6">
           <div className="flex flex-col gap-4 border-b border-white/8 pb-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <h3 className="text-xl font-semibold text-white">Preview</h3>
@@ -601,7 +630,7 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
           </div>
         </section>
 
-        <section className="rounded-[32px] border border-white/10 bg-surface/75 p-6 shadow-2xl shadow-black/10">
+        <section className="surface-card rounded-[32px] p-6">
           <div className="flex items-center justify-between border-b border-white/8 pb-5">
             <div>
               <h3 className="text-xl font-semibold text-white">Recent Jobs</h3>

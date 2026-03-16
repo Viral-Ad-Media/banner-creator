@@ -117,10 +117,14 @@ const App: React.FC = () => {
 
   if (isAuthLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 mx-auto border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-sm text-muted mt-4">Starting workspace...</p>
+      <div className="flex min-h-screen items-center justify-center px-4">
+        <div className="surface-card w-full max-w-sm rounded-[30px] p-8 text-center">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-[22px] bg-primary/12 text-primary shadow-[0_0_0_1px_rgba(64,214,195,0.16)]">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          </div>
+          <p className="mt-6 text-xs font-semibold uppercase tracking-[0.3em] text-primary/90">Workspace</p>
+          <h2 className="mt-2 text-2xl font-semibold text-white">Starting up</h2>
+          <p className="mt-2 text-sm leading-6 text-muted">Loading your creative environment and syncing account access.</p>
         </div>
       </div>
     );
@@ -129,10 +133,11 @@ const App: React.FC = () => {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <div className="w-10 h-10 mx-auto border-2 border-primary border-t-transparent rounded-full animate-spin" />
-            <p className="text-xs text-muted mt-3">Loading page...</p>
+        <div className="flex min-h-screen items-center justify-center px-4">
+          <div className="surface-card rounded-[28px] px-8 py-7 text-center">
+            <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            <p className="mt-4 text-xs uppercase tracking-[0.24em] text-primary/90">Loading</p>
+            <p className="mt-2 text-sm text-muted">Preparing the next screen.</p>
           </div>
         </div>
       }

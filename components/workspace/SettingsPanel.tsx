@@ -26,6 +26,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ user, onUserUpdate
   const [isBillingLoading, setIsBillingLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const usagePercentage = Math.min(100, Math.round(((usage?.usedCredits ?? 0) / Math.max(1, usage?.limit ?? 1)) * 100));
 
   useEffect(() => {
     setName(user.name);
@@ -87,20 +88,20 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ user, onUserUpdate
 
   return (
     <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.1fr)_380px]">
-      <section className="rounded-[28px] border border-white/10 bg-surface/70 p-6 shadow-2xl shadow-black/10">
+      <section className="surface-card rounded-[32px] p-6">
         <div className="border-b border-white/8 pb-5">
-          <h2 className="flex items-center gap-2 text-xl font-semibold text-white">
+          <span className="section-kicker">
             <Settings className="h-5 w-5 text-primary" />
             Workspace Settings
-          </h2>
-          <p className="mt-1 text-sm text-muted">Keep your profile details current and review the plan attached to this account.</p>
+          </span>
+          <p className="mt-4 text-sm leading-7 text-[#c0d1de]">Keep your profile details current and review the plan attached to this account.</p>
         </div>
 
         <form onSubmit={handleSave} className="mt-6 space-y-5">
           <div className="grid gap-5 md:grid-cols-2">
             <div className="space-y-2">
-              <label className="text-xs uppercase tracking-[0.24em] text-muted">Display Name</label>
-              <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
+              <label className="text-[11px] uppercase tracking-[0.24em] text-muted">Display Name</label>
+              <div className="flex items-center gap-3 rounded-[20px] border border-white/10 bg-black/20 px-4 py-3 transition-colors focus-within:border-primary/30">
                 <UserCircle2 className="h-4 w-4 text-primary" />
                 <input
                   value={name}
@@ -112,8 +113,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ user, onUserUpdate
             </div>
 
             <div className="space-y-2">
-              <label className="text-xs uppercase tracking-[0.24em] text-muted">Email</label>
-              <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/85">
+              <label className="text-[11px] uppercase tracking-[0.24em] text-muted">Email</label>
+              <div className="flex items-center gap-3 rounded-[20px] border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/85">
                 <Mail className="h-4 w-4 text-primary" />
                 <span>{user.email}</span>
               </div>
@@ -139,7 +140,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ user, onUserUpdate
       </section>
 
       <div className="space-y-6">
-        <section className="rounded-[28px] border border-white/10 bg-surface/70 p-6 shadow-2xl shadow-black/10">
+        <section className="surface-card rounded-[32px] p-6">
           <h3 className="flex items-center gap-2 text-lg font-semibold text-white">
             <CreditCard className="h-5 w-5 text-primary" />
             Billing Snapshot
@@ -154,25 +155,31 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ user, onUserUpdate
             </div>
           ) : (
             <div className="mt-5 space-y-4 text-sm">
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                <p className="text-xs uppercase tracking-[0.24em] text-muted">Current Plan</p>
+              <div className="rounded-[24px] border border-white/10 bg-black/20 p-4">
+                <p className="text-[11px] uppercase tracking-[0.24em] text-muted">Current Plan</p>
                 <p className="mt-2 text-2xl font-semibold text-white">{plan?.tier ?? user.plan}</p>
                 <p className="mt-1 text-muted">{plan?.monthlyCredits ?? 0} monthly credits</p>
+                <div className="mt-4 h-2 rounded-full bg-white/6">
+                  <div
+                    className="h-full rounded-full bg-[linear-gradient(90deg,#83efe0_0%,#48d9c8_55%,#168d87_100%)]"
+                    style={{ width: `${usagePercentage}%` }}
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                  <p className="text-xs uppercase tracking-[0.2em] text-muted">Used</p>
+                <div className="rounded-[24px] border border-white/10 bg-black/20 p-4">
+                  <p className="text-[11px] uppercase tracking-[0.2em] text-muted">Used</p>
                   <p className="mt-2 text-xl font-semibold text-white">{usage?.usedCredits ?? 0}</p>
                 </div>
-                <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                  <p className="text-xs uppercase tracking-[0.2em] text-muted">Remaining</p>
+                <div className="rounded-[24px] border border-white/10 bg-black/20 p-4">
+                  <p className="text-[11px] uppercase tracking-[0.2em] text-muted">Remaining</p>
                   <p className="mt-2 text-xl font-semibold text-white">{usage?.remainingCredits ?? 0}</p>
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                <p className="text-xs uppercase tracking-[0.24em] text-muted">Subscription Status</p>
+              <div className="rounded-[24px] border border-white/10 bg-black/20 p-4">
+                <p className="text-[11px] uppercase tracking-[0.24em] text-muted">Subscription Status</p>
                 <p className="mt-2 text-white">{billing?.status ?? 'No active subscription record'}</p>
                 <p className="mt-1 text-muted">Period ends: {formatDate(billing?.current_period_end ?? null)}</p>
               </div>
@@ -180,7 +187,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ user, onUserUpdate
           )}
         </section>
 
-        <section className="rounded-[28px] border border-primary/15 bg-primary/5 p-6 shadow-2xl shadow-black/10">
+        <section className="rounded-[32px] border border-primary/15 bg-primary/5 p-6 shadow-[0_28px_80px_-44px_rgba(0,0,0,0.8)]">
           <div className="flex items-start gap-3">
             <Sparkles className="mt-1 h-5 w-5 text-primary" />
             <div>
