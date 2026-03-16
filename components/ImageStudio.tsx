@@ -132,7 +132,8 @@ export const ImageStudio: React.FC<ImageStudioProps> = ({
             onSelectedAvatarIdChange={setSelectedAvatarId}
             onSelectedAvatarChange={setSelectedAvatar}
             title="Avatar For Image Studio"
-            description="Create or select an avatar, then load it into the editor as the source image for new variations."
+            description="Select a saved avatar from Avatar Studio, then load it into the editor as the source image for new variations."
+            mode="select"
           />
 
           {/* Upload Area */}

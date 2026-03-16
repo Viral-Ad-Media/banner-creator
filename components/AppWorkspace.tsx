@@ -8,6 +8,7 @@ import {
   Menu,
   Settings,
   Sparkles,
+  UserRound,
   Video,
   X,
   type LucideIcon,
@@ -24,6 +25,12 @@ const CopyGenerator = lazy(() =>
 const ImageStudio = lazy(() =>
   import('./ImageStudio').then((module) => ({
     default: module.ImageStudio,
+  }))
+);
+
+const AvatarStudioPanel = lazy(() =>
+  import('./workspace/AvatarStudioPanel').then((module) => ({
+    default: module.AvatarStudioPanel,
   }))
 );
 
@@ -46,7 +53,7 @@ const VideoGeneratorPanel = lazy(() =>
 );
 
 type WorkspaceNavItem = {
-  id: 'banner-generator' | 'image-studio' | 'video-generator' | 'activities' | 'settings';
+  id: 'banner-generator' | 'avatar-studio' | 'image-studio' | 'video-generator' | 'activities' | 'settings';
   label: string;
   description: string;
   to: string;
@@ -61,6 +68,13 @@ const workspaceNav: WorkspaceNavItem[] = [
     description: 'Create campaign copy and visuals',
     to: '/app/banner-generator',
     icon: LayoutTemplate,
+  },
+  {
+    id: 'avatar-studio',
+    label: 'Avatar Studio',
+    description: 'Create and manage reusable characters',
+    to: '/app/avatar-studio',
+    icon: UserRound,
   },
   {
     id: 'image-studio',
@@ -109,7 +123,10 @@ export const AppWorkspace: React.FC<AppWorkspaceProps> = ({ user, onLogout, onUs
 
   const activeItem = workspaceNav.find((item) => location.pathname === item.to) ?? workspaceNav[0];
   const ActiveIcon = activeItem.icon;
-  const mobileNavItems = workspaceNav.filter((item) => item.id !== 'settings');
+  const mobileNavItemIds: WorkspaceNavItem['id'][] = ['banner-generator', 'avatar-studio', 'image-studio', 'video-generator'];
+  const mobileNavItems = mobileNavItemIds
+    .map((itemId) => workspaceNav.find((item) => item.id === itemId))
+    .filter((item): item is WorkspaceNavItem => Boolean(item));
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(64,214,195,0.15),transparent_24%),radial-gradient(circle_at_top_right,rgba(255,177,102,0.12),transparent_22%),linear-gradient(180deg,#071219_0%,#0b1620_100%)] font-sans selection:bg-primary/30">
@@ -265,6 +282,10 @@ export const AppWorkspace: React.FC<AppWorkspaceProps> = ({ user, onLogout, onUs
                         avatarStorageKey={`social-studio:avatars:${user.id}`}
                       />
                     }
+                  />
+                  <Route
+                    path="avatar-studio"
+                    element={<AvatarStudioPanel avatarStorageKey={`social-studio:avatars:${user.id}`} />}
                   />
                   <Route
                     path="image-studio"

@@ -14,6 +14,8 @@ interface AvatarLibraryPickerProps {
   onSelectedAvatarChange: (avatar: AvatarAsset | null) => void;
   title?: string;
   description?: string;
+  mode?: 'manage' | 'select';
+  emptyStateMessage?: string;
 }
 
 export const AvatarLibraryPicker: React.FC<AvatarLibraryPickerProps> = ({
@@ -23,6 +25,8 @@ export const AvatarLibraryPicker: React.FC<AvatarLibraryPickerProps> = ({
   onSelectedAvatarChange,
   title = 'Avatar Library',
   description = 'Upload or generate a reusable character/avatar, then apply it to image and video generation.',
+  mode = 'manage',
+  emptyStateMessage,
 }) => {
   const [avatars, setAvatars] = useState<AvatarAsset[]>([]);
   const [avatarPrompt, setAvatarPrompt] = useState('');
@@ -30,6 +34,12 @@ export const AvatarLibraryPicker: React.FC<AvatarLibraryPickerProps> = ({
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isReady, setIsReady] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isManageMode = mode === 'manage';
+  const resolvedEmptyStateMessage =
+    emptyStateMessage ??
+    (isManageMode
+      ? 'Create or upload an avatar to start building reusable characters.'
+      : 'No saved avatars yet. Create one in Avatar Studio, then come back to select it here.');
 
   useEffect(() => {
     setAvatars(loadAvatarLibrary(storageKey));
@@ -161,30 +171,32 @@ export const AvatarLibraryPicker: React.FC<AvatarLibraryPickerProps> = ({
         <p className="mt-1 text-xs leading-5 text-muted">{description}</p>
       </div>
 
-      <div className="grid grid-cols-1 gap-3">
-        <div className="space-y-2">
-          <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted">Generate avatar</label>
-          <textarea
-            value={avatarPrompt}
-            onChange={(event) => setAvatarPrompt(event.target.value)}
-            placeholder="Stylish female presenter, afro hair, modern streetwear..."
-            className="h-24 w-full rounded-2xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none placeholder:text-muted focus:border-primary/40 focus:ring-1 focus:ring-primary"
-          />
-          <Button type="button" variant="secondary" onClick={() => void handleGenerateAvatar()} isLoading={isGenerating} className="w-full">
-            <Sparkles className="h-4 w-4" />
-            Create Avatar
-          </Button>
-        </div>
+      {isManageMode && (
+        <div className="grid grid-cols-1 gap-3">
+          <div className="space-y-2">
+            <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted">Generate avatar</label>
+            <textarea
+              value={avatarPrompt}
+              onChange={(event) => setAvatarPrompt(event.target.value)}
+              placeholder="Stylish female presenter, afro hair, modern streetwear..."
+              className="h-24 w-full rounded-2xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none placeholder:text-muted focus:border-primary/40 focus:ring-1 focus:ring-primary"
+            />
+            <Button type="button" variant="secondary" onClick={() => void handleGenerateAvatar()} isLoading={isGenerating} className="w-full">
+              <Sparkles className="h-4 w-4" />
+              Create Avatar
+            </Button>
+          </div>
 
-        <div className="space-y-2">
-          <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted">Upload avatar</label>
-          <input ref={fileInputRef} type="file" accept="image/*" onChange={handleUpload} className="hidden" />
-          <Button type="button" variant="secondary" onClick={() => fileInputRef.current?.click()} className="w-full">
-            <Upload className="h-4 w-4" />
-            Upload Image
-          </Button>
+          <div className="space-y-2">
+            <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted">Upload avatar</label>
+            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleUpload} className="hidden" />
+            <Button type="button" variant="secondary" onClick={() => fileInputRef.current?.click()} className="w-full">
+              <Upload className="h-4 w-4" />
+              Upload Image
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
@@ -231,21 +243,23 @@ export const AvatarLibraryPicker: React.FC<AvatarLibraryPickerProps> = ({
                 </p>
               </button>
 
-              <button
-                type="button"
-                onClick={() => handleDeleteAvatar(avatar.id)}
-                className="mt-3 inline-flex items-center gap-1 text-[11px] text-red-300 opacity-80 transition-opacity hover:opacity-100"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-                Remove
-              </button>
+              {isManageMode && (
+                <button
+                  type="button"
+                  onClick={() => handleDeleteAvatar(avatar.id)}
+                  className="mt-3 inline-flex items-center gap-1 text-[11px] text-red-300 opacity-80 transition-opacity hover:opacity-100"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Remove
+                </button>
+              )}
             </div>
           ))}
 
           {avatars.length === 0 && (
             <div className="col-span-full rounded-2xl border border-dashed border-white/10 bg-black/20 p-4 text-center">
               <ImagePlus className="mx-auto h-5 w-5 text-muted" />
-              <p className="mt-2 text-xs text-muted">Create or upload an avatar to start building reusable characters.</p>
+              <p className="mt-2 text-xs text-muted">{resolvedEmptyStateMessage}</p>
             </div>
           )}
         </div>

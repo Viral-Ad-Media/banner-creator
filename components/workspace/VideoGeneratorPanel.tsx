@@ -489,7 +489,8 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
             onSelectedAvatarIdChange={setSelectedAvatarId}
             onSelectedAvatarChange={setSelectedAvatar}
             title="Avatar For Video"
-            description="Select an avatar to switch this into image-to-video using the avatar as the starting frame."
+            description="Select a saved avatar from Avatar Studio to switch this into image-to-video using the avatar as the starting frame."
+            mode="select"
           />
 
           {selectedAvatar && (

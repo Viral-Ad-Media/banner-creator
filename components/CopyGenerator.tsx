@@ -807,7 +807,8 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({
                         onSelectedAvatarIdChange={setSelectedAvatarId}
                         onSelectedAvatarChange={setSelectedAvatar}
                         title="Avatar For Images"
-                        description="Use a saved avatar as the subject reference for banner image generation."
+                        description="Select a saved avatar from Avatar Studio to use as the subject reference for banner image generation."
+                        mode="select"
                     />
                 </div>
 
