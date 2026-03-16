@@ -8,7 +8,6 @@ import {
   Menu,
   Settings,
   Sparkles,
-  UserCircle2,
   Video,
   X,
   type LucideIcon,
@@ -110,6 +109,7 @@ export const AppWorkspace: React.FC<AppWorkspaceProps> = ({ user, onLogout, onUs
 
   const activeItem = workspaceNav.find((item) => location.pathname === item.to) ?? workspaceNav[0];
   const ActiveIcon = activeItem.icon;
+  const mobileNavItems = workspaceNav.filter((item) => item.id !== 'settings');
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(64,214,195,0.15),transparent_24%),radial-gradient(circle_at_top_right,rgba(255,177,102,0.12),transparent_22%),linear-gradient(180deg,#071219_0%,#0b1620_100%)] font-sans selection:bg-primary/30">
@@ -122,14 +122,14 @@ export const AppWorkspace: React.FC<AppWorkspaceProps> = ({ user, onLogout, onUs
         />
       )}
 
-      <div className="mx-auto max-w-[1720px] px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
+      <div className="mx-auto max-w-[1720px] px-3 py-3 pb-24 sm:px-6 lg:px-8 lg:py-6 lg:pb-6">
         <div className="flex min-h-[calc(100vh-2rem)] gap-6">
           <aside
-            className={`fixed inset-y-0 left-0 z-50 flex w-[298px] flex-col p-4 transition-transform duration-300 lg:sticky lg:top-4 lg:h-[calc(100vh-2rem)] lg:translate-x-0 ${
+            className={`fixed bottom-3 left-3 top-3 z-50 flex w-[calc(100vw-1.5rem)] max-w-[340px] flex-col transition-transform duration-300 lg:sticky lg:top-4 lg:h-[calc(100vh-2rem)] lg:w-[298px] lg:max-w-none lg:translate-x-0 ${
               isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
             }`}
           >
-            <div className="surface-card-strong flex h-full flex-col rounded-[34px] border border-white/10 p-4">
+            <div className="surface-card-strong flex h-full flex-col overflow-hidden rounded-[34px] border border-white/10 p-4">
               <div className="flex items-center justify-between rounded-[26px] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] px-4 py-4">
                 <div className="flex items-center gap-3">
                   <div className="relative">
@@ -153,30 +153,7 @@ export const AppWorkspace: React.FC<AppWorkspaceProps> = ({ user, onLogout, onUs
                 </button>
               </div>
 
-              <div className="mt-4 rounded-[28px] border border-white/8 bg-black/20 p-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-[18px] bg-primary/10 text-primary">
-                    <UserCircle2 className="h-5 w-5" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-white">{user.name}</p>
-                    <p className="truncate text-xs text-muted">{user.email}</p>
-                  </div>
-                </div>
-
-                <div className="mt-4 grid gap-3">
-                  <div className="flex items-center justify-between rounded-[22px] border border-primary/15 bg-primary/10 px-3 py-3">
-                    <span className="text-[11px] uppercase tracking-[0.24em] text-primary">Plan</span>
-                    <span className="text-sm font-semibold text-white">{user.plan}</span>
-                  </div>
-                  <div className="rounded-[22px] border border-white/8 bg-white/5 px-3 py-3">
-                    <p className="text-[11px] uppercase tracking-[0.24em] text-muted">Creative State</p>
-                    <p className="mt-2 text-sm leading-6 text-white/80">Banners, avatars, and motion tools are all available from this workspace.</p>
-                  </div>
-                </div>
-              </div>
-
-              <nav className="mt-5 flex-1 space-y-2">
+              <nav className="mt-5 flex-1 space-y-2 overflow-y-auto pr-1">
                 {workspaceNav.map((item) => {
                   const Icon = item.icon;
 
@@ -309,6 +286,37 @@ export const AppWorkspace: React.FC<AppWorkspaceProps> = ({ user, onLogout, onUs
               </Suspense>
             </main>
           </div>
+        </div>
+      </div>
+
+      <div className="fixed inset-x-4 bottom-4 z-30 lg:hidden">
+        <div className="surface-card-strong grid grid-cols-5 rounded-[28px] p-2 shadow-[0_24px_60px_-30px_rgba(0,0,0,0.9)]">
+          {mobileNavItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={({ isActive }) =>
+                  `flex min-w-0 flex-col items-center gap-1 rounded-[20px] px-2 py-2.5 text-[11px] font-semibold transition-all ${
+                    isActive ? 'bg-primary/14 text-primary' : 'text-muted hover:bg-white/6 hover:text-white'
+                  }`
+                }
+              >
+                <Icon className="h-4 w-4" />
+                <span className="truncate">{item.label.replace(' Generator', '').replace(' Studio', '')}</span>
+              </NavLink>
+            );
+          })}
+
+          <button
+            type="button"
+            onClick={() => setIsSidebarOpen(true)}
+            className="flex min-w-0 flex-col items-center gap-1 rounded-[20px] px-2 py-2.5 text-[11px] font-semibold text-muted transition-all hover:bg-white/6 hover:text-white"
+          >
+            <Menu className="h-4 w-4" />
+            <span className="truncate">Menu</span>
+          </button>
         </div>
       </div>
     </div>
