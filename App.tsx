@@ -106,6 +106,10 @@ const App: React.FC = () => {
     setIsPasswordRecovery(false);
   };
 
+  const handleUserUpdated = (nextUser: AuthUser) => {
+    setUser(nextUser);
+  };
+
   const sitePage = useMemo(
     () => (content: React.ReactNode) => <SiteLayout user={user}>{content}</SiteLayout>,
     [user]
@@ -158,8 +162,14 @@ const App: React.FC = () => {
         />
 
         <Route
-          path="/app"
-          element={user ? <AppWorkspace user={user} onLogout={handleLogout} /> : <Navigate to="/auth" replace />}
+          path="/app/*"
+          element={
+            user ? (
+              <AppWorkspace user={user} onLogout={handleLogout} onUserUpdated={handleUserUpdated} />
+            ) : (
+              <Navigate to="/auth" replace />
+            )
+          }
         />
 
         <Route path="*" element={<Navigate to="/" replace />} />

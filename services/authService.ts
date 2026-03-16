@@ -114,3 +114,12 @@ export const logoutUser = async () => {
     throw new Error(error.message);
   }
 };
+
+export const updateProfile = async (payload: { name: string }): Promise<AuthUser> => {
+  const response = await apiFetch<MeResponse>('/auth/me', {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+
+  return response.user;
+};
