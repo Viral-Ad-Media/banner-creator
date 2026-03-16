@@ -14,8 +14,6 @@ export interface GenerationRecord {
   status: 'SUCCESS' | 'FAILED';
   prompt: string;
   aspect_ratio: string | null;
-  input: unknown;
-  result: unknown;
   error_message: string | null;
   created_at: string;
 }

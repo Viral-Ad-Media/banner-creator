@@ -9,6 +9,30 @@ import {
 import { CanvasEditor, CanvasElement, BackgroundState } from './CanvasEditor';
 
 type SocialPlatform = 'instagram' | 'facebook' | 'tiktok' | 'linkedin';
+const BANNER_COUNT_OPTIONS = [1, 2, 3, 4, 5, 6] as const;
+type BannerCount = (typeof BANNER_COUNT_OPTIONS)[number];
+const DEFAULT_BANNER_COUNT: BannerCount = 3;
+
+interface CopyGeneratorProps {
+  draftStorageKey?: string;
+}
+
+type PersistedWorkspaceDraft = {
+  version: 1;
+  userPrompt: string;
+  backgroundImage: string | null;
+  assetImage: string | null;
+  aspectRatio: AspectRatio;
+  bannerCount?: BannerCount;
+  plan: BannerPlan | null;
+  generatedImages: Record<string, string>;
+  rawBackgrounds: Record<string, string>;
+  savedLayers: Record<string, CanvasElement[]>;
+  editorBackgrounds: Record<string, BackgroundState>;
+  generationErrors: Record<string, string>;
+};
+
+const DEFAULT_DRAFT_STORAGE_KEY = 'social-studio:banner-workspace-draft:v1';
 
 const SOCIAL_LOGIN_URLS: Record<SocialPlatform, string> = {
   facebook: 'https://www.facebook.com/login.php',
@@ -17,7 +41,7 @@ const SOCIAL_LOGIN_URLS: Record<SocialPlatform, string> = {
   linkedin: 'https://www.linkedin.com/login',
 };
 
-export const CopyGenerator: React.FC = () => {
+export const CopyGenerator: React.FC<CopyGeneratorProps> = ({ draftStorageKey = DEFAULT_DRAFT_STORAGE_KEY }) => {
   // --- Input State ---
   const [userPrompt, setUserPrompt] = useState('');
   const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
@@ -25,6 +49,7 @@ export const CopyGenerator: React.FC = () => {
   
   // --- Config State ---
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1');
+  const [bannerCount, setBannerCount] = useState<BannerCount>(DEFAULT_BANNER_COUNT);
 
   // --- Process State ---
   const [isPlanning, setIsPlanning] = useState(false);
@@ -57,6 +82,7 @@ export const CopyGenerator: React.FC = () => {
       backgroundState?: BackgroundState;
   } | null>(null);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [isDraftReady, setIsDraftReady] = useState(false);
 
   // Refs
   const bgInputRef = useRef<HTMLInputElement>(null);
@@ -95,6 +121,117 @@ export const CopyGenerator: React.FC = () => {
     };
   }, [clearAllTimers, clearSocialPoller]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      setIsDraftReady(true);
+      return;
+    }
+
+    try {
+      const rawDraft = window.localStorage.getItem(draftStorageKey);
+      if (!rawDraft) {
+        setIsDraftReady(true);
+        return;
+      }
+
+      const draft = JSON.parse(rawDraft) as PersistedWorkspaceDraft;
+      if (draft.version !== 1) {
+        window.localStorage.removeItem(draftStorageKey);
+        setIsDraftReady(true);
+        return;
+      }
+
+      setUserPrompt(draft.userPrompt ?? '');
+      setBackgroundImage(draft.backgroundImage ?? null);
+      setAssetImage(draft.assetImage ?? null);
+      setAspectRatio(draft.aspectRatio ?? '1:1');
+      setBannerCount(draft.bannerCount ?? DEFAULT_BANNER_COUNT);
+      setPlan(draft.plan ?? null);
+      setGeneratedImages(draft.generatedImages ?? {});
+      setRawBackgrounds(draft.rawBackgrounds ?? {});
+      setSavedLayers(draft.savedLayers ?? {});
+      setEditorBackgrounds(draft.editorBackgrounds ?? {});
+      setGenerationErrors(draft.generationErrors ?? {});
+
+      const hasSavedContent =
+        !!draft.userPrompt ||
+        !!draft.plan ||
+        Object.keys(draft.generatedImages ?? {}).length > 0 ||
+        !!draft.backgroundImage ||
+        !!draft.assetImage;
+
+      if (hasSavedContent) {
+        setStatusMessage({ type: 'success', text: 'Restored your last banner workspace.' });
+      }
+    } catch (error) {
+      console.error('Failed to restore banner workspace draft', error);
+      window.localStorage.removeItem(draftStorageKey);
+    } finally {
+      setIsDraftReady(true);
+    }
+  }, [draftStorageKey]);
+
+  useEffect(() => {
+    if (!isDraftReady || typeof window === 'undefined') {
+      return;
+    }
+
+    const hasWorkspaceContent =
+      userPrompt.trim().length > 0 ||
+      !!backgroundImage ||
+      !!assetImage ||
+      !!plan ||
+      Object.keys(generatedImages).length > 0 ||
+      Object.keys(rawBackgrounds).length > 0 ||
+      Object.keys(savedLayers).length > 0 ||
+      Object.keys(editorBackgrounds).length > 0 ||
+      Object.keys(generationErrors).length > 0;
+
+    if (!hasWorkspaceContent) {
+      window.localStorage.removeItem(draftStorageKey);
+      return;
+    }
+
+    const draft: PersistedWorkspaceDraft = {
+      version: 1,
+      userPrompt,
+      backgroundImage,
+      assetImage,
+      aspectRatio,
+      bannerCount,
+      plan,
+      generatedImages,
+      rawBackgrounds,
+      savedLayers,
+      editorBackgrounds,
+      generationErrors,
+    };
+
+    try {
+      window.localStorage.setItem(draftStorageKey, JSON.stringify(draft));
+    } catch (error) {
+      console.error('Failed to persist banner workspace draft', error);
+      setStatusMessage({
+        type: 'error',
+        text: 'Workspace draft could not be saved locally. Clear old drafts or free browser storage.',
+      });
+    }
+  }, [
+    aspectRatio,
+    bannerCount,
+    assetImage,
+    backgroundImage,
+    draftStorageKey,
+    editorBackgrounds,
+    generatedImages,
+    generationErrors,
+    isDraftReady,
+    plan,
+    rawBackgrounds,
+    savedLayers,
+    userPrompt,
+  ]);
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, setter: (val: string | null) => void) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -132,6 +269,7 @@ export const CopyGenerator: React.FC = () => {
       const data = await generateBannerPlan({ 
         userPrompt: trimmedPrompt,
         aspectRatio: aspectRatio,
+        bannerCount,
         hasBackgroundImage: !!backgroundImage,
         hasAssetImage: !!assetImage
       });
@@ -554,6 +692,32 @@ export const CopyGenerator: React.FC = () => {
                                 </button>
                             ))}
                         </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                            <label className="text-xs font-semibold text-muted uppercase tracking-wider">Images to create</label>
+                            <span className="text-[10px] text-muted">{bannerCount} total</span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                            {BANNER_COUNT_OPTIONS.map((count) => (
+                                <button
+                                    key={count}
+                                    type="button"
+                                    onClick={() => setBannerCount(count)}
+                                    className={`rounded-lg border px-3 py-2 text-sm font-medium transition-all ${
+                                        bannerCount === count
+                                        ? 'bg-primary/20 border-primary text-primary'
+                                        : 'bg-black/20 border-white/5 text-muted hover:bg-white/5 hover:text-white'
+                                    }`}
+                                >
+                                    {count}
+                                </button>
+                            ))}
+                        </div>
+                        <p className="text-[11px] text-muted">
+                            Creates 1 main banner{bannerCount > 1 ? ` and ${bannerCount - 1} additional variation${bannerCount - 1 > 1 ? 's' : ''}.` : '.'}
+                        </p>
                     </div>
                 </div>
 

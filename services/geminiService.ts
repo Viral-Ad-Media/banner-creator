@@ -5,6 +5,7 @@ export type AspectRatio = '1:1' | '16:9' | '9:16' | '3:4' | '4:5';
 export interface BannerRequest {
   userPrompt: string;
   aspectRatio: AspectRatio;
+  bannerCount?: number;
   hasBackgroundImage?: boolean;
   hasAssetImage?: boolean;
   projectId?: string;

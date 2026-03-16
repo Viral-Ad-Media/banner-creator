@@ -262,9 +262,15 @@ export const AppWorkspace: React.FC<AppWorkspaceProps> = ({ user, onLogout, onUs
               >
                 <Routes>
                   <Route index element={<Navigate to="banner-generator" replace />} />
-                  <Route path="banner-generator" element={<CopyGenerator />} />
+                  <Route
+                    path="banner-generator"
+                    element={<CopyGenerator draftStorageKey={`social-studio:banner-workspace-draft:${user.id}`} />}
+                  />
                   <Route path="image-studio" element={<ImageStudio />} />
-                  <Route path="video-generator" element={<VideoGeneratorPanel />} />
+                  <Route
+                    path="video-generator"
+                    element={<VideoGeneratorPanel draftStorageKey={`social-studio:video-generator:${user.id}`} />}
+                  />
                   <Route path="activities" element={<ActivitiesPanel />} />
                   <Route path="settings" element={<SettingsPanel user={user} onUserUpdated={onUserUpdated} />} />
                   <Route path="*" element={<Navigate to="banner-generator" replace />} />

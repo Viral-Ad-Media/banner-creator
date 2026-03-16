@@ -28,7 +28,7 @@ const buildUrl = (path: string) => {
   return `${apiBaseUrl}/${path}`;
 };
 
-export const apiFetch = async <T>(path: string, options: ApiFetchOptions = {}): Promise<T> => {
+const createRequestInit = async (path: string, options: ApiFetchOptions = {}) => {
   const url = buildUrl(path);
   const { auth = true, headers, body, ...rest } = options;
 
@@ -44,13 +44,22 @@ export const apiFetch = async <T>(path: string, options: ApiFetchOptions = {}): 
     }
   }
 
-  let response: Response;
-  try {
-    response = await fetch(url, {
+  return {
+    url,
+    requestInit: {
       ...rest,
       headers: mergedHeaders,
       body,
-    });
+    } satisfies RequestInit,
+  };
+};
+
+const executeRequest = async (path: string, options: ApiFetchOptions = {}) => {
+  const { url, requestInit } = await createRequestInit(path, options);
+
+  let response: Response;
+  try {
+    response = await fetch(url, requestInit);
   } catch (error) {
     if (error instanceof TypeError) {
       throw new Error(`Cannot reach API at ${url}. Check VITE_API_BASE_URL and backend CORS_ORIGIN.`);
@@ -58,6 +67,12 @@ export const apiFetch = async <T>(path: string, options: ApiFetchOptions = {}): 
 
     throw error;
   }
+
+  return { response, url };
+};
+
+export const apiFetch = async <T>(path: string, options: ApiFetchOptions = {}): Promise<T> => {
+  const { response } = await executeRequest(path, options);
 
   const isJson = response.headers.get('content-type')?.includes('application/json');
   const payload = isJson ? await response.json() : await response.text();
@@ -71,4 +86,20 @@ export const apiFetch = async <T>(path: string, options: ApiFetchOptions = {}): 
   }
 
   return payload as T;
+};
+
+export const apiFetchBlob = async (path: string, options: ApiFetchOptions = {}): Promise<Blob> => {
+  const { response } = await executeRequest(path, options);
+
+  if (!response.ok) {
+    const isJson = response.headers.get('content-type')?.includes('application/json');
+    const payload = isJson ? await response.json() : await response.text();
+    const message =
+      (typeof payload === 'object' && payload && 'error' in payload && String((payload as any).error)) ||
+      response.statusText ||
+      'Request failed';
+    throw new Error(message);
+  }
+
+  return response.blob();
 };
