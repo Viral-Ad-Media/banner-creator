@@ -10,7 +10,7 @@ const plans = [
       '120 monthly credits',
       'Up to 5 projects',
       'Banner generation and Image Studio',
-      'Shared avatar library in this browser',
+      'Shared avatar library synced to your account',
       'Basic activity and settings access',
     ],
   },

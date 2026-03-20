@@ -277,28 +277,14 @@ export const AppWorkspace: React.FC<AppWorkspaceProps> = ({ user, onLogout, onUs
                   <Route
                     path="banner-generator"
                     element={
-                      <CopyGenerator
-                        draftStorageKey={`social-studio:banner-workspace-draft:${user.id}`}
-                        avatarStorageKey={`social-studio:avatars:${user.id}`}
-                      />
+                      <CopyGenerator draftStorageKey={`social-studio:banner-workspace-draft:${user.id}`} />
                     }
                   />
-                  <Route
-                    path="avatar-studio"
-                    element={<AvatarStudioPanel avatarStorageKey={`social-studio:avatars:${user.id}`} />}
-                  />
-                  <Route
-                    path="image-studio"
-                    element={<ImageStudio avatarStorageKey={`social-studio:avatars:${user.id}`} />}
-                  />
+                  <Route path="avatar-studio" element={<AvatarStudioPanel />} />
+                  <Route path="image-studio" element={<ImageStudio />} />
                   <Route
                     path="video-generator"
-                    element={
-                      <VideoGeneratorPanel
-                        draftStorageKey={`social-studio:video-generator:${user.id}`}
-                        avatarStorageKey={`social-studio:avatars:${user.id}`}
-                      />
-                    }
+                    element={<VideoGeneratorPanel draftStorageKey={`social-studio:video-generator:${user.id}`} />}
                   />
                   <Route path="activities" element={<ActivitiesPanel />} />
                   <Route path="settings" element={<SettingsPanel user={user} onUserUpdated={onUserUpdated} />} />

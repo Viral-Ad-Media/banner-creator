@@ -17,7 +17,6 @@ const DEFAULT_BANNER_COUNT: BannerCount = 3;
 
 interface CopyGeneratorProps {
   draftStorageKey?: string;
-  avatarStorageKey?: string;
 }
 
 type PersistedWorkspaceDraft = {
@@ -37,7 +36,6 @@ type PersistedWorkspaceDraft = {
 };
 
 const DEFAULT_DRAFT_STORAGE_KEY = 'social-studio:banner-workspace-draft:v1';
-const DEFAULT_AVATAR_STORAGE_KEY = 'social-studio:avatars:v1';
 
 const SOCIAL_LOGIN_URLS: Record<SocialPlatform, string> = {
   facebook: 'https://www.facebook.com/login.php',
@@ -48,7 +46,6 @@ const SOCIAL_LOGIN_URLS: Record<SocialPlatform, string> = {
 
 export const CopyGenerator: React.FC<CopyGeneratorProps> = ({
   draftStorageKey = DEFAULT_DRAFT_STORAGE_KEY,
-  avatarStorageKey = DEFAULT_AVATAR_STORAGE_KEY,
 }) => {
   // --- Input State ---
   const [userPrompt, setUserPrompt] = useState('');
@@ -802,12 +799,11 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({
 
                 <div className="pt-4 border-t border-white/5">
                     <AvatarLibraryPicker
-                        storageKey={avatarStorageKey}
                         selectedAvatarId={selectedAvatarId}
                         onSelectedAvatarIdChange={setSelectedAvatarId}
                         onSelectedAvatarChange={setSelectedAvatar}
                         title="Avatar For Images"
-                        description="Select a saved avatar from Avatar Studio to use as the subject reference for banner image generation."
+                        description="Optional. Select a saved avatar to guide the subject of generated banners, or leave it empty for a freeform result."
                         mode="select"
                     />
                 </div>

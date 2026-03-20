@@ -7,15 +7,8 @@ import type { AvatarAsset } from '../services/avatarLibrary';
 
 const MAX_HISTORY_LENGTH = 12;
 const MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024;
-const DEFAULT_AVATAR_STORAGE_KEY = 'social-studio:avatars:v1';
 
-interface ImageStudioProps {
-  avatarStorageKey?: string;
-}
-
-export const ImageStudio: React.FC<ImageStudioProps> = ({
-  avatarStorageKey = DEFAULT_AVATAR_STORAGE_KEY,
-}) => {
+export const ImageStudio: React.FC = () => {
   const [currentImage, setCurrentImage] = useState<string | null>(null);
   const [history, setHistory] = useState<string[]>([]);
   const [prompt, setPrompt] = useState('');
@@ -127,12 +120,11 @@ export const ImageStudio: React.FC<ImageStudioProps> = ({
         {/* Editor Controls */}
         <div className="lg:col-span-4 flex flex-col h-full gap-6 overflow-y-auto pr-1">
           <AvatarLibraryPicker
-            storageKey={avatarStorageKey}
             selectedAvatarId={selectedAvatarId}
             onSelectedAvatarIdChange={setSelectedAvatarId}
             onSelectedAvatarChange={setSelectedAvatar}
             title="Avatar For Image Studio"
-            description="Select a saved avatar from Avatar Studio, then load it into the editor as the source image for new variations."
+            description="Optional. Load a saved avatar as your starting image, or skip this and upload any source image below."
             mode="select"
           />
 

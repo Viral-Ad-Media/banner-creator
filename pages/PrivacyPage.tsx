@@ -16,8 +16,9 @@ export const PrivacyPage: React.FC = () => {
             activity may be stored in backend records so the app can provide history, usage reporting, and account support.
           </p>
           <p>
-            Some workspace data is stored locally in your browser for product convenience. That includes draft state,
-            reusable avatar selections, and recent video job references restored on the same device/browser.
+            Some workspace data is stored locally in your browser for product convenience, including draft state and recent
+            video job references restored on the same device/browser. Saved avatar assets are stored with your account so
+            they remain available across the workspace after refreshes and sign-ins.
           </p>
           <p>
             Uploaded images, avatar assets, prompts, and generation requests may be processed by integrated AI providers to

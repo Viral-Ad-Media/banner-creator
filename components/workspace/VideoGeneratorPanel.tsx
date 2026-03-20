@@ -31,7 +31,6 @@ const VIDEO_MODEL_OPTIONS = [
   { id: 'quality', label: 'Quality', description: 'Higher fidelity, slower jobs' },
 ] as const;
 const DEFAULT_STORAGE_KEY = 'social-studio:video-generator:v1';
-const DEFAULT_AVATAR_STORAGE_KEY = 'social-studio:avatars:v1';
 const MAX_STORED_JOBS = 8;
 const VIDEO_POLL_INTERVAL_MS = 10000;
 
@@ -61,7 +60,6 @@ type PersistedVideoWorkspace = {
 
 interface VideoGeneratorPanelProps {
   draftStorageKey?: string;
-  avatarStorageKey?: string;
 }
 
 const formatTimestamp = (value: string) =>
@@ -86,7 +84,6 @@ const getVideoAspectRatioClass = (aspectRatio: VideoAspectRatio) =>
 
 export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
   draftStorageKey = DEFAULT_STORAGE_KEY,
-  avatarStorageKey = DEFAULT_AVATAR_STORAGE_KEY,
 }) => {
   const [prompt, setPrompt] = useState('');
   const [negativePrompt, setNegativePrompt] = useState('');
@@ -484,12 +481,11 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
           </label>
 
           <AvatarLibraryPicker
-            storageKey={avatarStorageKey}
             selectedAvatarId={selectedAvatarId}
             onSelectedAvatarIdChange={setSelectedAvatarId}
             onSelectedAvatarChange={setSelectedAvatar}
             title="Avatar For Video"
-            description="Select a saved avatar from Avatar Studio to switch this into image-to-video using the avatar as the starting frame."
+            description="Optional. Select a saved avatar to switch this into image-to-video, or leave it empty to render from text only."
             mode="select"
           />
 
@@ -497,6 +493,12 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
             <div className="rounded-2xl border border-primary/15 bg-primary/5 p-4 text-xs leading-6 text-white/80">
               Image-to-video enabled with <span className="font-medium text-white">{selectedAvatar.name}</span>. The selected
               avatar will be used as the source frame for this render.
+            </div>
+          )}
+
+          {!selectedAvatar && (
+            <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-xs leading-6 text-white/70">
+              No avatar selected. This render will run as text-to-video.
             </div>
           )}
 

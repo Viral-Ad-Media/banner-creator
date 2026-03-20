@@ -3,10 +3,6 @@ import { Image as ImageIcon, LayoutTemplate, Sparkles, UserRound, Video } from '
 import type { AvatarAsset } from '../../services/avatarLibrary';
 import { AvatarLibraryPicker } from './AvatarLibraryPicker';
 
-interface AvatarStudioPanelProps {
-  avatarStorageKey: string;
-}
-
 const avatarDestinations = [
   {
     title: 'Banner Generator',
@@ -25,7 +21,7 @@ const avatarDestinations = [
   },
 ];
 
-export const AvatarStudioPanel: React.FC<AvatarStudioPanelProps> = ({ avatarStorageKey }) => {
+export const AvatarStudioPanel: React.FC = () => {
   const [selectedAvatarId, setSelectedAvatarId] = useState<string | null>(null);
   const [selectedAvatar, setSelectedAvatar] = useState<AvatarAsset | null>(null);
 
@@ -46,7 +42,6 @@ export const AvatarStudioPanel: React.FC<AvatarStudioPanelProps> = ({ avatarStor
 
         <div className="mt-6">
           <AvatarLibraryPicker
-            storageKey={avatarStorageKey}
             selectedAvatarId={selectedAvatarId}
             onSelectedAvatarIdChange={setSelectedAvatarId}
             onSelectedAvatarChange={setSelectedAvatar}
