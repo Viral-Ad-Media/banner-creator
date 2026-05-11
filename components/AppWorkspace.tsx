@@ -121,8 +121,6 @@ export const AppWorkspace: React.FC<AppWorkspaceProps> = ({ user, onLogout, onUs
     setIsSidebarOpen(false);
   }, [location.pathname]);
 
-  const activeItem = workspaceNav.find((item) => location.pathname === item.to) ?? workspaceNav[0];
-  const ActiveIcon = activeItem.icon;
   const mobileNavItemIds: WorkspaceNavItem['id'][] = ['banner-generator', 'avatar-studio', 'image-studio', 'video-generator'];
   const mobileNavItems = mobileNavItemIds
     .map((itemId) => workspaceNav.find((item) => item.id === itemId))
@@ -223,45 +221,7 @@ export const AppWorkspace: React.FC<AppWorkspaceProps> = ({ user, onLogout, onUs
           </aside>
 
           <div className="min-w-0 flex-1 lg:pl-0">
-            <header className="sticky top-4 z-30 overflow-hidden rounded-[34px] border border-white/10 bg-[linear-gradient(180deg,rgba(17,30,41,0.9),rgba(10,19,27,0.85))] p-4 shadow-[0_30px_80px_-44px_rgba(0,0,0,0.9)] backdrop-blur-xl sm:p-5">
-              <div className="absolute inset-x-0 top-0 h-24 bg-[radial-gradient(circle_at_top,rgba(64,214,195,0.12),transparent_65%)]" />
-              <div className="relative flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-                <div className="flex items-start gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setIsSidebarOpen(true)}
-                    className="mt-0.5 rounded-2xl border border-white/10 bg-white/5 p-3 text-white lg:hidden"
-                  >
-                    <Menu className="h-4 w-4" />
-                  </button>
-
-                  <div className="flex h-12 w-12 items-center justify-center rounded-[18px] bg-primary/12 text-primary">
-                    <ActiveIcon className="h-5 w-5" />
-                  </div>
-
-                  <div>
-                    <p className="text-[11px] uppercase tracking-[0.28em] text-primary">Current Section</p>
-                    <h2 className="mt-1 text-3xl font-semibold tracking-tight text-white">{activeItem.label}</h2>
-                    <p className="mt-2 max-w-2xl text-sm leading-6 text-[#c0d1de]">{activeItem.description}</p>
-                  </div>
-                </div>
-
-                <div className="grid gap-3 sm:grid-cols-2 xl:min-w-[430px]">
-                  <div className="rounded-[24px] border border-white/10 bg-black/20 px-4 py-4">
-                    <p className="text-[11px] uppercase tracking-[0.24em] text-muted">Workspace Owner</p>
-                    <p className="mt-2 text-base font-semibold text-white">{user.name}</p>
-                    <p className="mt-1 text-sm text-muted">{user.email}</p>
-                  </div>
-                  <div className="rounded-[24px] border border-primary/15 bg-primary/8 px-4 py-4">
-                    <p className="text-[11px] uppercase tracking-[0.24em] text-primary">Plan Access</p>
-                    <p className="mt-2 text-base font-semibold text-white">{user.plan}</p>
-                    <p className="mt-1 text-sm text-white/70">Workspace tools, activity, and settings are ready.</p>
-                  </div>
-                </div>
-              </div>
-            </header>
-
-            <main className="mt-6">
+            <main>
               <Suspense
                 fallback={
                   <div className="surface-card flex min-h-[360px] items-center justify-center rounded-[32px]">
