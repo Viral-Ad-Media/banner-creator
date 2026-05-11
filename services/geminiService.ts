@@ -1,6 +1,7 @@
 import { apiFetch } from './apiClient';
 
 export type AspectRatio = '1:1' | '16:9' | '9:16' | '3:4' | '4:5';
+export type TextGenerationProvider = 'gemini' | 'openrouter';
 
 export interface BannerRequest {
   userPrompt: string;
@@ -8,6 +9,7 @@ export interface BannerRequest {
   bannerCount?: number;
   hasBackgroundImage?: boolean;
   hasAssetImage?: boolean;
+  textProvider?: TextGenerationProvider;
   projectId?: string;
 }
 

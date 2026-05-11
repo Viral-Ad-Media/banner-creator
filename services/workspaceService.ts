@@ -10,7 +10,7 @@ export interface UsageSummary {
 export interface GenerationRecord {
   id: string;
   project_id: string | null;
-  type: 'BANNER_PLAN' | 'IMAGE_GENERATION' | 'IMAGE_EDIT';
+  type: 'BANNER_PLAN' | 'IMAGE_GENERATION' | 'IMAGE_EDIT' | 'VIDEO_GENERATION';
   status: 'SUCCESS' | 'FAILED';
   prompt: string;
   aspect_ratio: string | null;

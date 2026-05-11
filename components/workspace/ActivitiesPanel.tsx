@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Activity, AlertTriangle, Clock3, Image as ImageIcon, RefreshCcw, Sparkles, Wand2 } from 'lucide-react';
+import { Activity, AlertTriangle, Clock3, Image as ImageIcon, RefreshCcw, Sparkles, Video, Wand2 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { getGenerationActivity, type GenerationRecord, type UsageSummary } from '../../services/workspaceService';
 
@@ -11,6 +11,8 @@ const formatGenerationType = (value: GenerationRecord['type']) => {
       return 'Image Generation';
     case 'IMAGE_EDIT':
       return 'Image Edit';
+    case 'VIDEO_GENERATION':
+      return 'Video Generation';
     default:
       return value;
   }
@@ -25,6 +27,7 @@ const formatTimestamp = (value: string) =>
 const getGenerationIcon = (type: GenerationRecord['type']) => {
   if (type === 'BANNER_PLAN') return Sparkles;
   if (type === 'IMAGE_EDIT') return Wand2;
+  if (type === 'VIDEO_GENERATION') return Video;
   return ImageIcon;
 };
 
@@ -97,7 +100,7 @@ export const ActivitiesPanel: React.FC = () => {
               <Activity className="h-5 w-5 text-primary" />
               Activity Feed
             </span>
-            <p className="mt-4 text-sm leading-7 text-[#c0d1de]">Track recent plans, image renders, and edits from your workspace.</p>
+            <p className="mt-4 text-sm leading-7 text-[#c0d1de]">Track recent plans, image renders, edits, and video jobs from your workspace.</p>
           </div>
 
           <Button variant="secondary" onClick={() => void loadActivity()} isLoading={isLoading} className="sm:self-start">
@@ -123,7 +126,7 @@ export const ActivitiesPanel: React.FC = () => {
         ) : generations.length === 0 ? (
           <div className="mt-6 rounded-[28px] border border-dashed border-white/10 bg-black/20 p-10 text-center">
             <p className="text-lg font-medium text-white">No activity yet</p>
-            <p className="mt-2 text-sm text-muted">Your banner runs and image edits will show up here once we start generating.</p>
+            <p className="mt-2 text-sm text-muted">Your banner runs, image edits, and video jobs will show up here once we start generating.</p>
           </div>
         ) : (
           <div className="mt-6 space-y-3">

@@ -1,6 +1,6 @@
 # Social Studio SaaS
 
-Full-stack social creative SaaS for generating banner plans, producing AI backgrounds, and editing images, with authenticated users, usage metering, and plan-based limits.
+Full-stack social creative SaaS for generating banner plans, producing AI backgrounds, editing images, and generating short videos, with authenticated users, usage metering, and plan-based limits.
 
 Current workspace layout:
 
@@ -10,9 +10,10 @@ Current workspace layout:
 ## Features
 
 - Supabase Auth (email/password) for signup, login, and session persistence
-- Protected backend API (Gemini key never exposed to browser)
-- Banner campaign planning with structured JSON output
+- Protected backend API (Gemini/OpenRouter keys never exposed to browser)
+- Banner campaign planning with structured JSON output from Gemini or OpenRouter
 - Image generation and image editing workflows
+- Gemini or OpenRouter video generation workflows with async status polling
 - Project and generation history persistence
 - Monthly credit metering per plan tier
 - Mock billing upgrade and customer portal endpoints
@@ -34,6 +35,7 @@ Current workspace layout:
 - Supabase Postgres for application data
 - Supabase Auth token verification via service role
 - Gemini API integration through `@google/genai`
+- Optional OpenRouter integration for banner planning and video generation
 - Zod request validation and centralized error handling
 
 ### Data + Auth Flow
@@ -71,6 +73,7 @@ banner-maker/
 - npm 10+
 - Supabase project
 - Gemini API key
+- Optional OpenRouter API key
 
 ## Supabase Setup
 
@@ -114,10 +117,20 @@ Set:
 NODE_ENV=development
 PORT=4000
 GEMINI_API_KEY=your-gemini-api-key
+TEXT_GENERATION_PROVIDER=gemini
+OPENROUTER_API_KEY=your-openrouter-api-key
+OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
+OPENROUTER_TEXT_MODEL=openai/gpt-5.2
+OPENROUTER_VIDEO_MODEL_FAST=google/veo-3.1
+OPENROUTER_VIDEO_MODEL_QUALITY=google/veo-3.1
+OPENROUTER_APP_URL=http://localhost:3000
+OPENROUTER_APP_NAME=Social Studio
 CORS_ORIGIN=http://localhost:3000
 SUPABASE_URL=https://your-project-ref.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
 ```
+
+OpenRouter values are only required when selecting OpenRouter in the banner planner or video generator, or when setting `TEXT_GENERATION_PROVIDER=openrouter`.
 
 ## Local Development
 
@@ -291,6 +304,9 @@ Base URL: `/api`
 - `POST /generations/plan`
 - `POST /generations/image`
 - `POST /generations/edit`
+- `POST /generations/video`
+- `GET /generations/video/status`
+- `GET /generations/video/download`
 
 `POST /generations/plan` body:
 
@@ -298,6 +314,7 @@ Base URL: `/api`
 {
   "userPrompt": "Launch campaign for product X",
   "aspectRatio": "1:1",
+  "textProvider": "gemini",
   "hasBackgroundImage": false,
   "hasAssetImage": false,
   "projectId": "optional-uuid"
@@ -322,6 +339,20 @@ Base URL: `/api`
   "base64Image": "data:image/png;base64,...",
   "prompt": "Make background warm and cinematic",
   "projectId": "optional-uuid"
+}
+```
+
+`POST /generations/video` body:
+
+```json
+{
+  "prompt": "A cinematic product reveal with slow camera movement",
+  "negativePrompt": "shaky camera, text overlays",
+  "aspectRatio": "16:9",
+  "durationSeconds": 8,
+  "modelPreset": "fast",
+  "provider": "openrouter",
+  "includeAudio": false
 }
 ```
 
@@ -352,12 +383,13 @@ Credit costs:
 - `BANNER_PLAN`: 3 credits
 - `IMAGE_GENERATION`: 5 credits
 - `IMAGE_EDIT`: 5 credits
+- `VIDEO_GENERATION`: 25 credits
 
 Usage is tracked in `usage_events` and rolled up monthly by backend logic.
 
 ## Security Notes
 
-- Gemini API key is backend-only.
+- Gemini and OpenRouter API keys are backend-only.
 - Backend validates Supabase JWT per request.
 - Rate limiting enabled on `/api` and stricter on `/api/auth`.
 - Schema includes RLS policies for user-scoped access.

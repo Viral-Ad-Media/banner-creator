@@ -20,19 +20,27 @@ import {
   type VideoDurationSeconds,
   type VideoGenerationJobStatus,
   type VideoModelPreset,
+  type VideoProvider,
 } from '../../services/videoService';
 import type { AvatarAsset } from '../../services/avatarLibrary';
 import { Button } from '../ui/Button';
 import { AvatarLibraryPicker } from './AvatarLibraryPicker';
 
-const VIDEO_DURATION_OPTIONS = [4, 6, 8] as const;
+const VIDEO_DURATION_OPTIONS_BY_PROVIDER: Record<VideoProvider, readonly [VideoDurationSeconds, ...VideoDurationSeconds[]]> = {
+  gemini: [4, 6, 8],
+  openrouter: [5, 8],
+};
+const VIDEO_PROVIDER_OPTIONS: Array<{ id: VideoProvider; label: string; description: string }> = [
+  { id: 'gemini', label: 'Gemini', description: 'Direct Veo API' },
+  { id: 'openrouter', label: 'OpenRouter', description: 'OpenRouter video API' },
+];
 const VIDEO_MODEL_OPTIONS = [
   { id: 'fast', label: 'Fast', description: 'Quicker preview renders' },
   { id: 'quality', label: 'Quality', description: 'Higher fidelity, slower jobs' },
 ] as const;
 const DEFAULT_STORAGE_KEY = 'social-studio:video-generator:v1';
 const MAX_STORED_JOBS = 8;
-const VIDEO_POLL_INTERVAL_MS = 10000;
+const VIDEO_POLL_INTERVAL_MS = 30000;
 
 type PersistedVideoJob = VideoGenerationJobStatus & {
   prompt: string;
@@ -40,6 +48,7 @@ type PersistedVideoJob = VideoGenerationJobStatus & {
   aspectRatio: VideoAspectRatio;
   durationSeconds: VideoDurationSeconds;
   modelPreset: VideoModelPreset;
+  provider: VideoProvider;
   includeAudio: boolean;
   createdAt: string;
   updatedAt: string;
@@ -52,6 +61,7 @@ type PersistedVideoWorkspace = {
   aspectRatio: VideoAspectRatio;
   durationSeconds: VideoDurationSeconds;
   modelPreset: VideoModelPreset;
+  provider?: VideoProvider;
   includeAudio: boolean;
   selectedAvatarId: string | null;
   selectedOperationName: string | null;
@@ -90,6 +100,7 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
   const [aspectRatio, setAspectRatio] = useState<VideoAspectRatio>('16:9');
   const [durationSeconds, setDurationSeconds] = useState<VideoDurationSeconds>(4);
   const [modelPreset, setModelPreset] = useState<VideoModelPreset>('fast');
+  const [provider, setProvider] = useState<VideoProvider>('gemini');
   const [includeAudio, setIncludeAudio] = useState(false);
   const [selectedAvatarId, setSelectedAvatarId] = useState<string | null>(null);
   const [selectedAvatar, setSelectedAvatar] = useState<AvatarAsset | null>(null);
@@ -101,6 +112,8 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isDraftReady, setIsDraftReady] = useState(false);
   const previewUrlsRef = useRef<Record<string, string>>({});
+  const durationOptions = useMemo(() => VIDEO_DURATION_OPTIONS_BY_PROVIDER[provider], [provider]);
+  const activeProviderLabel = provider === 'openrouter' ? 'OpenRouter' : 'Gemini Veo';
 
   const upsertJob = useCallback((nextJob: PersistedVideoJob) => {
     setJobs((prev) => {
@@ -134,10 +147,15 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
       setAspectRatio(draft.aspectRatio ?? '16:9');
       setDurationSeconds(draft.durationSeconds ?? 4);
       setModelPreset(draft.modelPreset ?? 'fast');
+      setProvider(draft.provider ?? 'gemini');
       setIncludeAudio(draft.includeAudio ?? false);
       setSelectedAvatarId(draft.selectedAvatarId ?? null);
-      setJobs(draft.jobs ?? []);
-      setSelectedOperationName(draft.selectedOperationName ?? draft.jobs?.[0]?.operationName ?? null);
+      const restoredJobs = (draft.jobs ?? []).map((job) => ({
+        ...job,
+        provider: job.provider ?? 'gemini',
+      }));
+      setJobs(restoredJobs);
+      setSelectedOperationName(draft.selectedOperationName ?? restoredJobs[0]?.operationName ?? null);
 
       if ((draft.jobs?.length ?? 0) > 0) {
         setStatusMessage({ type: 'success', text: 'Restored your recent video jobs.' });
@@ -163,7 +181,8 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
       includeAudio ||
       aspectRatio !== '16:9' ||
       durationSeconds !== 4 ||
-      modelPreset !== 'fast';
+      modelPreset !== 'fast' ||
+      provider !== 'gemini';
 
     if (!hasContent) {
       window.localStorage.removeItem(draftStorageKey);
@@ -177,6 +196,7 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
       aspectRatio,
       durationSeconds,
       modelPreset,
+      provider,
       includeAudio,
       selectedAvatarId,
       selectedOperationName,
@@ -194,9 +214,16 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
     modelPreset,
     negativePrompt,
     prompt,
+    provider,
     selectedAvatarId,
     selectedOperationName,
   ]);
+
+  useEffect(() => {
+    if (!durationOptions.includes(durationSeconds)) {
+      setDurationSeconds(durationOptions[0]);
+    }
+  }, [durationOptions, durationSeconds]);
 
   useEffect(() => {
     return () => {
@@ -218,7 +245,7 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
 
     setLoadingPreviewFor(job.operationName);
     try {
-      const blob = await downloadGeneratedVideo(job.operationName, job.modelPreset);
+      const blob = await downloadGeneratedVideo(job.operationName, job.modelPreset, job.provider);
       const objectUrl = URL.createObjectURL(blob);
       previewUrlsRef.current[job.operationName] = objectUrl;
       setPreviewUrls((prev) => ({ ...prev, [job.operationName]: objectUrl }));
@@ -235,10 +262,11 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
   const refreshJob = useCallback(
     async (job: PersistedVideoJob) => {
       try {
-        const nextStatus = await getVideoGenerationStatus(job.operationName, job.modelPreset);
+        const nextStatus = await getVideoGenerationStatus(job.operationName, job.modelPreset, job.provider);
         const updatedJob: PersistedVideoJob = {
           ...job,
           ...nextStatus,
+          provider: nextStatus.provider ?? job.provider,
           updatedAt: new Date().toISOString(),
         };
 
@@ -248,11 +276,11 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
           void loadPreview(updatedJob);
         }
       } catch (error) {
+        const message = error instanceof Error ? error.message : 'Could not refresh video status.';
+        setStatusMessage({ type: 'error', text: message });
         upsertJob({
           ...job,
-          status: 'FAILED',
-          done: true,
-          errorMessage: error instanceof Error ? error.message : 'Could not refresh video status.',
+          errorMessage: message,
           updatedAt: new Date().toISOString(),
         });
       }
@@ -265,8 +293,6 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
     if (pendingJobs.length === 0) {
       return;
     }
-
-    void Promise.allSettled(pendingJobs.map((job) => refreshJob(job)));
 
     const intervalId = window.setInterval(() => {
       void Promise.allSettled(
@@ -295,7 +321,7 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
     event.preventDefault();
     const trimmedPrompt = prompt.trim();
     if (trimmedPrompt.length < 10) {
-      setStatusMessage({ type: 'error', text: 'Describe the scene in a little more detail so Veo has enough context.' });
+      setStatusMessage({ type: 'error', text: `Describe the scene in a little more detail so ${activeProviderLabel} has enough context.` });
       return;
     }
 
@@ -309,6 +335,7 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
         aspectRatio,
         durationSeconds,
         modelPreset,
+        provider,
         includeAudio,
         sourceImageDataUrl: selectedAvatar?.imageDataUrl,
       });
@@ -320,6 +347,7 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
         aspectRatio,
         durationSeconds,
         modelPreset,
+        provider: job.provider ?? provider,
         includeAudio,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -329,7 +357,7 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
       setSelectedOperationName(nextJob.operationName);
       setStatusMessage({
         type: 'success',
-        text: 'Video job queued. We’ll keep checking until Veo finishes it.',
+        text: `Video job queued. We’ll keep checking until ${activeProviderLabel} finishes it.`,
       });
     } catch (error) {
       setStatusMessage({
@@ -343,7 +371,7 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
 
   const handleDownload = async (job: PersistedVideoJob) => {
     try {
-      const blob = await downloadGeneratedVideo(job.operationName, job.modelPreset);
+      const blob = await downloadGeneratedVideo(job.operationName, job.modelPreset, job.provider);
       const url = URL.createObjectURL(blob);
       const extension = (blob.type.split('/')[1] || 'mp4').replace(/[^a-z0-9]/gi, '');
       const anchor = document.createElement('a');
@@ -368,8 +396,8 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
             Video Generator
           </span>
           <p className="mt-4 text-sm leading-7 text-[#c0d1de]">
-            Generate short Veo clips from a text prompt. Jobs usually take a bit longer than images, so this panel keeps
-            polling until the result is ready.
+            Generate short clips from a text prompt. Jobs usually take a bit longer than images, so this panel keeps
+            polling the selected provider until the result is ready.
           </p>
         </div>
 
@@ -418,7 +446,7 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
             <div className="space-y-2">
               <label className="text-xs font-semibold uppercase tracking-[0.24em] text-muted">Duration</label>
               <div className="grid grid-cols-3 gap-2">
-                {VIDEO_DURATION_OPTIONS.map((seconds) => (
+                {durationOptions.map((seconds) => (
                   <button
                     key={seconds}
                     type="button"
@@ -433,6 +461,32 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
                   </button>
                 ))}
               </div>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-semibold uppercase tracking-[0.24em] text-muted">Provider</label>
+            <div className="grid grid-cols-2 gap-2">
+              {VIDEO_PROVIDER_OPTIONS.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => setProvider(option.id)}
+                  className={`rounded-2xl border px-4 py-3 text-left transition-all ${
+                    provider === option.id
+                      ? 'border-primary bg-primary/10'
+                      : 'border-white/10 bg-black/20 hover:border-white/20 hover:bg-white/5'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className={`text-sm font-medium ${provider === option.id ? 'text-white' : 'text-white/85'}`}>
+                      {option.label}
+                    </span>
+                    {provider === option.id && <CheckCircle2 className="h-4 w-4 text-primary" />}
+                  </div>
+                  <p className="mt-1 text-xs text-muted">{option.description}</p>
+                </button>
+              ))}
             </div>
           </div>
 
@@ -492,7 +546,7 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
           {selectedAvatar && (
             <div className="rounded-2xl border border-primary/15 bg-primary/5 p-4 text-xs leading-6 text-white/80">
               Image-to-video enabled with <span className="font-medium text-white">{selectedAvatar.name}</span>. The selected
-              avatar will be used as the source frame for this render.
+              avatar will be used as the source frame for this {activeProviderLabel} render.
             </div>
           )}
 
@@ -510,7 +564,7 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
           <div className="rounded-2xl border border-primary/15 bg-primary/5 p-4 text-xs leading-6 text-white/75">
             <p className="font-medium text-white">Operational note</p>
             <p className="mt-1">
-              Veo jobs can take from several seconds to a few minutes. The app keeps checking the operation in the
+              Video jobs can take from several seconds to a few minutes. The app keeps checking the operation in the
               background, and completed videos are restorable from this browser for later preview/download.
             </p>
           </div>
@@ -576,7 +630,7 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
                   <div>
                     <p className="text-lg font-medium text-white">Generation failed</p>
                     <p className="mt-2 text-sm leading-6 text-red-200">
-                      {selectedJob.errorMessage || 'Veo was unable to complete this request.'}
+                      {selectedJob.errorMessage || `${selectedJob.provider === 'openrouter' ? 'OpenRouter' : 'Gemini Veo'} was unable to complete this request.`}
                     </p>
                   </div>
                 </div>
@@ -589,7 +643,7 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
                   </div>
                   <p className="mt-5 text-lg font-medium text-white">Video is rendering</p>
                   <p className="mt-2 text-sm text-muted">
-                    Veo is still working on this clip. We’ll keep polling automatically every few seconds.
+                    {selectedJob.provider === 'openrouter' ? 'OpenRouter' : 'Gemini Veo'} is still working on this clip. We’ll keep polling automatically.
                   </p>
                 </div>
               </div>
@@ -621,6 +675,9 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
                     <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white">{selectedJob.durationSeconds}s</span>
                     <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white">
                       {selectedJob.modelPreset === 'fast' ? 'Fast render' : 'Quality render'}
+                    </span>
+                    <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white">
+                      {selectedJob.provider === 'openrouter' ? 'OpenRouter' : 'Gemini'}
                     </span>
                     {selectedJob.includeAudio && (
                       <span className="rounded-full bg-primary/10 px-3 py-1 text-xs text-primary">Audio enabled</span>
@@ -669,6 +726,9 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
                         </span>
                         <span className="rounded-full bg-white/5 px-2.5 py-1 text-[11px] text-muted">{job.aspectRatio}</span>
                         <span className="rounded-full bg-white/5 px-2.5 py-1 text-[11px] text-muted">{job.durationSeconds}s</span>
+                        <span className="rounded-full bg-white/5 px-2.5 py-1 text-[11px] text-muted">
+                          {job.provider === 'openrouter' ? 'OpenRouter' : 'Gemini'}
+                        </span>
                       </div>
                       <p className="mt-3 line-clamp-2 text-sm leading-6 text-white/90">{job.prompt}</p>
                     </div>

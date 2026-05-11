@@ -1,6 +1,6 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { generateBannerPlan, generateImage, BannerPlan, AspectRatio } from '../services/geminiService';
+import { generateBannerPlan, generateImage, BannerPlan, AspectRatio, TextGenerationProvider } from '../services/geminiService';
 import { Button } from './ui/Button';
 import { 
   Wand2, Layers, Download, Image as ImageIcon, Sparkles, Upload, X, 
@@ -14,6 +14,10 @@ type SocialPlatform = 'instagram' | 'facebook' | 'tiktok' | 'linkedin';
 const BANNER_COUNT_OPTIONS = [1, 2, 3, 4, 5, 6] as const;
 type BannerCount = (typeof BANNER_COUNT_OPTIONS)[number];
 const DEFAULT_BANNER_COUNT: BannerCount = 3;
+const PLANNER_PROVIDER_OPTIONS: Array<{ id: TextGenerationProvider; label: string; description: string }> = [
+  { id: 'gemini', label: 'Gemini', description: 'Default planner' },
+  { id: 'openrouter', label: 'OpenRouter', description: 'OpenRouter model' },
+];
 
 interface CopyGeneratorProps {
   draftStorageKey?: string;
@@ -27,6 +31,7 @@ type PersistedWorkspaceDraft = {
   selectedAvatarId?: string | null;
   aspectRatio: AspectRatio;
   bannerCount?: BannerCount;
+  textProvider?: TextGenerationProvider;
   plan: BannerPlan | null;
   generatedImages: Record<string, string>;
   rawBackgrounds: Record<string, string>;
@@ -57,6 +62,7 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({
   // --- Config State ---
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1');
   const [bannerCount, setBannerCount] = useState<BannerCount>(DEFAULT_BANNER_COUNT);
+  const [textProvider, setTextProvider] = useState<TextGenerationProvider>('gemini');
 
   // --- Process State ---
   const [isPlanning, setIsPlanning] = useState(false);
@@ -154,6 +160,7 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({
       setSelectedAvatarId(draft.selectedAvatarId ?? null);
       setAspectRatio(draft.aspectRatio ?? '1:1');
       setBannerCount(draft.bannerCount ?? DEFAULT_BANNER_COUNT);
+      setTextProvider(draft.textProvider ?? 'gemini');
       setPlan(draft.plan ?? null);
       setGeneratedImages(draft.generatedImages ?? {});
       setRawBackgrounds(draft.rawBackgrounds ?? {});
@@ -190,6 +197,7 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({
       !!backgroundImage ||
       !!assetImage ||
       !!selectedAvatarId ||
+      textProvider !== 'gemini' ||
       !!plan ||
       Object.keys(generatedImages).length > 0 ||
       Object.keys(rawBackgrounds).length > 0 ||
@@ -210,6 +218,7 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({
       selectedAvatarId,
       aspectRatio,
       bannerCount,
+      textProvider,
       plan,
       generatedImages,
       rawBackgrounds,
@@ -233,6 +242,7 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({
     assetImage,
     backgroundImage,
     selectedAvatarId,
+    textProvider,
     draftStorageKey,
     editorBackgrounds,
     generatedImages,
@@ -283,7 +293,8 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({
         aspectRatio: aspectRatio,
         bannerCount,
         hasBackgroundImage: !!backgroundImage,
-        hasAssetImage: !!assetImage
+        hasAssetImage: !!assetImage,
+        textProvider,
       });
       if (runId !== generationRunRef.current) return;
 
@@ -323,7 +334,10 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({
     } catch (error) {
       if (runId !== generationRunRef.current) return;
       console.error(error);
-      setStatusMessage({ type: 'error', text: 'Failed to generate banner plan. Please try again.' });
+      setStatusMessage({
+        type: 'error',
+        text: error instanceof Error ? error.message : 'Failed to generate banner plan. Please try again.',
+      });
       setIsPlanning(false);
     }
   };
@@ -732,6 +746,27 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({
                         <p className="text-[11px] text-muted">
                             Creates 1 main banner{bannerCount > 1 ? ` and ${bannerCount - 1} additional variation${bannerCount - 1 > 1 ? 's' : ''}.` : '.'}
                         </p>
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-xs font-semibold text-muted uppercase tracking-wider">Planner AI</label>
+                        <div className="grid grid-cols-2 gap-2">
+                            {PLANNER_PROVIDER_OPTIONS.map((option) => (
+                                <button
+                                    key={option.id}
+                                    type="button"
+                                    onClick={() => setTextProvider(option.id)}
+                                    className={`rounded-xl border px-3 py-2 text-left transition-all ${
+                                        textProvider === option.id
+                                        ? 'bg-primary/20 border-primary text-primary'
+                                        : 'bg-black/20 border-white/5 text-muted hover:bg-white/5 hover:text-white'
+                                    }`}
+                                >
+                                    <span className="block text-sm font-medium">{option.label}</span>
+                                    <span className="mt-1 block text-[10px] opacity-80">{option.description}</span>
+                                </button>
+                            ))}
+                        </div>
                     </div>
                 </div>
 
