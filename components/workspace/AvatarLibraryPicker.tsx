@@ -256,7 +256,6 @@ export const AvatarLibraryPicker: React.FC<AvatarLibraryPickerProps> = ({
               <X className="h-5 w-5 text-muted" />
             </div>
             <p className="mt-2 text-xs font-medium text-white">No avatar</p>
-            <p className="mt-1 text-[11px] text-muted">Continue without using a saved character</p>
           </button>
 
           {avatars.map((avatar) => (
@@ -276,9 +275,6 @@ export const AvatarLibraryPicker: React.FC<AvatarLibraryPickerProps> = ({
                   </div>
                 </div>
                 <p className="mt-2 line-clamp-1 text-xs font-medium text-white">{avatar.name}</p>
-                <p className="mt-1 text-[11px] text-muted">
-                  {avatar.prompt ? avatar.prompt.slice(0, 42) : 'Custom uploaded avatar'}
-                </p>
               </button>
 
               {isManageMode && (
