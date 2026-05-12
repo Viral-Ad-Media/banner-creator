@@ -838,7 +838,6 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({
                         onSelectedAvatarIdChange={setSelectedAvatarId}
                         onSelectedAvatarChange={setSelectedAvatar}
                         title="Avatar For Images"
-                        description="Optional. Select a saved avatar to guide the subject of generated banners, or leave it empty for a freeform result."
                         mode="select"
                     />
                 </div>

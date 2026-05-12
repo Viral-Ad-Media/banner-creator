@@ -46,7 +46,6 @@ export const AvatarStudioPanel: React.FC = () => {
             onSelectedAvatarIdChange={setSelectedAvatarId}
             onSelectedAvatarChange={setSelectedAvatar}
             title="Saved Avatars"
-            description="Generate, upload, organize, and select the characters you want available across your creative tools."
             mode="manage"
           />
         </div>

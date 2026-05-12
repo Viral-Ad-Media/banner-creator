@@ -124,7 +124,6 @@ export const ImageStudio: React.FC = () => {
             onSelectedAvatarIdChange={setSelectedAvatarId}
             onSelectedAvatarChange={setSelectedAvatar}
             title="Avatar For Image Studio"
-            description="Optional. Load a saved avatar as your starting image, or skip this and upload any source image below."
             mode="select"
           />
 

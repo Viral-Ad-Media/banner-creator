@@ -18,7 +18,6 @@ interface AvatarLibraryPickerProps {
   onSelectedAvatarIdChange: (avatarId: string | null) => void;
   onSelectedAvatarChange: (avatar: AvatarAsset | null) => void;
   title?: string;
-  description?: string;
   mode?: 'manage' | 'select';
   emptyStateMessage?: string;
 }
@@ -28,7 +27,6 @@ export const AvatarLibraryPicker: React.FC<AvatarLibraryPickerProps> = ({
   onSelectedAvatarIdChange,
   onSelectedAvatarChange,
   title = 'Avatar Library',
-  description = 'Upload or generate a reusable character/avatar, then apply it to image and video generation.',
   mode = 'manage',
   emptyStateMessage,
 }) => {
@@ -146,7 +144,7 @@ export const AvatarLibraryPicker: React.FC<AvatarLibraryPickerProps> = ({
   const handleGenerateAvatar = async () => {
     const trimmedPrompt = avatarPrompt.trim();
     if (trimmedPrompt.length < 3) {
-      setStatusMessage({ type: 'error', text: 'Add a short avatar description first.' });
+      setStatusMessage({ type: 'error', text: 'Add a short avatar prompt first.' });
       return;
     }
 
@@ -209,7 +207,6 @@ export const AvatarLibraryPicker: React.FC<AvatarLibraryPickerProps> = ({
             </span>
           )}
         </h3>
-        <p className="mt-1 text-xs leading-5 text-muted">{description}</p>
       </div>
 
       {isManageMode && (
