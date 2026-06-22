@@ -14,9 +14,9 @@ type SocialPlatform = 'instagram' | 'facebook' | 'tiktok' | 'linkedin';
 const BANNER_COUNT_OPTIONS = [1, 2, 3, 4, 5, 6] as const;
 type BannerCount = (typeof BANNER_COUNT_OPTIONS)[number];
 const DEFAULT_BANNER_COUNT: BannerCount = 3;
-const PLANNER_PROVIDER_OPTIONS: Array<{ id: TextGenerationProvider; label: string; description: string }> = [
-  { id: 'gemini', label: 'Gemini', description: 'Default planner' },
-  { id: 'openrouter', label: 'OpenRouter', description: 'OpenRouter model' },
+const PLANNER_MODEL_OPTIONS: Array<{ id: TextGenerationProvider; label: string }> = [
+  { id: 'gemini', label: 'Gemini (default planner model)' },
+  { id: 'openrouter', label: 'OpenRouter (openai/gpt-5.2)' },
 ];
 
 interface CopyGeneratorProps {
@@ -750,23 +750,17 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({
 
                     <div className="space-y-2">
                         <label className="text-xs font-semibold text-muted uppercase tracking-wider">Planner AI</label>
-                        <div className="grid grid-cols-2 gap-2">
-                            {PLANNER_PROVIDER_OPTIONS.map((option) => (
-                                <button
-                                    key={option.id}
-                                    type="button"
-                                    onClick={() => setTextProvider(option.id)}
-                                    className={`rounded-xl border px-3 py-2 text-left transition-all ${
-                                        textProvider === option.id
-                                        ? 'bg-primary/20 border-primary text-primary'
-                                        : 'bg-black/20 border-white/5 text-muted hover:bg-white/5 hover:text-white'
-                                    }`}
-                                >
-                                    <span className="block text-sm font-medium">{option.label}</span>
-                                    <span className="mt-1 block text-[10px] opacity-80">{option.description}</span>
-                                </button>
+                        <select
+                            value={textProvider}
+                            onChange={(e) => setTextProvider(e.target.value as TextGenerationProvider)}
+                            className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white transition-all placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        >
+                            {PLANNER_MODEL_OPTIONS.map((option) => (
+                                <option key={option.id} value={option.id} className="bg-[#0b1620] text-white">
+                                    {option.label}
+                                </option>
                             ))}
-                        </div>
+                        </select>
                     </div>
                 </div>
 

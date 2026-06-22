@@ -5,6 +5,9 @@ import { Image as ImageIcon, Sparkles, Upload, Download, Undo2, Eraser, Wand2 } 
 import { AvatarLibraryPicker } from './workspace/AvatarLibraryPicker';
 import type { AvatarAsset } from '../services/avatarLibrary';
 
+const IMAGE_EDITOR_MODEL_OPTIONS = [{ id: 'gemini', label: 'Gemini Image Editor' }] as const;
+type ImageEditorModel = (typeof IMAGE_EDITOR_MODEL_OPTIONS)[number]['id'];
+
 const MAX_HISTORY_LENGTH = 12;
 const MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024;
 
@@ -16,6 +19,7 @@ export const ImageStudio: React.FC = () => {
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [selectedAvatarId, setSelectedAvatarId] = useState<string | null>(null);
   const [selectedAvatar, setSelectedAvatar] = useState<AvatarAsset | null>(null);
+  const [imageEditorModel, setImageEditorModel] = useState<ImageEditorModel>('gemini');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -173,6 +177,20 @@ export const ImageStudio: React.FC = () => {
               </div>
 
               <form onSubmit={handleEdit} className="space-y-4 flex-1 flex flex-col">
+                <div className="space-y-2">
+                  <label className="block text-xs font-medium text-gray-400 group-focus-within:text-white transition-colors">Image model</label>
+                  <select
+                    value={imageEditorModel}
+                    onChange={(event) => setImageEditorModel(event.target.value as ImageEditorModel)}
+                    className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none transition-colors focus:border-primary/50 focus:ring-1 focus:ring-primary/20"
+                  >
+                    {IMAGE_EDITOR_MODEL_OPTIONS.map((option) => (
+                      <option key={option.id} value={option.id} className="bg-[#0b1620] text-white">
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 <div className="flex-1 group">
                     <label className="block text-xs font-medium text-gray-400 mb-2 group-focus-within:text-white transition-colors">Prompt Instruction</label>
                     <textarea

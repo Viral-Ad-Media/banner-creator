@@ -37,8 +37,8 @@ const VIDEO_DURATION_OPTIONS_BY_PROVIDER: Record<VideoProvider, readonly [VideoD
   openrouter: [5, 8],
 };
 const VIDEO_PROVIDER_OPTIONS: Array<{ id: VideoProvider; label: string; description: string }> = [
-  { id: 'gemini', label: 'Gemini', description: 'Direct Veo API' },
-  { id: 'openrouter', label: 'OpenRouter', description: 'OpenRouter video API' },
+  { id: 'gemini', label: 'Gemini Veo', description: 'Google Gemini Veo direct API' },
+  { id: 'openrouter', label: 'OpenRouter Veo 3.1', description: 'OpenRouter video API using google/veo-3.1' },
 ];
 const VIDEO_MODEL_OPTIONS = [
   { id: 'fast', label: 'Fast', description: 'Quicker preview renders' },
@@ -1270,29 +1270,19 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs font-semibold uppercase tracking-[0.24em] text-muted">Provider</label>
-            <div className="grid grid-cols-2 gap-2">
+            <label className="text-xs font-semibold uppercase tracking-[0.24em] text-muted">Video model</label>
+            <select
+              value={provider}
+              onChange={(event) => setProvider(event.target.value as VideoProvider)}
+              className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none transition-colors focus:border-primary/50 focus:ring-1 focus:ring-primary/20"
+            >
               {VIDEO_PROVIDER_OPTIONS.map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  onClick={() => setProvider(option.id)}
-                  className={`rounded-2xl border px-4 py-3 text-left transition-all ${
-                    provider === option.id
-                      ? 'border-primary bg-primary/10'
-                      : 'border-white/10 bg-black/20 hover:border-white/20 hover:bg-white/5'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className={`text-sm font-medium ${provider === option.id ? 'text-white' : 'text-white/85'}`}>
-                      {option.label}
-                    </span>
-                    {provider === option.id && <CheckCircle2 className="h-4 w-4 text-primary" />}
-                  </div>
-                  <p className="mt-1 text-xs text-muted">{option.description}</p>
-                </button>
+                <option key={option.id} value={option.id} className="bg-[#0b1620] text-white">
+                  {option.label}
+                </option>
               ))}
-            </div>
+            </select>
+            <p className="text-xs text-muted">Select the available video model for this task.</p>
           </div>
 
           <div className="space-y-2">
