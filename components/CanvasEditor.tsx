@@ -14,6 +14,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { Button } from './ui/Button';
+import { Tooltip } from './ui/Tooltip';
 import { generateImage, editImageWithGemini } from '../services/geminiService';
 
 // --- Types ---
@@ -1250,8 +1251,12 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
            <div className="h-14 border-b border-white/5 bg-[#0e0e0e] flex items-center justify-between px-4 shrink-0 z-30">
                <div className="flex items-center gap-4">
                    <div className="flex items-center gap-1">
-                       <button onClick={undo} disabled={historyIndex <= 0} className="p-2 hover:bg-white/5 rounded-lg text-muted disabled:opacity-30"><Undo2 className="w-4 h-4" /></button>
-                       <button onClick={redo} disabled={historyIndex >= history.length - 1} className="p-2 hover:bg-white/5 rounded-lg text-muted disabled:opacity-30"><Redo2 className="w-4 h-4" /></button>
+                       <Tooltip label="Undo" placement="bottom">
+                         <button onClick={undo} disabled={historyIndex <= 0} className="p-2 hover:bg-white/5 rounded-lg text-muted disabled:opacity-30"><Undo2 className="w-4 h-4" /></button>
+                       </Tooltip>
+                       <Tooltip label="Redo" placement="bottom">
+                         <button onClick={redo} disabled={historyIndex >= history.length - 1} className="p-2 hover:bg-white/5 rounded-lg text-muted disabled:opacity-30"><Redo2 className="w-4 h-4" /></button>
+                       </Tooltip>
                    </div>
                    <div className="h-6 w-px bg-white/10"></div>
                    <div className="text-sm font-medium text-muted">Untitled Design - {aspectRatio}</div>
@@ -1429,15 +1434,27 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                         </div>
 
                         <div className="flex items-center gap-1 ml-2">
-                             <button onClick={() => updateSelected({ fontWeight: activeElement.style.fontWeight === 'bold' ? 'normal' : 'bold' })} className={`p-1.5 rounded ${activeElement.style.fontWeight === 'bold' ? 'bg-white/10' : 'hover:bg-white/5'}`}><Bold className="w-4 h-4" /></button>
-                             <button onClick={() => updateSelected({ fontStyle: activeElement.style.fontStyle === 'italic' ? 'normal' : 'italic' })} className={`p-1.5 rounded ${activeElement.style.fontStyle === 'italic' ? 'bg-white/10' : 'hover:bg-white/5'}`}><Italic className="w-4 h-4" /></button>
-                             <button onClick={() => updateSelected({ textDecoration: activeElement.style.textDecoration === 'underline' ? 'none' : 'underline' })} className={`p-1.5 rounded ${activeElement.style.textDecoration === 'underline' ? 'bg-white/10' : 'hover:bg-white/5'}`}><Underline className="w-4 h-4" /></button>
+                             <Tooltip label="Bold" placement="bottom">
+                               <button onClick={() => updateSelected({ fontWeight: activeElement.style.fontWeight === 'bold' ? 'normal' : 'bold' })} className={`p-1.5 rounded ${activeElement.style.fontWeight === 'bold' ? 'bg-white/10' : 'hover:bg-white/5'}`}><Bold className="w-4 h-4" /></button>
+                             </Tooltip>
+                             <Tooltip label="Italic" placement="bottom">
+                               <button onClick={() => updateSelected({ fontStyle: activeElement.style.fontStyle === 'italic' ? 'normal' : 'italic' })} className={`p-1.5 rounded ${activeElement.style.fontStyle === 'italic' ? 'bg-white/10' : 'hover:bg-white/5'}`}><Italic className="w-4 h-4" /></button>
+                             </Tooltip>
+                             <Tooltip label="Underline" placement="bottom">
+                               <button onClick={() => updateSelected({ textDecoration: activeElement.style.textDecoration === 'underline' ? 'none' : 'underline' })} className={`p-1.5 rounded ${activeElement.style.textDecoration === 'underline' ? 'bg-white/10' : 'hover:bg-white/5'}`}><Underline className="w-4 h-4" /></button>
+                             </Tooltip>
                         </div>
                         <div className="h-6 w-px bg-white/10"></div>
                         <div className="flex items-center gap-1">
-                             <button onClick={() => updateSelected({ textAlign: 'left' })} className={`p-1.5 rounded ${activeElement.style.textAlign === 'left' ? 'bg-white/10' : 'hover:bg-white/5'}`}><AlignLeft className="w-4 h-4" /></button>
-                             <button onClick={() => updateSelected({ textAlign: 'center' })} className={`p-1.5 rounded ${activeElement.style.textAlign === 'center' ? 'bg-white/10' : 'hover:bg-white/5'}`}><AlignCenter className="w-4 h-4" /></button>
-                             <button onClick={() => updateSelected({ textAlign: 'right' })} className={`p-1.5 rounded ${activeElement.style.textAlign === 'right' ? 'bg-white/10' : 'hover:bg-white/5'}`}><AlignRight className="w-4 h-4" /></button>
+                             <Tooltip label="Align left" placement="bottom">
+                               <button onClick={() => updateSelected({ textAlign: 'left' })} className={`p-1.5 rounded ${activeElement.style.textAlign === 'left' ? 'bg-white/10' : 'hover:bg-white/5'}`}><AlignLeft className="w-4 h-4" /></button>
+                             </Tooltip>
+                             <Tooltip label="Align center" placement="bottom">
+                               <button onClick={() => updateSelected({ textAlign: 'center' })} className={`p-1.5 rounded ${activeElement.style.textAlign === 'center' ? 'bg-white/10' : 'hover:bg-white/5'}`}><AlignCenter className="w-4 h-4" /></button>
+                             </Tooltip>
+                             <Tooltip label="Align right" placement="bottom">
+                               <button onClick={() => updateSelected({ textAlign: 'right' })} className={`p-1.5 rounded ${activeElement.style.textAlign === 'right' ? 'bg-white/10' : 'hover:bg-white/5'}`}><AlignRight className="w-4 h-4" /></button>
+                             </Tooltip>
                         </div>
                    </>
                )}
@@ -1556,11 +1573,19 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                                 {isSelected && (
                                     <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-[#18181b] rounded-lg shadow-xl border border-white/10 flex items-center p-1 gap-1 z-[99999] scale-invariant" 
                                          style={{ transform: `translateX(-50%) scale(${1/zoomLevel})` }}>
-                                        <button onClick={(e) => { e.stopPropagation(); duplicateSelected(); }} className="p-1.5 hover:bg-white/10 rounded text-white" title="Duplicate"><Copy className="w-4 h-4" /></button>
-                                        <button onClick={(e) => { e.stopPropagation(); deleteSelected(); }} className="p-1.5 hover:bg-white/10 rounded text-white" title="Delete"><Trash2 className="w-4 h-4" /></button>
+                                        <Tooltip label="Duplicate">
+                                          <button onClick={(e) => { e.stopPropagation(); duplicateSelected(); }} className="p-1.5 hover:bg-white/10 rounded text-white"><Copy className="w-4 h-4" /></button>
+                                        </Tooltip>
+                                        <Tooltip label="Delete">
+                                          <button onClick={(e) => { e.stopPropagation(); deleteSelected(); }} className="p-1.5 hover:bg-white/10 rounded text-white"><Trash2 className="w-4 h-4" /></button>
+                                        </Tooltip>
                                         <div className="w-px h-4 bg-white/10"></div>
-                                        <button onClick={(e) => { e.stopPropagation(); toggleLock(); }} className={`p-1.5 hover:bg-white/10 rounded ${el.locked ? 'text-primary' : 'text-white'}`} title="Lock"><Lock className="w-4 h-4" /></button>
-                                        <button className="p-1.5 hover:bg-white/10 rounded text-white"><MoreHorizontal className="w-4 h-4" /></button>
+                                        <Tooltip label={el.locked ? 'Unlock' : 'Lock'}>
+                                          <button onClick={(e) => { e.stopPropagation(); toggleLock(); }} className={`p-1.5 hover:bg-white/10 rounded ${el.locked ? 'text-primary' : 'text-white'}`}><Lock className="w-4 h-4" /></button>
+                                        </Tooltip>
+                                        <Tooltip label="More options">
+                                          <button className="p-1.5 hover:bg-white/10 rounded text-white"><MoreHorizontal className="w-4 h-4" /></button>
+                                        </Tooltip>
                                     </div>
                                 )}
 
@@ -1631,9 +1656,13 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
            <div className="h-10 border-t border-white/5 bg-[#18181b] flex items-center justify-between px-4 shrink-0 z-30">
                <div className="text-xs text-muted">Page 1 of 1</div>
                <div className="flex items-center gap-4">
-                   <button onClick={() => setZoomLevel(Math.max(0.1, zoomLevel - 0.1))} className="text-muted hover:text-white"><ZoomOut className="w-4 h-4" /></button>
+                   <Tooltip label="Zoom out" placement="top">
+                     <button onClick={() => setZoomLevel(Math.max(0.1, zoomLevel - 0.1))} className="text-muted hover:text-white"><ZoomOut className="w-4 h-4" /></button>
+                   </Tooltip>
                    <span className="text-xs font-mono w-12 text-center">{Math.round(zoomLevel * 100)}%</span>
-                   <button onClick={() => setZoomLevel(Math.min(2, zoomLevel + 0.1))} className="text-muted hover:text-white"><ZoomIn className="w-4 h-4" /></button>
+                   <Tooltip label="Zoom in" placement="top">
+                     <button onClick={() => setZoomLevel(Math.min(2, zoomLevel + 0.1))} className="text-muted hover:text-white"><ZoomIn className="w-4 h-4" /></button>
+                   </Tooltip>
                    <button onClick={() => setZoomLevel(0.6)} className="text-xs text-muted hover:text-white ml-2">Fit</button>
                </div>
            </div>

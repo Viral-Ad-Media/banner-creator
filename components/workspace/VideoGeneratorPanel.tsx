@@ -585,7 +585,15 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
       jobs,
     };
 
-    window.localStorage.setItem(draftStorageKey, JSON.stringify(draft));
+    try {
+      window.localStorage.setItem(draftStorageKey, JSON.stringify(draft));
+    } catch (error) {
+      console.error('Failed to persist video workspace draft', error);
+      setStatusMessage({
+        type: 'error',
+        text: 'Video workspace draft could not be saved locally. Clear old drafts or free browser storage.',
+      });
+    }
   }, [
     aspectRatio,
     cameraMotion,
@@ -898,7 +906,7 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
 
     try {
       const queuedJobs = await Promise.allSettled(
-        validScenes.map(async (scene, index) => {
+        validScenes.map(async (scene, index): Promise<PersistedVideoJob> => {
           const trimmedPrompt = scene.prompt.trim();
           const renderPrompt = composeVideoPrompt({
             basePrompt: trimmedPrompt,
@@ -1511,12 +1519,22 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
           <div className="mt-6">
             {!selectedJob ? (
               <div className="flex min-h-[420px] items-center justify-center rounded-[28px] border border-dashed border-white/10 bg-black/20 p-8 text-center">
-                <div>
+                <div className="max-w-sm">
                   <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-white/5">
                     <Video className="h-8 w-8 text-muted" />
                   </div>
                   <p className="mt-5 text-lg font-medium text-white">No video jobs yet</p>
                   <p className="mt-2 text-sm text-muted">Queued clips and completed scenes will appear here.</p>
+                  <ul className="mt-5 space-y-2 text-left text-xs text-muted">
+                    <li className="flex items-start gap-2">
+                      <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                      Start with a text prompt, or switch Source to an uploaded image or a saved avatar.
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Film className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                      Try Scene Reel for a multi-shot storyboard you can merge into one clip.
+                    </li>
+                  </ul>
                 </div>
               </div>
             ) : selectedJob.status === 'FAILED' ? (

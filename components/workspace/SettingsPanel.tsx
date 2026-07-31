@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { CreditCard, Mail, Save, Settings, Sparkles, UserCircle2 } from 'lucide-react';
+import { CreditCard, Mail, PlayCircle, Save, Settings, Sparkles, UserCircle2 } from 'lucide-react';
 import type { AuthUser } from '../../services/authService';
 import { updateProfile } from '../../services/authService';
 import { getBillingSummary, type BillingSummary as BillingSummaryRecord, type PlanSummary, type UsageSummary } from '../../services/workspaceService';
@@ -8,6 +8,7 @@ import { Button } from '../ui/Button';
 interface SettingsPanelProps {
   user: AuthUser;
   onUserUpdated: (user: AuthUser) => void;
+  onReplayTour: () => void;
 }
 
 const formatDate = (value: string | null) => {
@@ -18,7 +19,7 @@ const formatDate = (value: string | null) => {
   }).format(new Date(value));
 };
 
-export const SettingsPanel: React.FC<SettingsPanelProps> = ({ user, onUserUpdated }) => {
+export const SettingsPanel: React.FC<SettingsPanelProps> = ({ user, onUserUpdated, onReplayTour }) => {
   const [name, setName] = useState(user.name);
   const [billing, setBilling] = useState<BillingSummaryRecord | null>(null);
   const [plan, setPlan] = useState<PlanSummary | null>(null);
@@ -185,6 +186,20 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ user, onUserUpdate
               </div>
             </div>
           )}
+        </section>
+
+        <section className="surface-card rounded-[32px] p-6">
+          <h3 className="flex items-center gap-2 text-lg font-semibold text-white">
+            <PlayCircle className="h-5 w-5 text-primary" />
+            Product Tour
+          </h3>
+          <p className="mt-3 text-sm leading-6 text-muted">
+            Replay the guided walkthrough of the workspace sidebar anytime you need a refresher.
+          </p>
+          <Button variant="secondary" onClick={onReplayTour} className="mt-4 w-full">
+            <PlayCircle className="h-4 w-4" />
+            Replay Tour
+          </Button>
         </section>
 
         <section className="rounded-[32px] border border-primary/15 bg-primary/5 p-6 shadow-[0_28px_80px_-44px_rgba(0,0,0,0.8)]">

@@ -3,6 +3,7 @@ import { editImageWithGemini } from '../services/geminiService';
 import { Button } from './ui/Button';
 import { Image as ImageIcon, Sparkles, Upload, Download, Undo2, Eraser, Wand2 } from 'lucide-react';
 import { AvatarLibraryPicker } from './workspace/AvatarLibraryPicker';
+import { Tooltip } from './ui/Tooltip';
 import type { AvatarAsset } from '../services/avatarLibrary';
 
 const IMAGE_EDITOR_MODEL_OPTIONS = [{ id: 'gemini', label: 'Gemini Image Editor' }] as const;
@@ -152,27 +153,29 @@ export const ImageStudio: React.FC = () => {
                     <h3 className="text-white font-bold">Magic Editor</h3>
                 </div>
                 <div className="flex gap-2">
-                  <button 
-                    onClick={handleUndo} 
-                    disabled={history.length <= 1 || isProcessing}
-                    className="p-2 hover:bg-white/10 rounded-lg text-muted disabled:opacity-30 transition-colors"
-                    title="Undo"
-                  >
-                    <Undo2 className="w-4 h-4" />
-                  </button>
-                  <button 
-                    onClick={() => {
-                        setSelectedAvatarId(null);
-                        setCurrentImage(null);
-                        setHistory([]);
-                        setPrompt('');
-                        setStatusMessage(null);
-                    }} 
-                    className="p-2 hover:bg-red-500/10 hover:text-red-400 rounded-lg text-muted transition-colors"
-                    title="Clear All"
-                  >
-                    <Eraser className="w-4 h-4" />
-                  </button>
+                  <Tooltip label="Undo last edit">
+                    <button
+                      onClick={handleUndo}
+                      disabled={history.length <= 1 || isProcessing}
+                      className="p-2 hover:bg-white/10 rounded-lg text-muted disabled:opacity-30 transition-colors"
+                    >
+                      <Undo2 className="w-4 h-4" />
+                    </button>
+                  </Tooltip>
+                  <Tooltip label="Clear all">
+                    <button
+                      onClick={() => {
+                          setSelectedAvatarId(null);
+                          setCurrentImage(null);
+                          setHistory([]);
+                          setPrompt('');
+                          setStatusMessage(null);
+                      }}
+                      className="p-2 hover:bg-red-500/10 hover:text-red-400 rounded-lg text-muted transition-colors"
+                    >
+                      <Eraser className="w-4 h-4" />
+                    </button>
+                  </Tooltip>
                 </div>
               </div>
 

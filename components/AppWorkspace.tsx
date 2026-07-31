@@ -14,7 +14,10 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import type { AuthUser } from '../services/authService';
+import { getOnboardingState, markTourCompleted, markWelcomeSeen, resetTour } from '../services/onboardingState';
 import { Button } from './ui/Button';
+import { ProductTour } from './onboarding/ProductTour';
+import { WelcomeModal } from './onboarding/WelcomeModal';
 
 const CopyGenerator = lazy(() =>
   import('./CopyGenerator').then((module) => ({
@@ -116,10 +119,38 @@ interface AppWorkspaceProps {
 export const AppWorkspace: React.FC<AppWorkspaceProps> = ({ user, onLogout, onUserUpdated }) => {
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isWelcomeOpen, setIsWelcomeOpen] = useState(false);
+  const [isTourRunning, setIsTourRunning] = useState(false);
 
   useEffect(() => {
     setIsSidebarOpen(false);
   }, [location.pathname]);
+
+  useEffect(() => {
+    setIsWelcomeOpen(!getOnboardingState(user.id).hasSeenWelcome);
+  }, [user.id]);
+
+  const handleWelcomeComplete = () => {
+    const state = markWelcomeSeen(user.id);
+    setIsWelcomeOpen(false);
+
+    if (!state.hasCompletedTour) {
+      setIsSidebarOpen(true);
+      setIsTourRunning(true);
+    }
+  };
+
+  const handleTourFinish = () => {
+    markTourCompleted(user.id);
+    setIsTourRunning(false);
+    setIsSidebarOpen(false);
+  };
+
+  const handleReplayTour = () => {
+    resetTour(user.id);
+    setIsSidebarOpen(true);
+    setIsTourRunning(true);
+  };
 
   const mobileNavItemIds: WorkspaceNavItem['id'][] = ['banner-generator', 'avatar-studio', 'image-studio', 'video-generator'];
   const mobileNavItems = mobileNavItemIds
@@ -128,6 +159,9 @@ export const AppWorkspace: React.FC<AppWorkspaceProps> = ({ user, onLogout, onUs
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(64,214,195,0.15),transparent_24%),radial-gradient(circle_at_top_right,rgba(255,177,102,0.12),transparent_22%),linear-gradient(180deg,#071219_0%,#0b1620_100%)] font-sans selection:bg-primary/30">
+      {isWelcomeOpen && <WelcomeModal userName={user.name} onComplete={handleWelcomeComplete} />}
+      <ProductTour run={isTourRunning} onFinish={handleTourFinish} />
+
       {isSidebarOpen && (
         <button
           type="button"
@@ -176,6 +210,7 @@ export const AppWorkspace: React.FC<AppWorkspaceProps> = ({ user, onLogout, onUs
                     <NavLink
                       key={item.to}
                       to={item.to}
+                      data-tour={`nav-${item.id}`}
                       className={({ isActive }) =>
                         `group flex items-start gap-3 rounded-[26px] border px-4 py-4 transition-all ${
                           isActive
@@ -247,7 +282,10 @@ export const AppWorkspace: React.FC<AppWorkspaceProps> = ({ user, onLogout, onUs
                     element={<VideoGeneratorPanel draftStorageKey={`social-studio:video-generator:${user.id}`} />}
                   />
                   <Route path="activities" element={<ActivitiesPanel />} />
-                  <Route path="settings" element={<SettingsPanel user={user} onUserUpdated={onUserUpdated} />} />
+                  <Route
+                    path="settings"
+                    element={<SettingsPanel user={user} onUserUpdated={onUserUpdated} onReplayTour={handleReplayTour} />}
+                  />
                   <Route path="*" element={<Navigate to="banner-generator" replace />} />
                 </Routes>
               </Suspense>

@@ -1,19 +1,21 @@
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { generateBannerPlan, generateImage, BannerPlan, AspectRatio, TextGenerationProvider } from '../services/geminiService';
 import { Button } from './ui/Button';
-import { 
-  Wand2, Layers, Download, Image as ImageIcon, Sparkles, Upload, X, 
-  Hash, Copy, Share2, Instagram, Linkedin, ChevronDown, MousePointer2, Facebook, Video, CheckCircle, Loader2, RefreshCcw
+import {
+  Wand2, Layers, Download, Image as ImageIcon, Sparkles, Upload, X,
+  Hash, Copy, Share2, Instagram, Linkedin, ChevronDown, MousePointer2, Facebook, Video, RefreshCcw
 } from 'lucide-react';
 import { CanvasEditor, CanvasElement, BackgroundState } from './CanvasEditor';
 import { AvatarLibraryPicker } from './workspace/AvatarLibraryPicker';
+import { Tooltip } from './ui/Tooltip';
 import type { AvatarAsset } from '../services/avatarLibrary';
 
 type SocialPlatform = 'instagram' | 'facebook' | 'tiktok' | 'linkedin';
 const BANNER_COUNT_OPTIONS = [1, 2, 3, 4, 5, 6] as const;
 type BannerCount = (typeof BANNER_COUNT_OPTIONS)[number];
 const DEFAULT_BANNER_COUNT: BannerCount = 3;
+const MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024;
 const PLANNER_MODEL_OPTIONS: Array<{ id: TextGenerationProvider; label: string }> = [
   { id: 'gemini', label: 'Gemini (default planner model)' },
   { id: 'openrouter', label: 'OpenRouter (openai/gpt-5.2)' },
@@ -42,12 +44,12 @@ type PersistedWorkspaceDraft = {
 
 const DEFAULT_DRAFT_STORAGE_KEY = 'social-studio:banner-workspace-draft:v1';
 
-const SOCIAL_LOGIN_URLS: Record<SocialPlatform, string> = {
-  facebook: 'https://www.facebook.com/login.php',
-  tiktok: 'https://www.tiktok.com/login',
-  instagram: 'https://www.instagram.com/accounts/login/',
-  linkedin: 'https://www.linkedin.com/login',
-};
+const SOCIAL_PLATFORMS: Array<{ id: SocialPlatform; label: string; icon: typeof Instagram; activeClass: string }> = [
+  { id: 'instagram', label: 'Instagram', icon: Instagram, activeClass: 'bg-[#E1306C]/20 text-[#E1306C] border border-[#E1306C]/30' },
+  { id: 'facebook', label: 'Facebook', icon: Facebook, activeClass: 'bg-[#1877F2]/20 text-[#1877F2] border border-[#1877F2]/30' },
+  { id: 'tiktok', label: 'TikTok', icon: Video, activeClass: 'bg-black/40 text-white border border-white/20' },
+  { id: 'linkedin', label: 'LinkedIn', icon: Linkedin, activeClass: 'bg-[#0077B5]/20 text-[#0077B5] border border-[#0077B5]/30' },
+];
 
 export const CopyGenerator: React.FC<CopyGeneratorProps> = ({
   draftStorageKey = DEFAULT_DRAFT_STORAGE_KEY,
@@ -81,11 +83,6 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({
   const [generatingStatus, setGeneratingStatus] = useState<Record<string, boolean>>({});
   const [generationErrors, setGenerationErrors] = useState<Record<string, string>>({});
 
-  // --- Social State ---
-  const [connectedSocials, setConnectedSocials] = useState<SocialPlatform[]>([]);
-  const [postingStatus, setPostingStatus] = useState<Record<string, boolean>>({});
-  const [postedSuccess, setPostedSuccess] = useState<Record<string, boolean>>({});
-
   // --- Editor State ---
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [activeEditorId, setActiveEditorId] = useState<string | null>(null);
@@ -101,38 +98,12 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({
   const bgInputRef = useRef<HTMLInputElement>(null);
   const assetInputRef = useRef<HTMLInputElement>(null);
   const generationRunRef = useRef(0);
-  const socialPollersRef = useRef<Record<string, number>>({});
-  const timeoutIdsRef = useRef<number[]>([]);
-
-  const clearSocialPoller = useCallback((platform: string) => {
-    const pollerId = socialPollersRef.current[platform];
-    if (pollerId) {
-      window.clearInterval(pollerId);
-      delete socialPollersRef.current[platform];
-    }
-  }, []);
-
-  const clearAllTimers = useCallback(() => {
-    timeoutIdsRef.current.forEach((id) => window.clearTimeout(id));
-    timeoutIdsRef.current = [];
-  }, []);
-
-  const scheduleTimeout = useCallback((task: () => void, delayMs: number) => {
-    const timeoutId = window.setTimeout(() => {
-      timeoutIdsRef.current = timeoutIdsRef.current.filter((id) => id !== timeoutId);
-      task();
-    }, delayMs);
-    timeoutIdsRef.current.push(timeoutId);
-    return timeoutId;
-  }, []);
 
   useEffect(() => {
     return () => {
       generationRunRef.current += 1;
-      clearAllTimers();
-      Object.keys(socialPollersRef.current).forEach(clearSocialPoller);
     };
-  }, [clearAllTimers, clearSocialPoller]);
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -256,14 +227,24 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, setter: (val: string | null) => void) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setter(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
     e.target.value = '';
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setStatusMessage({ type: 'error', text: 'Please upload an image file.' });
+      return;
+    }
+
+    if (file.size > MAX_UPLOAD_SIZE_BYTES) {
+      setStatusMessage({ type: 'error', text: 'Image too large. Use a file under 10MB.' });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setter(reader.result as string);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -273,8 +254,6 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({
 
     const runId = generationRunRef.current + 1;
     generationRunRef.current = runId;
-    clearAllTimers();
-    Object.keys(socialPollersRef.current).forEach(clearSocialPoller);
     setStatusMessage(null);
 
     setIsPlanning(true);
@@ -285,7 +264,6 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({
     setEditorBackgrounds({});
     setGeneratingStatus({});
     setGenerationErrors({});
-    setPostedSuccess({});
 
     try {
       const data = await generateBannerPlan({ 
@@ -575,61 +553,6 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({
     link.download = `social-post-${Date.now()}.png`;
     link.click();
   };
-
-  // --- Social Media Connect Logic ---
-  const handleSocialAction = (platform: SocialPlatform) => {
-    // If already connected, trigger "Post" logic
-    if (connectedSocials.includes(platform)) {
-        handlePostToSocial(platform);
-        return;
-    }
-
-    const url = SOCIAL_LOGIN_URLS[platform];
-
-    const width = 600, height = 700;
-    const left = (window.innerWidth - width) / 2;
-    const top = (window.innerHeight - height) / 2;
-    
-    // Simulate connection flow
-    const popup = window.open(url, `Connect ${platform}`, `width=${width},height=${height},top=${top},left=${left}`);
-
-    if (!popup) {
-      setStatusMessage({
-        type: 'error',
-        text: 'Popup was blocked. Allow popups for this site to connect social accounts.',
-      });
-      return;
-    }
-
-    popup.focus();
-    clearSocialPoller(platform);
-
-    const checkClosed = window.setInterval(() => {
-      if (popup.closed) {
-        clearSocialPoller(platform);
-        setConnectedSocials(prev => (prev.includes(platform) ? prev : [...prev, platform]));
-        setStatusMessage({ type: 'success', text: `${platform} connected.` });
-      }
-    }, 1000);
-    socialPollersRef.current[platform] = checkClosed;
-  };
-
-  const handlePostToSocial = (platform: SocialPlatform) => {
-      setPostingStatus(prev => ({ ...prev, [platform]: true }));
-      
-      // Simulate API latency
-      scheduleTimeout(() => {
-          setPostingStatus(prev => ({ ...prev, [platform]: false }));
-          setPostedSuccess(prev => ({ ...prev, [platform]: true }));
-          setStatusMessage({ type: 'success', text: `Posted to ${platform}.` });
-          
-          // Reset success message after 3 seconds
-          scheduleTimeout(() => {
-              setPostedSuccess(prev => ({ ...prev, [platform]: false }));
-          }, 4000);
-      }, 1500);
-  };
-
   const handleCopyCaption = async () => {
     if (!plan) return;
     const copyText = `${plan.seo.caption} ${plan.seo.hashtags.map(t => `#${t}`).join(' ')}`;
@@ -860,6 +783,16 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({
                 </div>
                 <h3 className="text-2xl font-bold text-white mb-2">Ready to Create?</h3>
                 <p className="text-muted max-w-md">Describe your banner (e.g., "Human feel, cozy coffee shop sale") to generate a social media campaign with copy and visuals.</p>
+                <ul className="mt-6 max-w-md space-y-2 text-left text-xs text-muted">
+                    <li className="flex items-start gap-2">
+                        <ImageIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                        Add a background or logo to keep every banner on-brand, or let AI generate the visuals.
+                    </li>
+                    <li className="flex items-start gap-2">
+                        <Layers className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                        Pick how many variations to generate, then fine-tune any result in the canvas editor.
+                    </li>
+                </ul>
             </div>
         )}
 
@@ -942,14 +875,16 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({
                                     </div>
                                     <h4 className="text-white font-medium text-sm line-clamp-1 leading-snug mb-1">{plan.main_banner.headline}</h4>
                                 </div>
-                                <Button 
-                                    variant="ghost" 
-                                    onClick={() => handleDownload(generatedImages['main'])} 
-                                    disabled={!generatedImages['main']}
-                                    className="h-8 w-8 p-0" title="Download"
-                                >
-                                    <Download className="w-4 h-4" />
-                                </Button>
+                                <Tooltip label="Download">
+                                  <Button
+                                      variant="ghost"
+                                      onClick={() => handleDownload(generatedImages['main'])}
+                                      disabled={!generatedImages['main']}
+                                      className="h-8 w-8 p-0"
+                                  >
+                                      <Download className="w-4 h-4" />
+                                  </Button>
+                                </Tooltip>
                             </div>
                         </div>
 
@@ -1012,14 +947,16 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({
                                         </div>
                                         <h4 className="text-white font-medium text-sm line-clamp-1 mb-1">{slide.title}</h4>
                                     </div>
-                                     <Button 
-                                        variant="ghost" 
-                                        onClick={() => handleDownload(generatedImages[`slide-${idx}`])} 
-                                        disabled={!generatedImages[`slide-${idx}`]}
-                                        className="h-8 w-8 p-0" title="Download"
-                                    >
-                                        <Download className="w-4 h-4" />
-                                    </Button>
+                                     <Tooltip label="Download">
+                                       <Button
+                                          variant="ghost"
+                                          onClick={() => handleDownload(generatedImages[`slide-${idx}`])}
+                                          disabled={!generatedImages[`slide-${idx}`]}
+                                          className="h-8 w-8 p-0"
+                                      >
+                                          <Download className="w-4 h-4" />
+                                      </Button>
+                                     </Tooltip>
                                 </div>
                             </div>
                         ))}
@@ -1058,94 +995,28 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({
                          
                          <div className="h-px w-full sm:h-8 sm:w-px bg-white/10"></div>
                          
-                         {/* Social Connect & Post Buttons */}
+                         {/* Social Connect & Post Buttons (not yet available) */}
                          <div className="flex items-center gap-2 w-full sm:w-auto justify-center">
-                            
-                            {/* Instagram */}
-                            <button 
-                                onClick={() => handleSocialAction('instagram')}
-                                disabled={postingStatus['instagram'] || postedSuccess['instagram']}
-                                className={`p-2.5 rounded-lg transition-all relative group ${
-                                    connectedSocials.includes('instagram') 
-                                    ? 'bg-[#E1306C]/20 text-[#E1306C] border border-[#E1306C]/30' 
-                                    : 'bg-white/5 text-muted hover:bg-white/10 hover:text-white'
-                                }`}
-                                title={connectedSocials.includes('instagram') ? "Post to Instagram" : "Connect Instagram"}
-                            >
-                                {postingStatus['instagram'] ? <Loader2 className="w-5 h-5 animate-spin" /> : 
-                                 postedSuccess['instagram'] ? <CheckCircle className="w-5 h-5 text-green-500" /> :
-                                 <Instagram className="w-5 h-5" />}
-                                
-                                {connectedSocials.includes('instagram') && !postingStatus['instagram'] && !postedSuccess['instagram'] && (
-                                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-surface"></div>
-                                )}
-                            </button>
-
-                            {/* Facebook */}
-                            <button 
-                                onClick={() => handleSocialAction('facebook')}
-                                disabled={postingStatus['facebook'] || postedSuccess['facebook']}
-                                className={`p-2.5 rounded-lg transition-all relative group ${
-                                    connectedSocials.includes('facebook') 
-                                    ? 'bg-[#1877F2]/20 text-[#1877F2] border border-[#1877F2]/30' 
-                                    : 'bg-white/5 text-muted hover:bg-white/10 hover:text-white'
-                                }`}
-                                title={connectedSocials.includes('facebook') ? "Post to Facebook" : "Connect Facebook"}
-                            >
-                                {postingStatus['facebook'] ? <Loader2 className="w-5 h-5 animate-spin" /> :
-                                 postedSuccess['facebook'] ? <CheckCircle className="w-5 h-5 text-green-500" /> :
-                                 <Facebook className="w-5 h-5" />}
-
-                                {connectedSocials.includes('facebook') && !postingStatus['facebook'] && !postedSuccess['facebook'] && (
-                                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-surface"></div>
-                                )}
-                            </button>
-
-                            {/* TikTok */}
-                             <button 
-                                onClick={() => handleSocialAction('tiktok')}
-                                disabled={postingStatus['tiktok'] || postedSuccess['tiktok']}
-                                className={`p-2.5 rounded-lg transition-all relative group ${
-                                    connectedSocials.includes('tiktok') 
-                                    ? 'bg-black/40 text-white border border-white/20' 
-                                    : 'bg-white/5 text-muted hover:bg-white/10 hover:text-white'
-                                }`}
-                                title={connectedSocials.includes('tiktok') ? "Post to TikTok" : "Connect TikTok"}
-                            >
-                                {postingStatus['tiktok'] ? <Loader2 className="w-5 h-5 animate-spin" /> :
-                                 postedSuccess['tiktok'] ? <CheckCircle className="w-5 h-5 text-green-500" /> :
-                                 <Video className="w-5 h-5" />}
-
-                                {connectedSocials.includes('tiktok') && !postingStatus['tiktok'] && !postedSuccess['tiktok'] && (
-                                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-surface"></div>
-                                )}
-                            </button>
-
-                            {/* LinkedIn */}
-                            <button 
-                                onClick={() => handleSocialAction('linkedin')}
-                                disabled={postingStatus['linkedin'] || postedSuccess['linkedin']}
-                                className={`p-2.5 rounded-lg transition-all relative group ${
-                                    connectedSocials.includes('linkedin') 
-                                    ? 'bg-[#0077B5]/20 text-[#0077B5] border border-[#0077B5]/30' 
-                                    : 'bg-white/5 text-muted hover:bg-white/10 hover:text-white'
-                                }`}
-                                title={connectedSocials.includes('linkedin') ? "Post to LinkedIn" : "Connect LinkedIn"}
-                            >
-                                {postingStatus['linkedin'] ? <Loader2 className="w-5 h-5 animate-spin" /> :
-                                 postedSuccess['linkedin'] ? <CheckCircle className="w-5 h-5 text-green-500" /> :
-                                 <Linkedin className="w-5 h-5" />}
-
-                                {connectedSocials.includes('linkedin') && !postingStatus['linkedin'] && !postedSuccess['linkedin'] && (
-                                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-surface"></div>
-                                )}
-                            </button>
+                            {SOCIAL_PLATFORMS.map(({ id, label, icon: Icon }) => (
+                                <button
+                                    key={id}
+                                    type="button"
+                                    disabled
+                                    className="p-2.5 rounded-lg bg-white/5 text-muted/50 cursor-not-allowed"
+                                    title={`${label}: coming soon`}
+                                >
+                                    <Icon className="w-5 h-5" />
+                                </button>
+                            ))}
 
                             {/* Generic Share */}
-                            <button className="p-2.5 rounded-lg bg-white/5 text-white hover:bg-white/10 transition-colors ml-2">
+                            <button type="button" disabled className="p-2.5 rounded-lg bg-white/5 text-muted/50 cursor-not-allowed ml-2" title="Share: coming soon">
                                 <Share2 className="w-5 h-5" />
                             </button>
                          </div>
+                         <span className="w-full text-center text-[11px] uppercase tracking-[0.18em] text-muted sm:w-auto sm:text-left">
+                            Direct social posting is coming soon
+                         </span>
                     </div>
 
                 </div>

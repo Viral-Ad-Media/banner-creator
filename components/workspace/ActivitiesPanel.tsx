@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Activity, AlertTriangle, Clock3, Image as ImageIcon, RefreshCcw, Sparkles, Video, Wand2 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { getGenerationActivity, type GenerationRecord, type UsageSummary } from '../../services/workspaceService';
@@ -127,6 +128,12 @@ export const ActivitiesPanel: React.FC = () => {
           <div className="mt-6 rounded-[28px] border border-dashed border-white/10 bg-black/20 p-10 text-center">
             <p className="text-lg font-medium text-white">No activity yet</p>
             <p className="mt-2 text-sm text-muted">Your banner runs, image edits, and video jobs will show up here once we start generating.</p>
+            <Link to="/app/banner-generator" className="mt-5 inline-block">
+              <Button variant="secondary" size="sm">
+                <Sparkles className="h-4 w-4" />
+                Generate your first banner
+              </Button>
+            </Link>
           </div>
         ) : (
           <div className="mt-6 space-y-3">
