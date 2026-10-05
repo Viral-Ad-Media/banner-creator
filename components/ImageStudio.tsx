@@ -1,27 +1,92 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { editImageWithGemini } from '../services/geminiService';
-import { Button } from './ui/Button';
-import { Image as ImageIcon, Sparkles, Upload, Download, Undo2, Eraser, Wand2 } from 'lucide-react';
-import { AvatarLibraryPicker } from './workspace/AvatarLibraryPicker';
-import { Tooltip } from './ui/Tooltip';
-import type { AvatarAsset } from '../services/avatarLibrary';
+import { getDraft, setDraft } from "../services/draftStore";
+import { optimizeAvatarImageDataUrl } from "../services/avatarLibrary";
+import React, { useEffect, useRef, useState } from "react";
+import { editImageWithGemini } from "../services/geminiService";
+import { Button } from "./ui/Button";
+import {
+  Image as ImageIcon,
+  Sparkles,
+  Upload,
+  Download,
+  Undo2,
+  Eraser,
+  Wand2,
+} from "lucide-react";
+import { AvatarLibraryPicker } from "./workspace/AvatarLibraryPicker";
+import { Tooltip } from "./ui/Tooltip";
+import type { AvatarAsset } from "../services/avatarLibrary";
 
-const IMAGE_EDITOR_MODEL_OPTIONS = [{ id: 'gemini', label: 'Gemini Image Editor' }] as const;
-type ImageEditorModel = (typeof IMAGE_EDITOR_MODEL_OPTIONS)[number]['id'];
+const IMAGE_EDITOR_MODEL_OPTIONS = [
+  { id: "gemini", label: "Gemini Image Editor" },
+] as const;
+type ImageEditorModel = (typeof IMAGE_EDITOR_MODEL_OPTIONS)[number]["id"];
 
 const MAX_HISTORY_LENGTH = 12;
 const MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024;
 
-export const ImageStudio: React.FC = () => {
+export const ImageStudio: React.FC<{ draftStorageKey?: string }> = ({
+  draftStorageKey = "image-studio-draft",
+}) => {
+  const [draftReady, setDraftReady] = useState(false);
   const [currentImage, setCurrentImage] = useState<string | null>(null);
   const [history, setHistory] = useState<string[]>([]);
-  const [prompt, setPrompt] = useState('');
+  const [prompt, setPrompt] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
-  const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [statusMessage, setStatusMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
   const [selectedAvatarId, setSelectedAvatarId] = useState<string | null>(null);
-  const [selectedAvatar, setSelectedAvatar] = useState<AvatarAsset | null>(null);
-  const [imageEditorModel, setImageEditorModel] = useState<ImageEditorModel>('gemini');
+  const [selectedAvatar, setSelectedAvatar] = useState<AvatarAsset | null>(
+    null,
+  );
+  const [imageEditorModel, setImageEditorModel] =
+    useState<ImageEditorModel>("gemini");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    let active = true;
+    void getDraft<{
+      currentImage: string | null;
+      history: string[];
+      prompt: string;
+    }>(draftStorageKey)
+      .then((d) => {
+        if (active && d) {
+          setCurrentImage(d.currentImage);
+          setHistory(d.history);
+          setPrompt(d.prompt);
+        }
+      })
+      .catch(() => {
+        if (active)
+          setStatusMessage({
+            type: "error",
+            text: "Could not restore image draft.",
+          });
+      })
+      .finally(() => {
+        if (active) setDraftReady(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [draftStorageKey]);
+  useEffect(() => {
+    if (!draftReady) return;
+    const persist = () =>
+      void setDraft(draftStorageKey, { currentImage, history, prompt }).catch(
+        () =>
+          setStatusMessage({
+            type: "error",
+            text: "Could not save image draft.",
+          }),
+      );
+    const timer = setTimeout(persist, 500);
+    return () => {
+      clearTimeout(timer);
+      persist();
+    };
+  }, [currentImage, history, prompt, draftReady, draftStorageKey]);
 
   useEffect(() => {
     if (!selectedAvatar) {
@@ -30,38 +95,52 @@ export const ImageStudio: React.FC = () => {
 
     setCurrentImage(selectedAvatar.imageDataUrl);
     setHistory([selectedAvatar.imageDataUrl]);
-    setPrompt('');
-    setStatusMessage({ type: 'success', text: `${selectedAvatar.name} loaded into Image Studio.` });
+    setPrompt("");
+    setStatusMessage({
+      type: "success",
+      text: `${selectedAvatar.name} loaded into Image Studio.`,
+    });
   }, [selectedAvatar]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const input = e.target;
     const file = e.target.files?.[0];
     if (file) {
-      if (!file.type.startsWith('image/')) {
-        setStatusMessage({ type: 'error', text: 'Please upload an image file.' });
-        input.value = '';
+      if (!file.type.startsWith("image/")) {
+        setStatusMessage({
+          type: "error",
+          text: "Please upload an image file.",
+        });
+        input.value = "";
         return;
       }
 
       if (file.size > MAX_UPLOAD_SIZE_BYTES) {
-        setStatusMessage({ type: 'error', text: 'Image too large. Use a file under 10MB.' });
-        input.value = '';
+        setStatusMessage({
+          type: "error",
+          text: "Image too large. Use a file under 10MB.",
+        });
+        input.value = "";
         return;
       }
 
       const reader = new FileReader();
       reader.onloadend = () => {
-        const base64String = reader.result as string;
-        setSelectedAvatarId(null);
-        setCurrentImage(base64String);
-        setHistory([base64String]);
-        setPrompt('');
-        setStatusMessage({ type: 'success', text: 'Image loaded.' });
+        void optimizeAvatarImageDataUrl(reader.result as string)
+          .then((base64String) => {
+            setSelectedAvatarId(null);
+            setCurrentImage(base64String);
+            setHistory([base64String]);
+            setPrompt("");
+            setStatusMessage({ type: "success", text: "Image loaded." });
+          })
+          .catch((error) =>
+            setStatusMessage({ type: "error", text: String(error) }),
+          );
       };
       reader.readAsDataURL(file);
     }
-    input.value = '';
+    input.value = "";
   };
 
   const handleEdit = async (e: React.FormEvent) => {
@@ -72,14 +151,23 @@ export const ImageStudio: React.FC = () => {
     setIsProcessing(true);
     setStatusMessage(null);
     try {
-      const editedImage = await editImageWithGemini(currentImage, trimmedPrompt);
-      setHistory(prev => [...prev, editedImage].slice(-MAX_HISTORY_LENGTH));
+      const editedImage = await editImageWithGemini(
+        currentImage,
+        trimmedPrompt,
+      );
+      setHistory((prev) => [...prev, editedImage].slice(-MAX_HISTORY_LENGTH));
       setCurrentImage(editedImage);
-      setPrompt('');
-      setStatusMessage({ type: 'success', text: 'Edit generated successfully.' });
+      setPrompt("");
+      setStatusMessage({
+        type: "success",
+        text: "Edit generated successfully.",
+      });
     } catch (error) {
       console.error(error);
-      setStatusMessage({ type: 'error', text: 'Failed to edit image. Try a simpler instruction.' });
+      setStatusMessage({
+        type: "error",
+        text: "Failed to edit image. Try a simpler instruction.",
+      });
     } finally {
       setIsProcessing(false);
     }
@@ -97,7 +185,7 @@ export const ImageStudio: React.FC = () => {
 
   const handleDownload = () => {
     if (currentImage) {
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = currentImage;
       link.download = `edited-image-${Date.now()}.png`;
       link.click();
@@ -110,9 +198,12 @@ export const ImageStudio: React.FC = () => {
         <span className="section-kicker">Image Studio</span>
         <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h2 className="text-3xl font-semibold text-white">Refine a source image with cleaner, more directed edits.</h2>
+            <h2 className="text-3xl font-semibold text-white">
+              Refine a source image with cleaner, more directed edits.
+            </h2>
             <p className="mt-2 max-w-2xl text-sm leading-7 text-[#c0d1de]">
-              Start from an uploaded image or a saved avatar, then iterate with natural-language instructions while keeping local undo history.
+              Start from an uploaded image or a saved avatar, then iterate with
+              natural-language instructions while keeping local undo history.
             </p>
           </div>
           <div className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs text-muted">
@@ -134,23 +225,33 @@ export const ImageStudio: React.FC = () => {
 
           {/* Upload Area */}
           {!currentImage ? (
-             <div 
+            <div
               onClick={triggerUpload}
               className="surface-card flex min-h-[280px] flex-1 cursor-pointer flex-col items-center justify-center rounded-[32px] border border-dashed p-8 transition-all group hover:border-primary/50 hover:bg-white/[0.02]"
             >
-              <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*" className="hidden" />
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileUpload}
+                accept="image/*"
+                className="hidden"
+              />
               <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
                 <Upload className="w-8 h-8 text-muted group-hover:text-primary transition-colors" />
               </div>
-              <h3 className="text-xl font-bold text-white mb-2">Upload Source Image</h3>
-              <p className="text-sm text-muted">Click or drag and drop to start editing</p>
+              <h3 className="text-xl font-bold text-white mb-2">
+                Upload Source Image
+              </h3>
+              <p className="text-sm text-muted">
+                Click or drag and drop to start editing
+              </p>
             </div>
           ) : (
             <div className="surface-card flex flex-1 flex-col space-y-6 rounded-[30px] p-6">
               <div className="flex items-center justify-between pb-4 border-b border-white/5">
                 <div className="flex items-center gap-2">
-                    <Wand2 className="w-5 h-5 text-primary" />
-                    <h3 className="text-white font-bold">Magic Editor</h3>
+                  <Wand2 className="w-5 h-5 text-primary" />
+                  <h3 className="text-white font-bold">Magic Editor</h3>
                 </div>
                 <div className="flex gap-2">
                   <Tooltip label="Undo last edit">
@@ -165,11 +266,11 @@ export const ImageStudio: React.FC = () => {
                   <Tooltip label="Clear all">
                     <button
                       onClick={() => {
-                          setSelectedAvatarId(null);
-                          setCurrentImage(null);
-                          setHistory([]);
-                          setPrompt('');
-                          setStatusMessage(null);
+                        setSelectedAvatarId(null);
+                        setCurrentImage(null);
+                        setHistory([]);
+                        setPrompt("");
+                        setStatusMessage(null);
                       }}
                       className="p-2 hover:bg-red-500/10 hover:text-red-400 rounded-lg text-muted transition-colors"
                     >
@@ -179,39 +280,61 @@ export const ImageStudio: React.FC = () => {
                 </div>
               </div>
 
-              <form onSubmit={handleEdit} className="space-y-4 flex-1 flex flex-col">
+              <form
+                onSubmit={handleEdit}
+                className="space-y-4 flex-1 flex flex-col"
+              >
                 <div className="space-y-2">
-                  <label className="block text-xs font-medium text-gray-400 group-focus-within:text-white transition-colors">Image model</label>
+                  <label className="block text-xs font-medium text-gray-400 group-focus-within:text-white transition-colors">
+                    Image model
+                  </label>
                   <select
                     value={imageEditorModel}
-                    onChange={(event) => setImageEditorModel(event.target.value as ImageEditorModel)}
+                    onChange={(event) =>
+                      setImageEditorModel(
+                        event.target.value as ImageEditorModel,
+                      )
+                    }
                     className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none transition-colors focus:border-primary/50 focus:ring-1 focus:ring-primary/20"
                   >
                     {IMAGE_EDITOR_MODEL_OPTIONS.map((option) => (
-                      <option key={option.id} value={option.id} className="bg-[#0b1620] text-white">
+                      <option
+                        key={option.id}
+                        value={option.id}
+                        className="bg-[#0b1620] text-white"
+                      >
                         {option.label}
                       </option>
                     ))}
                   </select>
                 </div>
                 <div className="flex-1 group">
-                    <label className="block text-xs font-medium text-gray-400 mb-2 group-focus-within:text-white transition-colors">Prompt Instruction</label>
-                    <textarea
+                  <label className="block text-xs font-medium text-gray-400 mb-2 group-focus-within:text-white transition-colors">
+                    Prompt Instruction
+                  </label>
+                  <textarea
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
                     placeholder="e.g., Change background to a cyber city, Add a neon glow, Make it black and white..."
                     className="w-full h-full min-h-[200px] bg-black/20 border border-white/10 rounded-xl p-4 text-white placeholder-gray-600 focus:ring-1 focus:ring-primary focus:border-primary/50 outline-none resize-none transition-all hover:bg-white/5"
-                    />
+                  />
                 </div>
-                
-                <Button type="submit" isLoading={isProcessing} disabled={!prompt} className="w-full py-4 shadow-lg shadow-primary/20">
-                    <Sparkles className="w-4 h-4" />
-                    Generate Edit
+
+                <Button
+                  type="submit"
+                  isLoading={isProcessing}
+                  disabled={!prompt}
+                  className="w-full py-4 shadow-lg shadow-primary/20"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  Generate Edit
                 </Button>
               </form>
 
               {statusMessage && (
-                <p className={`text-xs ${statusMessage.type === 'error' ? 'text-red-400' : 'text-green-400'}`}>
+                <p
+                  className={`text-xs ${statusMessage.type === "error" ? "text-red-400" : "text-green-400"}`}
+                >
                   {statusMessage.text}
                 </p>
               )}
@@ -221,45 +344,59 @@ export const ImageStudio: React.FC = () => {
 
         {/* Image Preview Canvas */}
         <div className="surface-card-strong relative flex items-center justify-center overflow-hidden rounded-[34px] border border-white/10 p-8 lg:col-span-8">
-            {/* Checkerboard pattern for transparency */}
-            <div className="absolute inset-0 opacity-10 pointer-events-none" 
-                 style={{ backgroundImage: 'linear-gradient(45deg, #222 25%, transparent 25%), linear-gradient(-45deg, #222 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #222 75%), linear-gradient(-45deg, transparent 75%, #222 75%)', backgroundSize: '20px 20px', backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px' }}>
-            </div>
+          {/* Checkerboard pattern for transparency */}
+          <div
+            className="absolute inset-0 opacity-10 pointer-events-none"
+            style={{
+              backgroundImage:
+                "linear-gradient(45deg, #222 25%, transparent 25%), linear-gradient(-45deg, #222 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #222 75%), linear-gradient(-45deg, transparent 75%, #222 75%)",
+              backgroundSize: "20px 20px",
+              backgroundPosition: "0 0, 0 10px, 10px -10px, -10px 0px",
+            }}
+          ></div>
 
-            {currentImage ? (
-                <div className="relative w-full h-full flex items-center justify-center group z-10">
-                    <img 
-                        src={currentImage} 
-                        alt="Current workspace" 
-                        className="max-w-full max-h-full object-contain shadow-2xl rounded-lg"
-                    />
-                    <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity transform translate-y-2 group-hover:translate-y-0 duration-300">
-                        <Button variant="secondary" onClick={handleDownload} className="shadow-xl">
-                            <Download className="w-4 h-4" />
-                            Download
-                        </Button>
-                    </div>
+          {currentImage ? (
+            <div className="relative w-full h-full flex items-center justify-center group z-10">
+              <img
+                src={currentImage}
+                alt="Current workspace"
+                className="max-w-full max-h-full object-contain shadow-2xl rounded-lg"
+              />
+              <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity transform translate-y-2 group-hover:translate-y-0 duration-300">
+                <Button
+                  variant="secondary"
+                  onClick={handleDownload}
+                  className="shadow-xl"
+                >
+                  <Download className="w-4 h-4" />
+                  Download
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center space-y-6 z-10 opacity-50">
+              <div className="w-24 h-24 rounded-full bg-white/5 flex items-center justify-center mx-auto border border-white/5">
+                <ImageIcon className="w-10 h-10 text-muted" />
+              </div>
+              <p className="text-muted font-medium tracking-wide uppercase text-sm">
+                Workspace Empty
+              </p>
+            </div>
+          )}
+
+          {isProcessing && (
+            <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-20 backdrop-blur-md transition-all duration-500">
+              <div className="relative">
+                <div className="w-16 h-16 border-t-2 border-b-2 border-primary rounded-full animate-spin"></div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Sparkles className="w-6 h-6 text-primary animate-pulse" />
                 </div>
-            ) : (
-                <div className="text-center space-y-6 z-10 opacity-50">
-                    <div className="w-24 h-24 rounded-full bg-white/5 flex items-center justify-center mx-auto border border-white/5">
-                        <ImageIcon className="w-10 h-10 text-muted" />
-                    </div>
-                    <p className="text-muted font-medium tracking-wide uppercase text-sm">Workspace Empty</p>
-                </div>
-            )}
-            
-            {isProcessing && (
-                <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-20 backdrop-blur-md transition-all duration-500">
-                    <div className="relative">
-                        <div className="w-16 h-16 border-t-2 border-b-2 border-primary rounded-full animate-spin"></div>
-                        <div className="absolute inset-0 flex items-center justify-center">
-                            <Sparkles className="w-6 h-6 text-primary animate-pulse" />
-                        </div>
-                    </div>
-                    <p className="text-white font-medium mt-6 animate-pulse tracking-wide">Refining pixels...</p>
-                </div>
-            )}
+              </div>
+              <p className="text-white font-medium mt-6 animate-pulse tracking-wide">
+                Refining pixels...
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>

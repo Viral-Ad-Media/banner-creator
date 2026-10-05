@@ -1,48 +1,63 @@
-import React, { Suspense, lazy, useEffect, useMemo, useState } from 'react';
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
-import { SiteLayout } from './components/SiteLayout';
-import { HomePage } from './pages/HomePage';
-import { FeaturesPage } from './pages/FeaturesPage';
-import { PricingPage } from './pages/PricingPage';
-import { AboutPage } from './pages/AboutPage';
-import { ContactPage } from './pages/ContactPage';
-import { PrivacyPage } from './pages/PrivacyPage';
-import { TermsPage } from './pages/TermsPage';
-import { getCurrentUser, logoutUser } from './services/authService';
-import { supabase } from './services/supabaseClient';
-import type { AuthUser } from './services/authService';
+import React, { Suspense, lazy, useEffect, useMemo, useState } from "react";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { SiteLayout } from "./components/SiteLayout";
+import { HomePage } from "./pages/HomePage";
+import { FeaturesPage } from "./pages/FeaturesPage";
+import { PricingPage } from "./pages/PricingPage";
+import { AboutPage } from "./pages/AboutPage";
+import { ContactPage } from "./pages/ContactPage";
+import { PrivacyPage } from "./pages/PrivacyPage";
+import { TermsPage } from "./pages/TermsPage";
+import { getCurrentUser, logoutUser } from "./services/authService";
+import { supabase } from "./services/supabaseClient";
+import type { AuthUser } from "./services/authService";
 
 const AppWorkspace = lazy(() =>
-  import('./components/AppWorkspace').then((module) => ({
+  import("./components/AppWorkspace").then((module) => ({
     default: module.AppWorkspace,
-  }))
+  })),
 );
 
 const AuthPage = lazy(() =>
-  import('./pages/AuthPage').then((module) => ({
+  import("./pages/AuthPage").then((module) => ({
     default: module.AuthPage,
-  }))
+  })),
 );
 
 const App: React.FC = () => {
   const location = useLocation();
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [authRetry, setAuthRetry] = useState(0);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
 
-  const authMode = new URLSearchParams(location.search).get('mode');
-  const isResetRoute = location.pathname === '/auth' && authMode === 'reset';
+  const authMode = new URLSearchParams(location.search).get("mode");
+  const isResetRoute = location.pathname === "/auth" && authMode === "reset";
 
   useEffect(() => {
     let isMounted = true;
+    let syncing = false;
+    setAuthError(null);
+    setIsAuthLoading(true);
 
     const syncCurrentUser = async () => {
+      if (syncing) return;
+      syncing = true;
       try {
         const currentUser = await getCurrentUser();
         if (isMounted) {
           setUser(currentUser);
         }
+      } catch (error) {
+        if (isMounted)
+          setAuthError(
+            error instanceof Error
+              ? error.message
+              : "Could not load your profile.",
+          );
       } finally {
+        syncing = false;
         if (isMounted) {
           setIsAuthLoading(false);
         }
@@ -58,24 +73,24 @@ const App: React.FC = () => {
     const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
       if (!isMounted) return;
 
-      if (event === 'SIGNED_OUT') {
+      if (event === "SIGNED_OUT") {
         setUser(null);
         setIsPasswordRecovery(false);
         setIsAuthLoading(false);
         return;
       }
 
-      if (event === 'PASSWORD_RECOVERY') {
+      if (event === "PASSWORD_RECOVERY") {
         setIsPasswordRecovery(true);
         queueUserSync();
         return;
       }
 
       if (
-        event === 'INITIAL_SESSION' ||
-        event === 'SIGNED_IN' ||
-        event === 'TOKEN_REFRESHED' ||
-        event === 'USER_UPDATED'
+        event === "INITIAL_SESSION" ||
+        event === "SIGNED_IN" ||
+        event === "TOKEN_REFRESHED" ||
+        event === "USER_UPDATED"
       ) {
         queueUserSync();
       }
@@ -85,7 +100,7 @@ const App: React.FC = () => {
       isMounted = false;
       authListener.subscription.unsubscribe();
     };
-  }, []);
+  }, [authRetry]);
 
   const handleLogout = async () => {
     try {
@@ -111,10 +126,26 @@ const App: React.FC = () => {
   };
 
   const sitePage = useMemo(
-    () => (content: React.ReactNode) => <SiteLayout user={user}>{content}</SiteLayout>,
-    [user]
+    () => (content: React.ReactNode) => (
+      <SiteLayout user={user}>{content}</SiteLayout>
+    ),
+    [user],
   );
 
+  if (authError)
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <div role="alert" className="surface-card p-8 rounded-3xl max-w-lg">
+          <p className="text-white">{authError}</p>
+          <button
+            className="mt-4 text-primary"
+            onClick={() => setAuthRetry((n) => n + 1)}
+          >
+            Retry loading account
+          </button>
+        </div>
+      </div>
+    );
   if (isAuthLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center px-4">
@@ -122,9 +153,15 @@ const App: React.FC = () => {
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-[22px] bg-primary/12 text-primary shadow-[0_0_0_1px_rgba(64,214,195,0.16)]">
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
           </div>
-          <p className="mt-6 text-xs font-semibold uppercase tracking-[0.3em] text-primary/90">Workspace</p>
-          <h2 className="mt-2 text-2xl font-semibold text-white">Starting up</h2>
-          <p className="mt-2 text-sm leading-6 text-muted">Loading your creative environment and syncing account access.</p>
+          <p className="mt-6 text-xs font-semibold uppercase tracking-[0.3em] text-primary/90">
+            Workspace
+          </p>
+          <h2 className="mt-2 text-2xl font-semibold text-white">
+            Starting up
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-muted">
+            Loading your creative environment and syncing account access.
+          </p>
         </div>
       </div>
     );
@@ -136,8 +173,12 @@ const App: React.FC = () => {
         <div className="flex min-h-screen items-center justify-center px-4">
           <div className="surface-card rounded-[28px] px-8 py-7 text-center">
             <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-            <p className="mt-4 text-xs uppercase tracking-[0.24em] text-primary/90">Loading</p>
-            <p className="mt-2 text-sm text-muted">Preparing the next screen.</p>
+            <p className="mt-4 text-xs uppercase tracking-[0.24em] text-primary/90">
+              Loading
+            </p>
+            <p className="mt-2 text-sm text-muted">
+              Preparing the next screen.
+            </p>
           </div>
         </div>
       }
@@ -170,7 +211,11 @@ const App: React.FC = () => {
           path="/app/*"
           element={
             user ? (
-              <AppWorkspace user={user} onLogout={handleLogout} onUserUpdated={handleUserUpdated} />
+              <AppWorkspace
+                user={user}
+                onLogout={handleLogout}
+                onUserUpdated={handleUserUpdated}
+              />
             ) : (
               <Navigate to="/auth" replace />
             )

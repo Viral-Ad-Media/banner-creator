@@ -1,7 +1,12 @@
-import { supabase } from './supabaseClient';
+import { supabase } from "./supabaseClient";
 
-const rawBaseUrl = (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_API_BASE_URL) || '/api';
-const apiBaseUrl = rawBaseUrl.endsWith('/') ? rawBaseUrl.slice(0, -1) : rawBaseUrl;
+const rawBaseUrl =
+  (typeof import.meta !== "undefined" &&
+    (import.meta as any).env?.VITE_API_BASE_URL) ||
+  "/api";
+const apiBaseUrl = rawBaseUrl.endsWith("/")
+  ? rawBaseUrl.slice(0, -1)
+  : rawBaseUrl;
 
 const getAccessToken = async () => {
   const { data, error } = await supabase.auth.getSession();
@@ -12,35 +17,50 @@ const getAccessToken = async () => {
   return data.session?.access_token ?? null;
 };
 
+export class HttpError extends Error {
+  constructor(
+    public status: number,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
 type ApiFetchOptions = RequestInit & {
   auth?: boolean;
 };
 
 const buildUrl = (path: string) => {
-  if (path.startsWith('http://') || path.startsWith('https://')) {
+  if (path.startsWith("http://") || path.startsWith("https://")) {
     return path;
   }
 
-  if (path.startsWith('/')) {
+  if (path.startsWith("/")) {
     return `${apiBaseUrl}${path}`;
   }
 
   return `${apiBaseUrl}/${path}`;
 };
 
-const createRequestInit = async (path: string, options: ApiFetchOptions = {}) => {
+const createRequestInit = async (
+  path: string,
+  options: ApiFetchOptions = {},
+) => {
   const url = buildUrl(path);
   const { auth = true, headers, body, ...rest } = options;
 
   const mergedHeaders: HeadersInit = {
-    ...(body && !(body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}),
+    ...(body && !(body instanceof FormData)
+      ? { "Content-Type": "application/json" }
+      : {}),
     ...(headers || {}),
   };
 
   if (auth) {
     const token = await getAccessToken();
     if (token) {
-      (mergedHeaders as Record<string, string>).Authorization = `Bearer ${token}`;
+      (mergedHeaders as Record<string, string>).Authorization =
+        `Bearer ${token}`;
     }
   }
 
@@ -48,6 +68,7 @@ const createRequestInit = async (path: string, options: ApiFetchOptions = {}) =>
     url,
     requestInit: {
       ...rest,
+      signal: rest.signal ?? AbortSignal.timeout(55_000),
       headers: mergedHeaders,
       body,
     } satisfies RequestInit,
@@ -62,7 +83,9 @@ const executeRequest = async (path: string, options: ApiFetchOptions = {}) => {
     response = await fetch(url, requestInit);
   } catch (error) {
     if (error instanceof TypeError) {
-      throw new Error(`Cannot reach API at ${url}. Check VITE_API_BASE_URL and backend CORS_ORIGIN.`);
+      throw new Error(
+        `Cannot reach API at ${url}. Check VITE_API_BASE_URL and backend CORS_ORIGIN.`,
+      );
     }
 
     throw error;
@@ -71,34 +94,50 @@ const executeRequest = async (path: string, options: ApiFetchOptions = {}) => {
   return { response, url };
 };
 
-export const apiFetch = async <T>(path: string, options: ApiFetchOptions = {}): Promise<T> => {
+export const apiFetch = async <T>(
+  path: string,
+  options: ApiFetchOptions = {},
+): Promise<T> => {
   const { response } = await executeRequest(path, options);
 
-  const isJson = response.headers.get('content-type')?.includes('application/json');
+  const isJson = response.headers
+    .get("content-type")
+    ?.includes("application/json");
   const payload = isJson ? await response.json() : await response.text();
 
   if (!response.ok) {
     const message =
-      (typeof payload === 'object' && payload && 'error' in payload && String((payload as any).error)) ||
+      (typeof payload === "object" &&
+        payload &&
+        "error" in payload &&
+        String((payload as any).error)) ||
       response.statusText ||
-      'Request failed';
-    throw new Error(message);
+      "Request failed";
+    throw new HttpError(response.status, message);
   }
 
   return payload as T;
 };
 
-export const apiFetchBlob = async (path: string, options: ApiFetchOptions = {}): Promise<Blob> => {
+export const apiFetchBlob = async (
+  path: string,
+  options: ApiFetchOptions = {},
+): Promise<Blob> => {
   const { response } = await executeRequest(path, options);
 
   if (!response.ok) {
-    const isJson = response.headers.get('content-type')?.includes('application/json');
+    const isJson = response.headers
+      .get("content-type")
+      ?.includes("application/json");
     const payload = isJson ? await response.json() : await response.text();
     const message =
-      (typeof payload === 'object' && payload && 'error' in payload && String((payload as any).error)) ||
+      (typeof payload === "object" &&
+        payload &&
+        "error" in payload &&
+        String((payload as any).error)) ||
       response.statusText ||
-      'Request failed';
-    throw new Error(message);
+      "Request failed";
+    throw new HttpError(response.status, message);
   }
 
   return response.blob();

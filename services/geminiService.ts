@@ -1,7 +1,8 @@
-import { apiFetch } from './apiClient';
+import { generationPost } from "./generationRequest";
+import { apiFetch } from "./apiClient";
 
-export type AspectRatio = '1:1' | '16:9' | '9:16' | '3:4' | '4:5';
-export type TextGenerationProvider = 'gemini' | 'openrouter';
+export type AspectRatio = "1:1" | "16:9" | "9:16" | "3:4" | "4:5";
+export type TextGenerationProvider = "gemini" | "openrouter";
 
 export interface BannerRequest {
   userPrompt: string;
@@ -43,11 +44,13 @@ type ImageResponse = {
   data: string;
 };
 
-export const generateBannerPlan = async (request: BannerRequest): Promise<BannerPlan> => {
-  const response = await apiFetch<PlanResponse>('/generations/plan', {
-    method: 'POST',
-    body: JSON.stringify(request),
-  });
+export const generateBannerPlan = async (
+  request: BannerRequest,
+): Promise<BannerPlan> => {
+  const response = await generationPost<PlanResponse>(
+    "/generations/plan",
+    request,
+  );
 
   return response.data;
 };
@@ -55,20 +58,26 @@ export const generateBannerPlan = async (request: BannerRequest): Promise<Banner
 export const generateImage = async (
   prompt: string,
   aspectRatio: AspectRatio,
-  referenceImages: string[] = []
+  referenceImages: string[] = [],
+  projectId?: string,
 ): Promise<string> => {
-  const response = await apiFetch<ImageResponse>('/generations/image', {
-    method: 'POST',
-    body: JSON.stringify({ prompt, aspectRatio, referenceImages }),
+  const response = await generationPost<ImageResponse>("/generations/image", {
+    prompt,
+    aspectRatio,
+    referenceImages,
+    projectId,
   });
 
   return response.data;
 };
 
-export const editImageWithGemini = async (base64Image: string, prompt: string): Promise<string> => {
-  const response = await apiFetch<ImageResponse>('/generations/edit', {
-    method: 'POST',
-    body: JSON.stringify({ base64Image, prompt }),
+export const editImageWithGemini = async (
+  base64Image: string,
+  prompt: string,
+): Promise<string> => {
+  const response = await generationPost<ImageResponse>("/generations/edit", {
+    base64Image,
+    prompt,
   });
 
   return response.data;

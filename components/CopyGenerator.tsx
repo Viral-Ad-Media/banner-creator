@@ -1,24 +1,52 @@
+import { ProjectToolbar } from "./workspace/ProjectToolbar";
+import { getDraft, setDraft, removeDraft } from "../services/draftStore";
+import { renderCanvasDocument } from "../services/canvasRenderer";
+import { optimizeAvatarImageDataUrl } from "../services/avatarLibrary";
 
-import React, { useEffect, useRef, useState } from 'react';
-import { generateBannerPlan, generateImage, BannerPlan, AspectRatio, TextGenerationProvider } from '../services/geminiService';
-import { Button } from './ui/Button';
+import React, { useEffect, useRef, useState } from "react";
 import {
-  Wand2, Layers, Download, Image as ImageIcon, Sparkles, Upload, X,
-  Hash, Copy, Share2, Instagram, Linkedin, ChevronDown, MousePointer2, Facebook, Video, RefreshCcw
-} from 'lucide-react';
-import { CanvasEditor, CanvasElement, BackgroundState } from './CanvasEditor';
-import { AvatarLibraryPicker } from './workspace/AvatarLibraryPicker';
-import { Tooltip } from './ui/Tooltip';
-import type { AvatarAsset } from '../services/avatarLibrary';
+  generateBannerPlan,
+  generateImage,
+  BannerPlan,
+  AspectRatio,
+  TextGenerationProvider,
+} from "../services/geminiService";
+import { Button } from "./ui/Button";
+import {
+  Wand2,
+  Layers,
+  Download,
+  Image as ImageIcon,
+  Sparkles,
+  Upload,
+  X,
+  Hash,
+  Copy,
+  Share2,
+  Instagram,
+  Linkedin,
+  ChevronDown,
+  MousePointer2,
+  Facebook,
+  Video,
+  RefreshCcw,
+} from "lucide-react";
+import { CanvasEditor, CanvasElement, BackgroundState } from "./CanvasEditor";
+import { AvatarLibraryPicker } from "./workspace/AvatarLibraryPicker";
+import { Tooltip } from "./ui/Tooltip";
+import type { AvatarAsset } from "../services/avatarLibrary";
 
-type SocialPlatform = 'instagram' | 'facebook' | 'tiktok' | 'linkedin';
+type SocialPlatform = "instagram" | "facebook" | "tiktok" | "linkedin";
 const BANNER_COUNT_OPTIONS = [1, 2, 3, 4, 5, 6] as const;
 type BannerCount = (typeof BANNER_COUNT_OPTIONS)[number];
 const DEFAULT_BANNER_COUNT: BannerCount = 3;
 const MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024;
-const PLANNER_MODEL_OPTIONS: Array<{ id: TextGenerationProvider; label: string }> = [
-  { id: 'gemini', label: 'Gemini (default planner model)' },
-  { id: 'openrouter', label: 'OpenRouter (openai/gpt-5.2)' },
+const PLANNER_MODEL_OPTIONS: Array<{
+  id: TextGenerationProvider;
+  label: string;
+}> = [
+  { id: "gemini", label: "Gemini (default planner model)" },
+  { id: "openrouter", label: "OpenRouter (openai/gpt-5.2)" },
 ];
 
 interface CopyGeneratorProps {
@@ -42,57 +70,109 @@ type PersistedWorkspaceDraft = {
   generationErrors: Record<string, string>;
 };
 
-const DEFAULT_DRAFT_STORAGE_KEY = 'social-studio:banner-workspace-draft:v1';
+const DEFAULT_DRAFT_STORAGE_KEY = "social-studio:banner-workspace-draft:v1";
 
-const SOCIAL_PLATFORMS: Array<{ id: SocialPlatform; label: string; icon: typeof Instagram; activeClass: string }> = [
-  { id: 'instagram', label: 'Instagram', icon: Instagram, activeClass: 'bg-[#E1306C]/20 text-[#E1306C] border border-[#E1306C]/30' },
-  { id: 'facebook', label: 'Facebook', icon: Facebook, activeClass: 'bg-[#1877F2]/20 text-[#1877F2] border border-[#1877F2]/30' },
-  { id: 'tiktok', label: 'TikTok', icon: Video, activeClass: 'bg-black/40 text-white border border-white/20' },
-  { id: 'linkedin', label: 'LinkedIn', icon: Linkedin, activeClass: 'bg-[#0077B5]/20 text-[#0077B5] border border-[#0077B5]/30' },
+const SOCIAL_PLATFORMS: Array<{
+  id: SocialPlatform;
+  label: string;
+  icon: typeof Instagram;
+  activeClass: string;
+}> = [
+  {
+    id: "instagram",
+    label: "Instagram",
+    icon: Instagram,
+    activeClass: "bg-[#E1306C]/20 text-[#E1306C] border border-[#E1306C]/30",
+  },
+  {
+    id: "facebook",
+    label: "Facebook",
+    icon: Facebook,
+    activeClass: "bg-[#1877F2]/20 text-[#1877F2] border border-[#1877F2]/30",
+  },
+  {
+    id: "tiktok",
+    label: "TikTok",
+    icon: Video,
+    activeClass: "bg-black/40 text-white border border-white/20",
+  },
+  {
+    id: "linkedin",
+    label: "LinkedIn",
+    icon: Linkedin,
+    activeClass: "bg-[#0077B5]/20 text-[#0077B5] border border-[#0077B5]/30",
+  },
 ];
 
 export const CopyGenerator: React.FC<CopyGeneratorProps> = ({
   draftStorageKey = DEFAULT_DRAFT_STORAGE_KEY,
 }) => {
   // --- Input State ---
-  const [userPrompt, setUserPrompt] = useState('');
+  const [userPrompt, setUserPrompt] = useState("");
   const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
   const [assetImage, setAssetImage] = useState<string | null>(null);
   const [selectedAvatarId, setSelectedAvatarId] = useState<string | null>(null);
-  const [selectedAvatar, setSelectedAvatar] = useState<AvatarAsset | null>(null);
-  
+  const [selectedAvatar, setSelectedAvatar] = useState<AvatarAsset | null>(
+    null,
+  );
+
   // --- Config State ---
-  const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1');
-  const [bannerCount, setBannerCount] = useState<BannerCount>(DEFAULT_BANNER_COUNT);
-  const [textProvider, setTextProvider] = useState<TextGenerationProvider>('gemini');
+  const [aspectRatio, setAspectRatio] = useState<AspectRatio>("1:1");
+  const [bannerCount, setBannerCount] =
+    useState<BannerCount>(DEFAULT_BANNER_COUNT);
+  const [textProvider, setTextProvider] =
+    useState<TextGenerationProvider>("gemini");
 
   // --- Process State ---
+  const [projectId, setProjectId] = useState<string | undefined>();
   const [isPlanning, setIsPlanning] = useState(false);
   const [plan, setPlan] = useState<BannerPlan | null>(null);
-  
+
   // --- Output State ---
   // generatedImages: The image to SHOW in the grid (might be edited)
-  const [generatedImages, setGeneratedImages] = useState<Record<string, string>>({});
+  const [generatedImages, setGeneratedImages] = useState<
+    Record<string, string>
+  >({});
   // rawBackgrounds: The clean background (AI or Upload) to use in Editor if no custom state exists
-  const [rawBackgrounds, setRawBackgrounds] = useState<Record<string, string>>({});
+  const [rawBackgrounds, setRawBackgrounds] = useState<Record<string, string>>(
+    {},
+  );
   // savedLayers: Stores the text/elements so re-editing preserves state
-  const [savedLayers, setSavedLayers] = useState<Record<string, CanvasElement[]>>({});
+  const [savedLayers, setSavedLayers] = useState<
+    Record<string, CanvasElement[]>
+  >({});
   // editorBackgrounds: Stores the specific background state (color, gradient, or image) from the editor
-  const [editorBackgrounds, setEditorBackgrounds] = useState<Record<string, BackgroundState>>({});
-  
-  const [generatingStatus, setGeneratingStatus] = useState<Record<string, boolean>>({});
-  const [generationErrors, setGenerationErrors] = useState<Record<string, string>>({});
+  const [editorBackgrounds, setEditorBackgrounds] = useState<
+    Record<string, BackgroundState>
+  >({});
+
+  const [generatingStatus, setGeneratingStatus] = useState<
+    Record<string, boolean>
+  >({});
+  const [generationErrors, setGenerationErrors] = useState<
+    Record<string, string>
+  >({});
 
   // --- Editor State ---
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [activeEditorId, setActiveEditorId] = useState<string | null>(null);
   const [editorData, setEditorData] = useState<{
-      background: string;
-      elements: CanvasElement[];
-      backgroundState?: BackgroundState;
+    background: string;
+    elements: CanvasElement[];
+    backgroundState?: BackgroundState;
   } | null>(null);
-  const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [statusMessage, setStatusMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
   const [isDraftReady, setIsDraftReady] = useState(false);
+  const pendingDraftSave = useRef<(() => void) | null>(null);
+  useEffect(
+    () => () => {
+      pendingDraftSave.current?.();
+    },
+    [draftStorageKey],
+  );
 
   // Refs
   const bgInputRef = useRef<HTMLInputElement>(null);
@@ -106,60 +186,72 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({
   }, []);
 
   useEffect(() => {
-    if (typeof window === 'undefined') {
+    if (typeof window === "undefined") {
       setIsDraftReady(true);
       return;
     }
 
-    try {
-      const rawDraft = window.localStorage.getItem(draftStorageKey);
-      if (!rawDraft) {
-        setIsDraftReady(true);
-        return;
+    let cancelled = false;
+    setIsDraftReady(false);
+    const restore = async () => {
+      try {
+        const rawDraft = await getDraft(draftStorageKey);
+        if (cancelled) return;
+        if (!rawDraft) {
+          setIsDraftReady(true);
+          return;
+        }
+
+        const draft = rawDraft as PersistedWorkspaceDraft;
+        if (draft.version !== 1) {
+          await removeDraft(draftStorageKey);
+          setIsDraftReady(true);
+          return;
+        }
+
+        setUserPrompt(draft.userPrompt ?? "");
+        setBackgroundImage(draft.backgroundImage ?? null);
+        setAssetImage(draft.assetImage ?? null);
+        setSelectedAvatarId(draft.selectedAvatarId ?? null);
+        setAspectRatio(draft.aspectRatio ?? "1:1");
+        setBannerCount(draft.bannerCount ?? DEFAULT_BANNER_COUNT);
+        setTextProvider(draft.textProvider ?? "gemini");
+        setPlan(draft.plan ?? null);
+        setGeneratedImages(draft.generatedImages ?? {});
+        setRawBackgrounds(draft.rawBackgrounds ?? {});
+        setSavedLayers(draft.savedLayers ?? {});
+        setEditorBackgrounds(draft.editorBackgrounds ?? {});
+        setGenerationErrors(draft.generationErrors ?? {});
+
+        const hasSavedContent =
+          !!draft.userPrompt ||
+          !!draft.plan ||
+          Object.keys(draft.generatedImages ?? {}).length > 0 ||
+          !!draft.backgroundImage ||
+          !!draft.assetImage ||
+          !!draft.selectedAvatarId;
+
+        if (hasSavedContent) {
+          setStatusMessage({
+            type: "success",
+            text: "Restored your last banner workspace.",
+          });
+        }
+      } catch (error) {
+        console.error("Failed to restore banner workspace draft", error);
+        await removeDraft(draftStorageKey);
+      } finally {
+        if (!cancelled) setIsDraftReady(true);
       }
-
-      const draft = JSON.parse(rawDraft) as PersistedWorkspaceDraft;
-      if (draft.version !== 1) {
-        window.localStorage.removeItem(draftStorageKey);
-        setIsDraftReady(true);
-        return;
-      }
-
-      setUserPrompt(draft.userPrompt ?? '');
-      setBackgroundImage(draft.backgroundImage ?? null);
-      setAssetImage(draft.assetImage ?? null);
-      setSelectedAvatarId(draft.selectedAvatarId ?? null);
-      setAspectRatio(draft.aspectRatio ?? '1:1');
-      setBannerCount(draft.bannerCount ?? DEFAULT_BANNER_COUNT);
-      setTextProvider(draft.textProvider ?? 'gemini');
-      setPlan(draft.plan ?? null);
-      setGeneratedImages(draft.generatedImages ?? {});
-      setRawBackgrounds(draft.rawBackgrounds ?? {});
-      setSavedLayers(draft.savedLayers ?? {});
-      setEditorBackgrounds(draft.editorBackgrounds ?? {});
-      setGenerationErrors(draft.generationErrors ?? {});
-
-      const hasSavedContent =
-        !!draft.userPrompt ||
-        !!draft.plan ||
-        Object.keys(draft.generatedImages ?? {}).length > 0 ||
-        !!draft.backgroundImage ||
-        !!draft.assetImage ||
-        !!draft.selectedAvatarId;
-
-      if (hasSavedContent) {
-        setStatusMessage({ type: 'success', text: 'Restored your last banner workspace.' });
-      }
-    } catch (error) {
-      console.error('Failed to restore banner workspace draft', error);
-      window.localStorage.removeItem(draftStorageKey);
-    } finally {
-      setIsDraftReady(true);
-    }
+    };
+    void restore();
+    return () => {
+      cancelled = true;
+    };
   }, [draftStorageKey]);
 
   useEffect(() => {
-    if (!isDraftReady || typeof window === 'undefined') {
+    if (!isDraftReady || typeof window === "undefined") {
       return;
     }
 
@@ -168,7 +260,7 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({
       !!backgroundImage ||
       !!assetImage ||
       !!selectedAvatarId ||
-      textProvider !== 'gemini' ||
+      textProvider !== "gemini" ||
       !!plan ||
       Object.keys(generatedImages).length > 0 ||
       Object.keys(rawBackgrounds).length > 0 ||
@@ -177,7 +269,8 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({
       Object.keys(generationErrors).length > 0;
 
     if (!hasWorkspaceContent) {
-      window.localStorage.removeItem(draftStorageKey);
+      pendingDraftSave.current = null;
+      void removeDraft(draftStorageKey).catch(console.error);
       return;
     }
 
@@ -198,15 +291,22 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({
       generationErrors,
     };
 
-    try {
-      window.localStorage.setItem(draftStorageKey, JSON.stringify(draft));
-    } catch (error) {
-      console.error('Failed to persist banner workspace draft', error);
-      setStatusMessage({
-        type: 'error',
-        text: 'Workspace draft could not be saved locally. Clear old drafts or free browser storage.',
-      });
-    }
+    let flushed = false;
+    const persist = () => {
+      if (flushed) return;
+      flushed = true;
+      void setDraft(draftStorageKey, draft).catch(() =>
+        setStatusMessage({
+          type: "error",
+          text: "Workspace draft could not be saved. Free browser storage and retry.",
+        }),
+      );
+    };
+    pendingDraftSave.current = persist;
+    const timer = window.setTimeout(persist, 500);
+    return () => {
+      window.clearTimeout(timer);
+    };
   }, [
     aspectRatio,
     bannerCount,
@@ -225,24 +325,34 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({
     userPrompt,
   ]);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, setter: (val: string | null) => void) => {
+  const handleFileUpload = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    setter: (val: string | null) => void,
+  ) => {
     const file = e.target.files?.[0];
-    e.target.value = '';
+    e.target.value = "";
     if (!file) return;
 
-    if (!file.type.startsWith('image/')) {
-      setStatusMessage({ type: 'error', text: 'Please upload an image file.' });
+    if (!file.type.startsWith("image/")) {
+      setStatusMessage({ type: "error", text: "Please upload an image file." });
       return;
     }
 
     if (file.size > MAX_UPLOAD_SIZE_BYTES) {
-      setStatusMessage({ type: 'error', text: 'Image too large. Use a file under 10MB.' });
+      setStatusMessage({
+        type: "error",
+        text: "Image too large. Use a file under 10MB.",
+      });
       return;
     }
 
     const reader = new FileReader();
     reader.onloadend = () => {
-      setter(reader.result as string);
+      void optimizeAvatarImageDataUrl(reader.result as string)
+        .then(setter)
+        .catch((error) =>
+          setStatusMessage({ type: "error", text: String(error) }),
+        );
     };
     reader.readAsDataURL(file);
   };
@@ -266,13 +376,14 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({
     setGenerationErrors({});
 
     try {
-      const data = await generateBannerPlan({ 
+      const data = await generateBannerPlan({
         userPrompt: trimmedPrompt,
         aspectRatio: aspectRatio,
         bannerCount,
         hasBackgroundImage: !!backgroundImage,
         hasAssetImage: !!assetImage,
         textProvider,
+        projectId,
       });
       if (runId !== generationRunRef.current) return;
 
@@ -287,34 +398,52 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({
       // --- LOGIC: Background Handling ---
       // If user provided a background, we use it directly for all banners to ensure consistency.
       if (backgroundImage) {
-        const nextGeneratedImages: Record<string, string> = { main: backgroundImage };
-        const nextRawBackgrounds: Record<string, string> = { main: backgroundImage };
+        const nextGeneratedImages: Record<string, string> = {
+          main: backgroundImage,
+        };
+        const nextRawBackgrounds: Record<string, string> = {
+          main: backgroundImage,
+        };
         data.additional_banners.forEach((_, idx) => {
-            const key = `slide-${idx}`;
-            nextGeneratedImages[key] = backgroundImage;
-            nextRawBackgrounds[key] = backgroundImage;
+          const key = `slide-${idx}`;
+          nextGeneratedImages[key] = backgroundImage;
+          nextRawBackgrounds[key] = backgroundImage;
         });
         setGeneratedImages(nextGeneratedImages);
         setRawBackgrounds(nextRawBackgrounds);
       } else {
         // Otherwise, generate new backgrounds using AI
         if (data.main_banner.image_prompt) {
-            triggerImageGeneration('main', data.main_banner.image_prompt, aspectRatio, referenceImages, runId);
+          triggerImageGeneration(
+            "main",
+            data.main_banner.image_prompt,
+            aspectRatio,
+            referenceImages,
+            runId,
+          );
         }
-        
+
         data.additional_banners.forEach((slide, idx) => {
-            if (slide.image_prompt) {
-            triggerImageGeneration(`slide-${idx}`, slide.image_prompt, aspectRatio, referenceImages, runId);
-            }
+          if (slide.image_prompt) {
+            triggerImageGeneration(
+              `slide-${idx}`,
+              slide.image_prompt,
+              aspectRatio,
+              referenceImages,
+              runId,
+            );
+          }
         });
       }
-
     } catch (error) {
       if (runId !== generationRunRef.current) return;
       console.error(error);
       setStatusMessage({
-        type: 'error',
-        text: error instanceof Error ? error.message : 'Failed to generate banner plan. Please try again.',
+        type: "error",
+        text:
+          error instanceof Error
+            ? error.message
+            : "Failed to generate banner plan. Please try again.",
       });
       setIsPlanning(false);
     }
@@ -325,247 +454,284 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({
     prompt: string,
     ratio: AspectRatio,
     refImages: string[],
-    runId = generationRunRef.current
+    runId = generationRunRef.current,
   ) => {
-    setGeneratingStatus(prev => ({ ...prev, [id]: true }));
-    setGenerationErrors(prev => {
+    setGeneratingStatus((prev) => ({ ...prev, [id]: true }));
+    setGenerationErrors((prev) => {
       const next = { ...prev };
       delete next[id];
       return next;
     });
     try {
-      const imageUrl = await generateImage(prompt, ratio, refImages);
+      const imageUrl = await generateImage(prompt, ratio, refImages, projectId);
       if (runId !== generationRunRef.current) return;
-      setGeneratedImages(prev => ({ ...prev, [id]: imageUrl }));
-      setRawBackgrounds(prev => ({ ...prev, [id]: imageUrl }));
+      setGeneratedImages((prev) => ({ ...prev, [id]: imageUrl }));
+      setRawBackgrounds((prev) => ({ ...prev, [id]: imageUrl }));
     } catch (error) {
       if (runId !== generationRunRef.current) return;
       console.error(`Failed to generate image for ${id}`, error);
-      const message = error instanceof Error ? error.message : 'Image generation failed.';
-      setGenerationErrors(prev => ({ ...prev, [id]: message }));
+      const message =
+        error instanceof Error ? error.message : "Image generation failed.";
+      setGenerationErrors((prev) => ({ ...prev, [id]: message }));
     } finally {
       if (runId !== generationRunRef.current) return;
-      setGeneratingStatus(prev => ({ ...prev, [id]: false }));
+      setGeneratingStatus((prev) => ({ ...prev, [id]: false }));
     }
   };
 
   // Prepares the Canvas with the intelligent layout
-  const openEditor = (id: string, isMain: boolean) => {
+  const buildEditorData = (id: string, isMain: boolean) => {
     if (!plan) return;
-    
-    // Use raw background (clean) as default for editor
-    const defaultBgImage = rawBackgrounds[id]; 
-    if (!defaultBgImage) return;
 
-    setActiveEditorId(id);
+    // Use raw background (clean) as default for editor
+    const defaultBgImage = rawBackgrounds[id];
+    if (!defaultBgImage) return;
 
     // If we have saved layers from a previous edit session, use them!
     if (savedLayers[id]) {
-        setEditorData({
-            background: defaultBgImage,
-            elements: savedLayers[id],
-            backgroundState: editorBackgrounds[id]
-        });
-        setIsEditorOpen(true);
-        return;
+      return {
+        background: defaultBgImage,
+        elements: savedLayers[id],
+        backgroundState: editorBackgrounds[id],
+      };
     }
 
     // Otherwise, generate default elements from Plan
-    const baseHeight = 600;
+    const baseHeight = 800;
     let canvasWidth = baseHeight;
     const canvasHeight = baseHeight;
 
-    if (aspectRatio === '16:9') canvasWidth = baseHeight * (16/9);
-    else if (aspectRatio === '9:16') canvasWidth = baseHeight * (9/16);
-    else if (aspectRatio === '3:4') canvasWidth = baseHeight * (3/4);
-    else if (aspectRatio === '4:5') canvasWidth = baseHeight * (4/5);
-    
+    if (aspectRatio === "16:9") canvasWidth = baseHeight * (16 / 9);
+    else if (aspectRatio === "9:16") canvasWidth = baseHeight * (9 / 16);
+    else if (aspectRatio === "3:4") canvasWidth = baseHeight * (3 / 4);
+    else if (aspectRatio === "4:5") canvasWidth = baseHeight * (4 / 5);
+
     const centerX = canvasWidth / 2;
     const centerY = canvasHeight / 2;
     const elements: CanvasElement[] = [];
 
     // Common Text Styles
     const headlineStyle = {
-        fontSize: aspectRatio === '9:16' ? 36 : 48,
-        fontFamily: 'Inter',
-        fontWeight: 'bold',
-        color: '#ffffff',
-        textAlign: (aspectRatio === '16:9' ? 'left' : 'center') as 'left' | 'center',
-        lineHeight: 1.1,
-        letterSpacing: -1,
-        zIndex: 20
+      fontSize: aspectRatio === "9:16" ? 36 : 48,
+      fontFamily: "Inter",
+      fontWeight: "bold",
+      color: "#ffffff",
+      textAlign: (aspectRatio === "16:9" ? "left" : "center") as
+        "left" | "center",
+      lineHeight: 1.1,
+      letterSpacing: -1,
+      zIndex: 20,
     };
 
     const subheadStyle = {
-        fontSize: aspectRatio === '9:16' ? 18 : 24,
-        fontFamily: 'Inter',
-        fontWeight: 'normal',
-        color: '#e4e4e7', // zinc-200
-        textAlign: (aspectRatio === '16:9' ? 'left' : 'center') as 'left' | 'center',
-        lineHeight: 1.4,
-        letterSpacing: 0,
-        zIndex: 20
+      fontSize: aspectRatio === "9:16" ? 18 : 24,
+      fontFamily: "Inter",
+      fontWeight: "normal",
+      color: "#e4e4e7", // zinc-200
+      textAlign: (aspectRatio === "16:9" ? "left" : "center") as
+        "left" | "center",
+      lineHeight: 1.4,
+      letterSpacing: 0,
+      zIndex: 20,
     };
 
     const ctaStyle = {
-        fontSize: 18,
-        fontFamily: 'Inter',
-        fontWeight: 'bold',
-        color: '#ffffff',
-        backgroundColor: '#40d6c3',
-        textAlign: 'center' as 'center',
-        borderRadius: 8,
-        padding: 12,
-        lineHeight: 1,
-        letterSpacing: 1,
-        zIndex: 30
+      fontSize: 18,
+      fontFamily: "Inter",
+      fontWeight: "bold",
+      color: "#ffffff",
+      backgroundColor: "#40d6c3",
+      textAlign: "center" as "center",
+      borderRadius: 8,
+      padding: 12,
+      lineHeight: 1,
+      letterSpacing: 1,
+      zIndex: 30,
     };
 
     // --- Asset Placement Logic ---
     if (assetImage) {
-        elements.push({
-            id: 'brand-asset',
-            type: 'image',
-            content: assetImage,
-            x: aspectRatio === '16:9' ? canvasWidth - 150 : centerX - 50,
-            y: aspectRatio === '16:9' ? centerY - 50 : 30,
-            width: 100,
-            height: 100,
-            rotation: 0,
-            style: { zIndex: 25, opacity: 1 }
-        });
+      elements.push({
+        id: "brand-asset",
+        type: "image",
+        content: assetImage,
+        x: aspectRatio === "16:9" ? canvasWidth - 150 : centerX - 50,
+        y: aspectRatio === "16:9" ? centerY - 50 : 30,
+        width: 100,
+        height: 100,
+        rotation: 0,
+        style: { zIndex: 25, opacity: 1 },
+      });
     }
 
     if (isMain) {
-        // Headline
+      // Headline
+      elements.push({
+        id: "main-headline",
+        type: "text",
+        content: plan.main_banner.headline,
+        x: aspectRatio === "16:9" ? 50 : 20,
+        y: aspectRatio === "16:9" ? centerY - 80 : assetImage ? 150 : 80,
+        width: canvasWidth - (aspectRatio === "16:9" ? 100 : 40),
+        height: 100,
+        rotation: 0,
+        style: { ...headlineStyle, opacity: 1 },
+      });
+
+      // Subheadline
+      elements.push({
+        id: "main-sub",
+        type: "text",
+        content: plan.main_banner.subheadline,
+        x: aspectRatio === "16:9" ? 50 : 20,
+        y: aspectRatio === "16:9" ? centerY + 20 : assetImage ? 260 : 190,
+        width: canvasWidth - (aspectRatio === "16:9" ? 100 : 40),
+        height: 80,
+        rotation: 0,
+        style: { ...subheadStyle, opacity: 1 },
+      });
+
+      // CTA
+      elements.push({
+        id: "main-cta",
+        type: "cta",
+        content: plan.main_banner.cta || "Learn More",
+        x: aspectRatio === "16:9" ? 50 : centerX - 80,
+        y: aspectRatio === "16:9" ? centerY + 100 : canvasHeight - 120,
+        width: 160,
+        height: 50,
+        rotation: 0,
+        style: { ...ctaStyle, opacity: 1 },
+      });
+    } else {
+      const slideIndex = Number.parseInt(id.replace("slide-", ""), 10);
+      if (Number.isNaN(slideIndex)) return;
+      const slide = plan.additional_banners[slideIndex];
+
+      if (slide) {
+        // Slide Title
         elements.push({
-            id: 'main-headline',
-            type: 'text',
-            content: plan.main_banner.headline,
-            x: aspectRatio === '16:9' ? 50 : 20,
-            y: aspectRatio === '16:9' ? centerY - 80 : (assetImage ? 150 : 80),
-            width: canvasWidth - (aspectRatio === '16:9' ? 100 : 40),
-            height: 100,
-            rotation: 0,
-            style: { ...headlineStyle, opacity: 1 }
+          id: `slide-title-${slideIndex}`,
+          type: "text",
+          content: slide.title,
+          x: 20,
+          y: assetImage ? 140 : 50,
+          width: canvasWidth - 40,
+          height: 60,
+          rotation: 0,
+          style: { ...headlineStyle, opacity: 1 },
         });
-        
-        // Subheadline
+
+        // Slide Content
         elements.push({
-            id: 'main-sub',
-            type: 'text',
-            content: plan.main_banner.subheadline,
-            x: aspectRatio === '16:9' ? 50 : 20,
-            y: aspectRatio === '16:9' ? centerY + 20 : (assetImage ? 260 : 190),
-            width: canvasWidth - (aspectRatio === '16:9' ? 100 : 40),
-            height: 80,
-            rotation: 0,
-            style: { ...subheadStyle, opacity: 1 }
+          id: `slide-content-${slideIndex}`,
+          type: "text",
+          content: slide.subtitle,
+          x: 20,
+          y: assetImage ? 220 : 130,
+          width: canvasWidth - 40,
+          height: 100,
+          rotation: 0,
+          style: { ...subheadStyle, opacity: 1 },
         });
 
         // CTA
         elements.push({
-            id: 'main-cta',
-            type: 'cta',
-            content: plan.main_banner.cta || 'Learn More',
-            x: aspectRatio === '16:9' ? 50 : centerX - 80,
-            y: aspectRatio === '16:9' ? centerY + 100 : canvasHeight - 120,
-            width: 160,
-            height: 50,
-            rotation: 0,
-            style: { ...ctaStyle, opacity: 1 }
+          id: `slide-cta-${slideIndex}`,
+          type: "cta",
+          content: slide.cta || "Try It Now",
+          x: centerX - 80,
+          y: canvasHeight - 120,
+          width: 160,
+          height: 50,
+          rotation: 0,
+          style: { ...ctaStyle, opacity: 1 },
         });
-
-    } else {
-        const slideIndex = Number.parseInt(id.replace('slide-', ''), 10);
-        if (Number.isNaN(slideIndex)) return;
-        const slide = plan.additional_banners[slideIndex];
-        
-        if (slide) {
-            // Slide Title
-            elements.push({
-                id: `slide-title-${slideIndex}`,
-                type: 'text',
-                content: slide.title,
-                x: 20,
-                y: assetImage ? 140 : 50,
-                width: canvasWidth - 40,
-                height: 60,
-                rotation: 0,
-                style: { ...headlineStyle, opacity: 1 }
-            });
-
-            // Slide Content
-            elements.push({
-                id: `slide-content-${slideIndex}`,
-                type: 'text',
-                content: slide.subtitle,
-                x: 20,
-                y: assetImage ? 220 : 130,
-                width: canvasWidth - 40,
-                height: 100,
-                rotation: 0,
-                style: { ...subheadStyle, opacity: 1 }
-            });
-
-             // CTA
-             elements.push({
-                id: `slide-cta-${slideIndex}`,
-                type: 'cta',
-                content: slide.cta || 'Try It Now',
-                x: centerX - 80,
-                y: canvasHeight - 120,
-                width: 160,
-                height: 50,
-                rotation: 0,
-                style: { ...ctaStyle, opacity: 1 }
-            });
-        }
+      }
     }
 
-    setEditorData({
-        background: defaultBgImage,
-        elements: elements
-    });
+    return {
+      background: defaultBgImage,
+      elements,
+      backgroundState: undefined as BackgroundState | undefined,
+    };
+  };
+  const openEditor = (id: string, isMain: boolean) => {
+    const data = buildEditorData(id, isMain);
+    if (!data) return;
+    setActiveEditorId(id);
+    setEditorData(data);
     setIsEditorOpen(true);
   };
 
-  const handleSaveFromEditor = (finalImage: string, elements: CanvasElement[], bgState: BackgroundState) => {
-      if (!activeEditorId) return;
+  const handleSaveFromEditor = (
+    finalImage: string,
+    elements: CanvasElement[],
+    bgState: BackgroundState,
+  ) => {
+    if (!activeEditorId) return;
 
-      // 1. Update the visual grid with the new edited image
-      setGeneratedImages(prev => ({ ...prev, [activeEditorId]: finalImage }));
-      
-      // 2. Save the layer state so user can re-edit later
-      setSavedLayers(prev => ({ ...prev, [activeEditorId]: elements }));
+    // 1. Update the visual grid with the new edited image
+    setGeneratedImages((prev) => ({ ...prev, [activeEditorId]: finalImage }));
 
-      // 3. Save background state logic (if user changed BG in editor)
-      setEditorBackgrounds(prev => ({ ...prev, [activeEditorId]: bgState }));
+    // 2. Save the layer state so user can re-edit later
+    setSavedLayers((prev) => ({ ...prev, [activeEditorId]: elements }));
 
-      // 4. Close Editor
-      setIsEditorOpen(false);
-      setActiveEditorId(null);
+    // 3. Save background state logic (if user changed BG in editor)
+    setEditorBackgrounds((prev) => ({ ...prev, [activeEditorId]: bgState }));
+
+    // 4. Close Editor
+    setIsEditorOpen(false);
+    setActiveEditorId(null);
   };
 
-  const handleDownload = (imageUrl: string) => {
-    const link = document.createElement('a');
-    link.href = imageUrl;
-    link.download = `social-post-${Date.now()}.png`;
-    link.click();
+  const handleDownload = async (id: string, isMain: boolean) => {
+    try {
+      const data = buildEditorData(id, isMain);
+      if (!data) return;
+      const bg = data.backgroundState ?? {
+        type: "image" as const,
+        value: data.background,
+        opacity: 1,
+      };
+      const imageUrl = await renderCanvasDocument(
+        aspectRatio,
+        data.elements,
+        bg,
+      );
+      const link = document.createElement("a");
+      link.href = imageUrl;
+      link.download = `social-post-${Date.now()}.png`;
+      link.click();
+    } catch (error) {
+      setStatusMessage({
+        type: "error",
+        text: error instanceof Error ? error.message : "Export failed.",
+      });
+    }
   };
   const handleCopyCaption = async () => {
     if (!plan) return;
-    const copyText = `${plan.seo.caption} ${plan.seo.hashtags.map(t => `#${t}`).join(' ')}`;
+    const copyText = `${plan.seo.caption} ${plan.seo.hashtags.map((t) => `#${t}`).join(" ")}`;
     if (!navigator.clipboard?.writeText) {
-      setStatusMessage({ type: 'error', text: 'Clipboard API unavailable. Please copy manually.' });
+      setStatusMessage({
+        type: "error",
+        text: "Clipboard API unavailable. Please copy manually.",
+      });
       return;
     }
     try {
       await navigator.clipboard.writeText(copyText);
-      setStatusMessage({ type: 'success', text: 'Caption copied to clipboard.' });
+      setStatusMessage({
+        type: "success",
+        text: "Caption copied to clipboard.",
+      });
     } catch (error) {
-      console.error('Clipboard write failed', error);
-      setStatusMessage({ type: 'error', text: 'Clipboard access failed. Please copy manually.' });
+      console.error("Clipboard write failed", error);
+      setStatusMessage({
+        type: "error",
+        text: "Clipboard access failed. Please copy manually.",
+      });
     }
   };
 
@@ -574,454 +740,633 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({
     if (backgroundImage) refs.push(backgroundImage);
     if (selectedAvatar) refs.unshift(selectedAvatar.imageDataUrl);
     if (assetImage) refs.push(assetImage);
-    return () => triggerImageGeneration(id, prompt, aspectRatio, refs, generationRunRef.current);
+    return () =>
+      triggerImageGeneration(
+        id,
+        prompt,
+        aspectRatio,
+        refs,
+        generationRunRef.current,
+      );
   };
 
   return (
     <div className="flex flex-col lg:flex-row gap-8">
-      
       {/* --- Full Screen Editor Overlay --- */}
       {isEditorOpen && editorData && (
-          <CanvasEditor 
-            backgroundImage={editorData.background}
-            initialElements={editorData.elements}
-            initialBackgroundState={editorData.backgroundState}
-            aspectRatio={aspectRatio}
-            onClose={() => {
-              setIsEditorOpen(false);
-              setActiveEditorId(null);
-            }}
-            onSave={handleSaveFromEditor}
-          />
+        <CanvasEditor
+          backgroundImage={editorData.background}
+          initialElements={editorData.elements}
+          initialBackgroundState={editorData.backgroundState}
+          aspectRatio={aspectRatio}
+          onClose={() => {
+            setIsEditorOpen(false);
+            setActiveEditorId(null);
+          }}
+          onSave={handleSaveFromEditor}
+        />
       )}
 
       {/* --- Left Column: Creative Studio (Form) --- */}
       <div className="w-full lg:w-[400px] flex-shrink-0 space-y-6">
+        <ProjectToolbar
+          draft={{
+            version: 1,
+            userPrompt,
+            backgroundImage,
+            assetImage,
+            selectedAvatarId,
+            aspectRatio,
+            bannerCount,
+            textProvider,
+            plan,
+            generatedImages,
+            rawBackgrounds,
+            savedLayers,
+            editorBackgrounds,
+            generationErrors,
+          }}
+          onProjectChange={setProjectId}
+          onLoad={(draft) => {
+            generationRunRef.current += 1;
+            setUserPrompt(draft.userPrompt ?? "");
+            setBackgroundImage(draft.backgroundImage ?? null);
+            setAssetImage(draft.assetImage ?? null);
+            setSelectedAvatarId(draft.selectedAvatarId ?? null);
+            setAspectRatio(draft.aspectRatio ?? "1:1");
+            setBannerCount(draft.bannerCount ?? 3);
+            setTextProvider(draft.textProvider ?? "gemini");
+            setPlan(draft.plan ?? null);
+            setGeneratedImages(draft.generatedImages ?? {});
+            setRawBackgrounds(draft.rawBackgrounds ?? {});
+            setSavedLayers(draft.savedLayers ?? {});
+            setEditorBackgrounds(draft.editorBackgrounds ?? {});
+            setGenerationErrors(draft.generationErrors ?? {});
+            setIsPlanning(false);
+            setGeneratingStatus({});
+          }}
+        />
+
         <div className="bg-surface/50 backdrop-blur-xl border border-white/5 p-6 rounded-2xl shadow-xl sticky top-24">
-            <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                <Layers className="w-5 h-5 text-primary" /> Create New
-            </h2>
-            
-            <form onSubmit={handleSubmit} className="space-y-6">
-                
-                {/* User Prompt */}
-                <div className="space-y-4">
-                    <div className="space-y-2">
-                        <label className="text-xs font-semibold text-muted uppercase tracking-wider">Describe your banner</label>
-                        <textarea
-                            value={userPrompt}
-                            onChange={(e) => setUserPrompt(e.target.value)}
-                            className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-muted focus:ring-1 focus:ring-primary focus:border-primary/50 outline-none transition-all h-32 resize-none"
-                            placeholder="e.g. A modern instagram post for a coffee shop sale, human feels, warm lighting... or Describe the scene, text and vibe you want."
-                        />
-                    </div>
+          <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+            <Layers className="w-5 h-5 text-primary" /> Create New
+          </h2>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* User Prompt */}
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-muted uppercase tracking-wider">
+                  Describe your banner
+                </label>
+                <textarea
+                  value={userPrompt}
+                  onChange={(e) => setUserPrompt(e.target.value)}
+                  className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-muted focus:ring-1 focus:ring-primary focus:border-primary/50 outline-none transition-all h-32 resize-none"
+                  placeholder="e.g. A modern instagram post for a coffee shop sale, human feels, warm lighting... or Describe the scene, text and vibe you want."
+                />
+              </div>
+            </div>
+
+            {/* Configuration */}
+            <div className="pt-4 border-t border-white/5 space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-muted uppercase tracking-wider">
+                  Format
+                </label>
+                <div className="grid grid-cols-4 gap-2">
+                  {[
+                    { id: "1:1", label: "Square", icon: "□" },
+                    { id: "4:5", label: "Portrait", icon: "▯" },
+                    { id: "9:16", label: "Story", icon: "▯" },
+                    { id: "16:9", label: "Land", icon: "▭" },
+                  ].map((ratio) => (
+                    <button
+                      key={ratio.id}
+                      type="button"
+                      onClick={() => setAspectRatio(ratio.id as AspectRatio)}
+                      className={`flex flex-col items-center justify-center p-2 rounded-lg border transition-all ${
+                        aspectRatio === ratio.id
+                          ? "bg-primary/20 border-primary text-primary"
+                          : "bg-black/20 border-white/5 text-muted hover:bg-white/5"
+                      }`}
+                    >
+                      <span className="text-lg leading-none mb-1">
+                        {ratio.icon}
+                      </span>
+                      <span className="text-[10px]">{ratio.id}</span>
+                    </button>
+                  ))}
                 </div>
+              </div>
 
-                {/* Configuration */}
-                <div className="pt-4 border-t border-white/5 space-y-4">
-                    <div className="space-y-2">
-                        <label className="text-xs font-semibold text-muted uppercase tracking-wider">Format</label>
-                        <div className="grid grid-cols-4 gap-2">
-                            {[
-                                { id: '1:1', label: 'Square', icon: '□' },
-                                { id: '4:5', label: 'Portrait', icon: '▯' },
-                                { id: '9:16', label: 'Story', icon: '▯' },
-                                { id: '16:9', label: 'Land', icon: '▭' }
-                            ].map((ratio) => (
-                                <button
-                                    key={ratio.id}
-                                    type="button"
-                                    onClick={() => setAspectRatio(ratio.id as AspectRatio)}
-                                    className={`flex flex-col items-center justify-center p-2 rounded-lg border transition-all ${
-                                        aspectRatio === ratio.id 
-                                        ? 'bg-primary/20 border-primary text-primary' 
-                                        : 'bg-black/20 border-white/5 text-muted hover:bg-white/5'
-                                    }`}
-                                >
-                                    <span className="text-lg leading-none mb-1">{ratio.icon}</span>
-                                    <span className="text-[10px]">{ratio.id}</span>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                            <label className="text-xs font-semibold text-muted uppercase tracking-wider">Images to create</label>
-                            <span className="text-[10px] text-muted">{bannerCount} total</span>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2">
-                            {BANNER_COUNT_OPTIONS.map((count) => (
-                                <button
-                                    key={count}
-                                    type="button"
-                                    onClick={() => setBannerCount(count)}
-                                    className={`rounded-lg border px-3 py-2 text-sm font-medium transition-all ${
-                                        bannerCount === count
-                                        ? 'bg-primary/20 border-primary text-primary'
-                                        : 'bg-black/20 border-white/5 text-muted hover:bg-white/5 hover:text-white'
-                                    }`}
-                                >
-                                    {count}
-                                </button>
-                            ))}
-                        </div>
-                        <p className="text-[11px] text-muted">
-                            Creates 1 main banner{bannerCount > 1 ? ` and ${bannerCount - 1} additional variation${bannerCount - 1 > 1 ? 's' : ''}.` : '.'}
-                        </p>
-                    </div>
-
-                    <div className="space-y-2">
-                        <label className="text-xs font-semibold text-muted uppercase tracking-wider">Planner AI</label>
-                        <select
-                            value={textProvider}
-                            onChange={(e) => setTextProvider(e.target.value as TextGenerationProvider)}
-                            className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white transition-all placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                        >
-                            {PLANNER_MODEL_OPTIONS.map((option) => (
-                                <option key={option.id} value={option.id} className="bg-[#0b1620] text-white">
-                                    {option.label}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-muted uppercase tracking-wider">
+                    Images to create
+                  </label>
+                  <span className="text-[10px] text-muted">
+                    {bannerCount} total
+                  </span>
                 </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {BANNER_COUNT_OPTIONS.map((count) => (
+                    <button
+                      key={count}
+                      type="button"
+                      onClick={() => setBannerCount(count)}
+                      className={`rounded-lg border px-3 py-2 text-sm font-medium transition-all ${
+                        bannerCount === count
+                          ? "bg-primary/20 border-primary text-primary"
+                          : "bg-black/20 border-white/5 text-muted hover:bg-white/5 hover:text-white"
+                      }`}
+                    >
+                      {count}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[11px] text-muted">
+                  Creates 1 main banner
+                  {bannerCount > 1
+                    ? ` and ${bannerCount - 1} additional variation${bannerCount - 1 > 1 ? "s" : ""}.`
+                    : "."}
+                </p>
+              </div>
 
-                {/* Assets */}
-                <div className="pt-4 border-t border-white/5 space-y-4">
-                    <label className="text-xs font-semibold text-muted uppercase tracking-wider">Assets (Optional)</label>
-                    <div className="grid grid-cols-2 gap-4">
-                        <button 
-                            type="button" 
-                            onClick={() => bgInputRef.current?.click()}
-                            className={`flex flex-col items-center justify-center p-4 rounded-xl border border-dashed transition-all relative group overflow-hidden ${backgroundImage ? 'border-primary bg-primary/10 p-0' : 'border-white/10 hover:bg-white/5'}`}
-                        >
-                             <input type="file" ref={bgInputRef} onChange={(e) => handleFileUpload(e, setBackgroundImage)} className="hidden" accept="image/*" />
-                             {backgroundImage ? (
-                                 <div className="relative w-full aspect-video rounded-lg overflow-hidden">
-                                     <img src={backgroundImage} className="w-full h-full object-cover" />
-                                     <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                         <span className="text-xs text-white">Change</span>
-                                     </div>
-                                     <div 
-                                        onClick={(e) => { e.stopPropagation(); setBackgroundImage(null); }}
-                                        className="absolute top-1 right-1 bg-black/50 hover:bg-red-500/80 rounded-full p-1 text-white transition-colors"
-                                        title="Remove Background"
-                                     >
-                                         <X className="w-3 h-3" />
-                                     </div>
-                                 </div>
-                             ) : (
-                                <>
-                                    <ImageIcon className="w-5 h-5 text-muted mb-2" />
-                                    <span className="text-xs text-muted">Background</span>
-                                </>
-                             )}
-                        </button>
-                        
-                        <button 
-                            type="button" 
-                            onClick={() => assetInputRef.current?.click()}
-                            className={`flex flex-col items-center justify-center p-4 rounded-xl border border-dashed transition-all relative group overflow-hidden ${assetImage ? 'border-primary bg-primary/10 p-0' : 'border-white/10 hover:bg-white/5'}`}
-                        >
-                             <input type="file" ref={assetInputRef} onChange={(e) => handleFileUpload(e, setAssetImage)} className="hidden" accept="image/*" />
-                             {assetImage ? (
-                                 <div className="relative w-full aspect-video rounded-lg overflow-hidden">
-                                     <img src={assetImage} className="w-full h-full object-contain" />
-                                     <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                         <span className="text-xs text-white">Change</span>
-                                     </div>
-                                     <div 
-                                        onClick={(e) => { e.stopPropagation(); setAssetImage(null); }}
-                                        className="absolute top-1 right-1 bg-black/50 hover:bg-red-500/80 rounded-full p-1 text-white transition-colors"
-                                        title="Remove Asset"
-                                     >
-                                         <X className="w-3 h-3" />
-                                     </div>
-                                 </div>
-                             ) : (
-                                <>
-                                    <Upload className="w-5 h-5 text-muted mb-2" />
-                                    <span className="text-xs text-muted">Logo / Asset</span>
-                                </>
-                             )}
-                        </button>
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-muted uppercase tracking-wider">
+                  Planner AI
+                </label>
+                <select
+                  value={textProvider}
+                  onChange={(e) =>
+                    setTextProvider(e.target.value as TextGenerationProvider)
+                  }
+                  className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white transition-all placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                >
+                  {PLANNER_MODEL_OPTIONS.map((option) => (
+                    <option
+                      key={option.id}
+                      value={option.id}
+                      className="bg-[#0b1620] text-white"
+                    >
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Assets */}
+            <div className="pt-4 border-t border-white/5 space-y-4">
+              <label className="text-xs font-semibold text-muted uppercase tracking-wider">
+                Assets (Optional)
+              </label>
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  type="button"
+                  onClick={() => bgInputRef.current?.click()}
+                  className={`flex flex-col items-center justify-center p-4 rounded-xl border border-dashed transition-all relative group overflow-hidden ${backgroundImage ? "border-primary bg-primary/10 p-0" : "border-white/10 hover:bg-white/5"}`}
+                >
+                  <input
+                    type="file"
+                    ref={bgInputRef}
+                    onChange={(e) => handleFileUpload(e, setBackgroundImage)}
+                    className="hidden"
+                    accept="image/*"
+                  />
+                  {backgroundImage ? (
+                    <div className="relative w-full aspect-video rounded-lg overflow-hidden">
+                      <img
+                        src={backgroundImage}
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span className="text-xs text-white">Change</span>
+                      </div>
+                      <div
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setBackgroundImage(null);
+                        }}
+                        className="absolute top-1 right-1 bg-black/50 hover:bg-red-500/80 rounded-full p-1 text-white transition-colors"
+                        title="Remove Background"
+                      >
+                        <X className="w-3 h-3" />
+                      </div>
                     </div>
-                </div>
+                  ) : (
+                    <>
+                      <ImageIcon className="w-5 h-5 text-muted mb-2" />
+                      <span className="text-xs text-muted">Background</span>
+                    </>
+                  )}
+                </button>
 
-                <div className="pt-4 border-t border-white/5">
-                    <AvatarLibraryPicker
-                        selectedAvatarId={selectedAvatarId}
-                        onSelectedAvatarIdChange={setSelectedAvatarId}
-                        onSelectedAvatarChange={setSelectedAvatar}
-                        title="Avatar For Images"
-                        mode="select"
-                    />
-                </div>
+                <button
+                  type="button"
+                  onClick={() => assetInputRef.current?.click()}
+                  className={`flex flex-col items-center justify-center p-4 rounded-xl border border-dashed transition-all relative group overflow-hidden ${assetImage ? "border-primary bg-primary/10 p-0" : "border-white/10 hover:bg-white/5"}`}
+                >
+                  <input
+                    type="file"
+                    ref={assetInputRef}
+                    onChange={(e) => handleFileUpload(e, setAssetImage)}
+                    className="hidden"
+                    accept="image/*"
+                  />
+                  {assetImage ? (
+                    <div className="relative w-full aspect-video rounded-lg overflow-hidden">
+                      <img
+                        src={assetImage}
+                        className="w-full h-full object-contain"
+                      />
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span className="text-xs text-white">Change</span>
+                      </div>
+                      <div
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setAssetImage(null);
+                        }}
+                        className="absolute top-1 right-1 bg-black/50 hover:bg-red-500/80 rounded-full p-1 text-white transition-colors"
+                        title="Remove Asset"
+                      >
+                        <X className="w-3 h-3" />
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <Upload className="w-5 h-5 text-muted mb-2" />
+                      <span className="text-xs text-muted">Logo / Asset</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
 
-                <div className="pt-4">
-                    <Button type="submit" isLoading={isPlanning} className="w-full py-4 text-lg shadow-xl shadow-primary/25">
-                        <Wand2 className="w-5 h-5" /> Generate Campaign
-                    </Button>
-                </div>
+            <div className="pt-4 border-t border-white/5">
+              <AvatarLibraryPicker
+                selectedAvatarId={selectedAvatarId}
+                onSelectedAvatarIdChange={setSelectedAvatarId}
+                onSelectedAvatarChange={setSelectedAvatar}
+                title="Avatar For Images"
+                mode="select"
+              />
+            </div>
 
-                {statusMessage && (
-                  <p className={`text-xs ${statusMessage.type === 'error' ? 'text-red-400' : 'text-green-400'}`}>
-                    {statusMessage.text}
-                  </p>
-                )}
-            </form>
+            <div className="pt-4">
+              <Button
+                type="submit"
+                isLoading={isPlanning}
+                className="w-full py-4 text-lg shadow-xl shadow-primary/25"
+              >
+                <Wand2 className="w-5 h-5" /> Generate Campaign
+              </Button>
+            </div>
+
+            {statusMessage && (
+              <p
+                className={`text-xs ${statusMessage.type === "error" ? "text-red-400" : "text-green-400"}`}
+              >
+                {statusMessage.text}
+              </p>
+            )}
+          </form>
         </div>
       </div>
 
       {/* --- Right Column: Results Grid --- */}
       <div className="flex-1 min-w-0">
         {!plan && !isPlanning && (
-            <div className="h-full min-h-[500px] flex flex-col items-center justify-center text-center p-12 border border-dashed border-white/10 rounded-3xl bg-white/[0.02]">
-                <div className="w-24 h-24 rounded-full bg-white/5 flex items-center justify-center mb-6 animate-pulse-slow">
-                    <Sparkles className="w-10 h-10 text-primary opacity-50" />
-                </div>
-                <h3 className="text-2xl font-bold text-white mb-2">Ready to Create?</h3>
-                <p className="text-muted max-w-md">Describe your banner (e.g., "Human feel, cozy coffee shop sale") to generate a social media campaign with copy and visuals.</p>
-                <ul className="mt-6 max-w-md space-y-2 text-left text-xs text-muted">
-                    <li className="flex items-start gap-2">
-                        <ImageIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-                        Add a background or logo to keep every banner on-brand, or let AI generate the visuals.
-                    </li>
-                    <li className="flex items-start gap-2">
-                        <Layers className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-                        Pick how many variations to generate, then fine-tune any result in the canvas editor.
-                    </li>
-                </ul>
+          <div className="h-full min-h-[500px] flex flex-col items-center justify-center text-center p-12 border border-dashed border-white/10 rounded-3xl bg-white/[0.02]">
+            <div className="w-24 h-24 rounded-full bg-white/5 flex items-center justify-center mb-6 animate-pulse-slow">
+              <Sparkles className="w-10 h-10 text-primary opacity-50" />
             </div>
+            <h3 className="text-2xl font-bold text-white mb-2">
+              Ready to Create?
+            </h3>
+            <p className="text-muted max-w-md">
+              Describe your banner (e.g., "Human feel, cozy coffee shop sale")
+              to generate a social media campaign with copy and visuals.
+            </p>
+            <ul className="mt-6 max-w-md space-y-2 text-left text-xs text-muted">
+              <li className="flex items-start gap-2">
+                <ImageIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                Add a background or logo to keep every banner on-brand, or let
+                AI generate the visuals.
+              </li>
+              <li className="flex items-start gap-2">
+                <Layers className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                Pick how many variations to generate, then fine-tune any result
+                in the canvas editor.
+              </li>
+            </ul>
+          </div>
         )}
 
         {isPlanning && (
-            <div className="h-full min-h-[500px] flex flex-col items-center justify-center">
-                <div className="w-16 h-16 border-t-2 border-b-2 border-primary rounded-full animate-spin mb-8"></div>
-                <h3 className="text-xl font-bold text-white animate-pulse">Designing Campaign...</h3>
-                <p className="text-muted mt-2">Writing copy, planning layout, and creating backgrounds</p>
-            </div>
+          <div className="h-full min-h-[500px] flex flex-col items-center justify-center">
+            <div className="w-16 h-16 border-t-2 border-b-2 border-primary rounded-full animate-spin mb-8"></div>
+            <h3 className="text-xl font-bold text-white animate-pulse">
+              Designing Campaign...
+            </h3>
+            <p className="text-muted mt-2">
+              Writing copy, planning layout, and creating backgrounds
+            </p>
+          </div>
         )}
 
         {plan && (
-            <div className="space-y-12 animate-slide-up">
-                
-                {/* 1. Preview Grid */}
-                <div className="space-y-6">
-                    <div className="flex items-center justify-between">
-                         <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                            <ImageIcon className="w-5 h-5 text-primary" /> Visual Assets
-                         </h3>
-                         <span className="text-xs text-muted bg-white/5 px-3 py-1 rounded-full">Click any image to edit</span>
-                    </div>
+          <div className="space-y-12 animate-slide-up">
+            {/* 1. Preview Grid */}
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                  <ImageIcon className="w-5 h-5 text-primary" /> Visual Assets
+                </h3>
+                <span className="text-xs text-muted bg-white/5 px-3 py-1 rounded-full">
+                  Click any image to edit
+                </span>
+              </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                        {/* Main Banner Card */}
-                        <div 
-                            className="group bg-surface border border-white/5 rounded-2xl overflow-hidden hover:border-primary/50 transition-all relative"
-                        >
-                            <div 
-                                onClick={() => generatedImages['main'] ? openEditor('main', true) : null}
-                                className={`w-full bg-black/20 flex items-center justify-center relative overflow-hidden cursor-pointer ${aspectRatio === '9:16' ? 'aspect-[9/16]' : aspectRatio === '16:9' ? 'aspect-video' : aspectRatio === '4:5' ? 'aspect-[4/5]' : 'aspect-square'}`}
-                            >
-                                {generatedImages['main'] ? (
-                                    <div className="relative w-full h-full">
-                                        <img src={generatedImages['main']} alt="Main Banner" className="w-full h-full object-cover" />
-                                        {/* Show Overlay TEXT only if we haven't edited it yet (raw mode). If it's edited, text is baked in so we hide overlay to avoid dupes */}
-                                        {!savedLayers['main'] && (
-                                            <div className="absolute inset-0 p-4 flex flex-col items-center justify-center text-center pointer-events-none bg-black/30">
-                                                <h2 className="text-white font-bold text-2xl mb-2 drop-shadow-md">{plan.main_banner.headline}</h2>
-                                                <p className="text-zinc-200 text-sm drop-shadow-md">{plan.main_banner.subheadline}</p>
-                                            </div>
-                                        )}
-                                    </div>
-                                ) : (
-                                    <div className="text-center p-6 flex flex-col items-center justify-center h-full">
-                                        {generatingStatus['main'] ? (
-                                            <div className="animate-pulse text-primary text-sm font-medium">Rendering Art...</div>
-                                        ) : generationErrors['main'] ? (
-                                            <div className="flex flex-col items-center gap-2">
-                                                <div className="text-red-400 text-xs">Generation Failed</div>
-                                                <div className="text-red-300/80 text-[11px] max-w-[220px] text-center">
-                                                  {generationErrors['main']}
-                                                </div>
-                                                <Button 
-                                                    variant="secondary" 
-                                                    onClick={(e) => { e.stopPropagation(); getRetryProps('main', plan.main_banner.image_prompt)(); }} 
-                                                    className="h-8 px-3 text-xs"
-                                                >
-                                                    <RefreshCcw className="w-3 h-3 mr-1" /> Retry
-                                                </Button>
-                                            </div>
-                                        ) : (
-                                            <div className="text-muted text-sm">Waiting for render...</div>
-                                        )}
-                                    </div>
-                                )}
-                                {/* Overlay on Hover */}
-                                {generatedImages['main'] && (
-                                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10 gap-2">
-                                        <Button variant="secondary" className="scale-90 group-hover:scale-100 transition-transform">
-                                            <MousePointer2 className="w-4 h-4 mr-2" /> Edit
-                                        </Button>
-                                    </div>
-                                )}
-                            </div>
-                            <div className="p-4 border-t border-white/5 flex items-center justify-between">
-                                <div>
-                                    <div className="flex justify-between items-start mb-2">
-                                        <span className="text-[10px] font-bold text-primary uppercase tracking-wider">Main Cover</span>
-                                    </div>
-                                    <h4 className="text-white font-medium text-sm line-clamp-1 leading-snug mb-1">{plan.main_banner.headline}</h4>
-                                </div>
-                                <Tooltip label="Download">
-                                  <Button
-                                      variant="ghost"
-                                      onClick={() => handleDownload(generatedImages['main'])}
-                                      disabled={!generatedImages['main']}
-                                      className="h-8 w-8 p-0"
-                                  >
-                                      <Download className="w-4 h-4" />
-                                  </Button>
-                                </Tooltip>
-                            </div>
-                        </div>
-
-                        {/* Additional Slides / Banners */}
-                        {plan.additional_banners.map((slide, idx) => (
-                            <div 
-                                key={idx} 
-                                className="group bg-surface border border-white/5 rounded-2xl overflow-hidden hover:border-primary/50 transition-all relative"
-                            >
-                                <div 
-                                    onClick={() => generatedImages[`slide-${idx}`] ? openEditor(`slide-${idx}`, false) : null}
-                                    className={`w-full bg-black/20 flex items-center justify-center relative overflow-hidden cursor-pointer ${aspectRatio === '9:16' ? 'aspect-[9/16]' : aspectRatio === '16:9' ? 'aspect-video' : aspectRatio === '4:5' ? 'aspect-[4/5]' : 'aspect-square'}`}
-                                >
-                                    {generatedImages[`slide-${idx}`] ? (
-                                        <div className="relative w-full h-full">
-                                            <img src={generatedImages[`slide-${idx}`]} alt={slide.title} className="w-full h-full object-cover" />
-                                             {!savedLayers[`slide-${idx}`] && (
-                                                <div className="absolute inset-0 p-4 flex flex-col items-center justify-center text-center pointer-events-none bg-black/30">
-                                                    <h2 className="text-white font-bold text-xl mb-2 drop-shadow-md">{slide.title}</h2>
-                                                    <p className="text-zinc-200 text-xs drop-shadow-md">{slide.subtitle}</p>
-                                                </div>
-                                             )}
-                                        </div>
-                                    ) : (
-                                        <div className="text-center p-6 flex flex-col items-center justify-center h-full">
-                                            {generatingStatus[`slide-${idx}`] ? (
-                                                <div className="animate-pulse text-primary text-sm font-medium">Rendering Art...</div>
-                                            ) : generationErrors[`slide-${idx}`] ? (
-                                                <div className="flex flex-col items-center gap-2">
-                                                    <div className="text-red-400 text-xs">Generation Failed</div>
-                                                    <div className="text-red-300/80 text-[11px] max-w-[220px] text-center">
-                                                        {generationErrors[`slide-${idx}`]}
-                                                    </div>
-                                                    <Button 
-                                                        variant="secondary" 
-                                                        onClick={(e) => { e.stopPropagation(); getRetryProps(`slide-${idx}`, slide.image_prompt)(); }} 
-                                                        className="h-8 px-3 text-xs"
-                                                    >
-                                                        <RefreshCcw className="w-3 h-3 mr-1" /> Retry
-                                                    </Button>
-                                                </div>
-                                            ) : (
-                                                <div className="text-muted text-sm">Waiting for render...</div>
-                                            )}
-                                        </div>
-                                    )}
-                                     {/* Overlay on Hover */}
-                                    {generatedImages[`slide-${idx}`] && (
-                                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10 gap-2">
-                                            <Button variant="secondary" className="scale-90 group-hover:scale-100 transition-transform">
-                                                <MousePointer2 className="w-4 h-4 mr-2" /> Edit
-                                            </Button>
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="p-4 border-t border-white/5 flex items-center justify-between">
-                                    <div>
-                                        <div className="flex justify-between items-start mb-2">
-                                            <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">Slide {idx + 2}</span>
-                                        </div>
-                                        <h4 className="text-white font-medium text-sm line-clamp-1 mb-1">{slide.title}</h4>
-                                    </div>
-                                     <Tooltip label="Download">
-                                       <Button
-                                          variant="ghost"
-                                          onClick={() => handleDownload(generatedImages[`slide-${idx}`])}
-                                          disabled={!generatedImages[`slide-${idx}`]}
-                                          className="h-8 w-8 p-0"
-                                      >
-                                          <Download className="w-4 h-4" />
-                                      </Button>
-                                     </Tooltip>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                {/* 2. SEO & Caption Output & SOCIALS */}
-                <div className="bg-surface border border-white/5 rounded-2xl p-6 space-y-4">
-                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                        <Hash className="w-5 h-5 text-primary" /> Generated Caption & SEO
-                    </h3>
-                    
-                    <div className="bg-black/20 rounded-xl p-4 border border-white/5 space-y-4">
-                        <div className="flex gap-2 flex-wrap">
-                            {plan.seo.keywords.map((kw, i) => (
-                                <span key={i} className="text-[10px] bg-white/10 text-white px-2 py-1 rounded-md">
-                                    {kw}
-                                </span>
-                            ))}
-                        </div>
-                        <p className="text-sm text-gray-300 leading-relaxed font-mono whitespace-pre-wrap">
-                            {plan.seo.caption}
-                        </p>
-                        <div className="pt-2 border-t border-white/10">
-                            <p className="text-primary text-sm font-medium">
-                                {plan.seo.hashtags.map(tag => `#${tag}`).join(' ')}
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {/* Main Banner Card */}
+                <div className="group bg-surface border border-white/5 rounded-2xl overflow-hidden hover:border-primary/50 transition-all relative">
+                  <div
+                    onClick={() =>
+                      generatedImages["main"] ? openEditor("main", true) : null
+                    }
+                    className={`w-full bg-black/20 flex items-center justify-center relative overflow-hidden cursor-pointer ${aspectRatio === "9:16" ? "aspect-[9/16]" : aspectRatio === "16:9" ? "aspect-video" : aspectRatio === "4:5" ? "aspect-[4/5]" : aspectRatio === "3:4" ? "aspect-[3/4]" : "aspect-square"}`}
+                  >
+                    {generatedImages["main"] ? (
+                      <div className="relative w-full h-full">
+                        <img
+                          src={generatedImages["main"]}
+                          alt="Main Banner"
+                          className="w-full h-full object-cover"
+                        />
+                        {/* Show Overlay TEXT only if we haven't edited it yet (raw mode). If it's edited, text is baked in so we hide overlay to avoid dupes */}
+                        {!savedLayers["main"] && (
+                          <div className="absolute inset-0 p-4 flex flex-col items-center justify-center text-center pointer-events-none bg-black/30">
+                            <h2 className="text-white font-bold text-2xl mb-2 drop-shadow-md">
+                              {plan.main_banner.headline}
+                            </h2>
+                            <p className="text-zinc-200 text-sm drop-shadow-md">
+                              {plan.main_banner.subheadline}
                             </p>
-                        </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-center p-6 flex flex-col items-center justify-center h-full">
+                        {generatingStatus["main"] ? (
+                          <div className="animate-pulse text-primary text-sm font-medium">
+                            Rendering Art...
+                          </div>
+                        ) : generationErrors["main"] ? (
+                          <div className="flex flex-col items-center gap-2">
+                            <div className="text-red-400 text-xs">
+                              Generation Failed
+                            </div>
+                            <div className="text-red-300/80 text-[11px] max-w-[220px] text-center">
+                              {generationErrors["main"]}
+                            </div>
+                            <Button
+                              variant="secondary"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                getRetryProps(
+                                  "main",
+                                  plan.main_banner.image_prompt,
+                                )();
+                              }}
+                              className="h-8 px-3 text-xs"
+                            >
+                              <RefreshCcw className="w-3 h-3 mr-1" /> Retry
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="text-muted text-sm">
+                            Waiting for render...
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {/* Overlay on Hover */}
+                    {generatedImages["main"] && (
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10 gap-2">
+                        <Button
+                          variant="secondary"
+                          className="scale-90 group-hover:scale-100 transition-transform"
+                        >
+                          <MousePointer2 className="w-4 h-4 mr-2" /> Edit
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-4 border-t border-white/5 flex items-center justify-between">
+                    <div>
+                      <div className="flex justify-between items-start mb-2">
+                        <span className="text-[10px] font-bold text-primary uppercase tracking-wider">
+                          Main Cover
+                        </span>
+                      </div>
+                      <h4 className="text-white font-medium text-sm line-clamp-1 leading-snug mb-1">
+                        {plan.main_banner.headline}
+                      </h4>
                     </div>
-                    
-                    {/* Share / Export Toolbar */}
-                    <div className="flex flex-col sm:flex-row items-center gap-4">
-                         <Button variant="secondary" className="flex-1 w-full" onClick={handleCopyCaption}>
-                             <Copy className="w-4 h-4" /> Copy Caption
-                         </Button>
-                         
-                         <div className="h-px w-full sm:h-8 sm:w-px bg-white/10"></div>
-                         
-                         {/* Social Connect & Post Buttons (not yet available) */}
-                         <div className="flex items-center gap-2 w-full sm:w-auto justify-center">
-                            {SOCIAL_PLATFORMS.map(({ id, label, icon: Icon }) => (
-                                <button
-                                    key={id}
-                                    type="button"
-                                    disabled
-                                    className="p-2.5 rounded-lg bg-white/5 text-muted/50 cursor-not-allowed"
-                                    title={`${label}: coming soon`}
-                                >
-                                    <Icon className="w-5 h-5" />
-                                </button>
-                            ))}
-
-                            {/* Generic Share */}
-                            <button type="button" disabled className="p-2.5 rounded-lg bg-white/5 text-muted/50 cursor-not-allowed ml-2" title="Share: coming soon">
-                                <Share2 className="w-5 h-5" />
-                            </button>
-                         </div>
-                         <span className="w-full text-center text-[11px] uppercase tracking-[0.18em] text-muted sm:w-auto sm:text-left">
-                            Direct social posting is coming soon
-                         </span>
-                    </div>
-
+                    <Tooltip label="Download">
+                      <Button
+                        variant="ghost"
+                        onClick={() => void handleDownload("main", true)}
+                        disabled={!generatedImages["main"]}
+                        className="h-8 w-8 p-0"
+                      >
+                        <Download className="w-4 h-4" />
+                      </Button>
+                    </Tooltip>
+                  </div>
                 </div>
 
+                {/* Additional Slides / Banners */}
+                {plan.additional_banners.map((slide, idx) => (
+                  <div
+                    key={idx}
+                    className="group bg-surface border border-white/5 rounded-2xl overflow-hidden hover:border-primary/50 transition-all relative"
+                  >
+                    <div
+                      onClick={() =>
+                        generatedImages[`slide-${idx}`]
+                          ? openEditor(`slide-${idx}`, false)
+                          : null
+                      }
+                      className={`w-full bg-black/20 flex items-center justify-center relative overflow-hidden cursor-pointer ${aspectRatio === "9:16" ? "aspect-[9/16]" : aspectRatio === "16:9" ? "aspect-video" : aspectRatio === "4:5" ? "aspect-[4/5]" : aspectRatio === "3:4" ? "aspect-[3/4]" : "aspect-square"}`}
+                    >
+                      {generatedImages[`slide-${idx}`] ? (
+                        <div className="relative w-full h-full">
+                          <img
+                            src={generatedImages[`slide-${idx}`]}
+                            alt={slide.title}
+                            className="w-full h-full object-cover"
+                          />
+                          {!savedLayers[`slide-${idx}`] && (
+                            <div className="absolute inset-0 p-4 flex flex-col items-center justify-center text-center pointer-events-none bg-black/30">
+                              <h2 className="text-white font-bold text-xl mb-2 drop-shadow-md">
+                                {slide.title}
+                              </h2>
+                              <p className="text-zinc-200 text-xs drop-shadow-md">
+                                {slide.subtitle}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-center p-6 flex flex-col items-center justify-center h-full">
+                          {generatingStatus[`slide-${idx}`] ? (
+                            <div className="animate-pulse text-primary text-sm font-medium">
+                              Rendering Art...
+                            </div>
+                          ) : generationErrors[`slide-${idx}`] ? (
+                            <div className="flex flex-col items-center gap-2">
+                              <div className="text-red-400 text-xs">
+                                Generation Failed
+                              </div>
+                              <div className="text-red-300/80 text-[11px] max-w-[220px] text-center">
+                                {generationErrors[`slide-${idx}`]}
+                              </div>
+                              <Button
+                                variant="secondary"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  getRetryProps(
+                                    `slide-${idx}`,
+                                    slide.image_prompt,
+                                  )();
+                                }}
+                                className="h-8 px-3 text-xs"
+                              >
+                                <RefreshCcw className="w-3 h-3 mr-1" /> Retry
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="text-muted text-sm">
+                              Waiting for render...
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {/* Overlay on Hover */}
+                      {generatedImages[`slide-${idx}`] && (
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10 gap-2">
+                          <Button
+                            variant="secondary"
+                            className="scale-90 group-hover:scale-100 transition-transform"
+                          >
+                            <MousePointer2 className="w-4 h-4 mr-2" /> Edit
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-4 border-t border-white/5 flex items-center justify-between">
+                      <div>
+                        <div className="flex justify-between items-start mb-2">
+                          <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">
+                            Slide {idx + 2}
+                          </span>
+                        </div>
+                        <h4 className="text-white font-medium text-sm line-clamp-1 mb-1">
+                          {slide.title}
+                        </h4>
+                      </div>
+                      <Tooltip label="Download">
+                        <Button
+                          variant="ghost"
+                          onClick={() =>
+                            void handleDownload(`slide-${idx}`, false)
+                          }
+                          disabled={!generatedImages[`slide-${idx}`]}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Download className="w-4 h-4" />
+                        </Button>
+                      </Tooltip>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
+
+            {/* 2. SEO & Caption Output & SOCIALS */}
+            <div className="bg-surface border border-white/5 rounded-2xl p-6 space-y-4">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <Hash className="w-5 h-5 text-primary" /> Generated Caption &
+                SEO
+              </h3>
+
+              <div className="bg-black/20 rounded-xl p-4 border border-white/5 space-y-4">
+                <div className="flex gap-2 flex-wrap">
+                  {plan.seo.keywords.map((kw, i) => (
+                    <span
+                      key={i}
+                      className="text-[10px] bg-white/10 text-white px-2 py-1 rounded-md"
+                    >
+                      {kw}
+                    </span>
+                  ))}
+                </div>
+                <p className="text-sm text-gray-300 leading-relaxed font-mono whitespace-pre-wrap">
+                  {plan.seo.caption}
+                </p>
+                <div className="pt-2 border-t border-white/10">
+                  <p className="text-primary text-sm font-medium">
+                    {plan.seo.hashtags.map((tag) => `#${tag}`).join(" ")}
+                  </p>
+                </div>
+              </div>
+
+              {/* Share / Export Toolbar */}
+              <div className="flex flex-col sm:flex-row items-center gap-4">
+                <Button
+                  variant="secondary"
+                  className="flex-1 w-full"
+                  onClick={handleCopyCaption}
+                >
+                  <Copy className="w-4 h-4" /> Copy Caption
+                </Button>
+
+                <div className="h-px w-full sm:h-8 sm:w-px bg-white/10"></div>
+
+                {/* Social Connect & Post Buttons (not yet available) */}
+                <div className="flex items-center gap-2 w-full sm:w-auto justify-center">
+                  {SOCIAL_PLATFORMS.map(({ id, label, icon: Icon }) => (
+                    <button
+                      key={id}
+                      type="button"
+                      disabled
+                      className="p-2.5 rounded-lg bg-white/5 text-muted/50 cursor-not-allowed"
+                      title={`${label}: coming soon`}
+                    >
+                      <Icon className="w-5 h-5" />
+                    </button>
+                  ))}
+
+                  {/* Generic Share */}
+                  <button
+                    type="button"
+                    disabled
+                    className="p-2.5 rounded-lg bg-white/5 text-muted/50 cursor-not-allowed ml-2"
+                    title="Share: coming soon"
+                  >
+                    <Share2 className="w-5 h-5" />
+                  </button>
+                </div>
+                <span className="w-full text-center text-[11px] uppercase tracking-[0.18em] text-muted sm:w-auto sm:text-left">
+                  Direct social posting is coming soon
+                </span>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>
