@@ -28,6 +28,15 @@ export const ImageStudio: React.FC<{ draftStorageKey?: string }> = ({
   draftStorageKey = "image-studio-draft",
 }) => {
   const [draftReady, setDraftReady] = useState(false);
+  const [draftRetry, setDraftRetry] = useState(0);
+  const [draftRestoreFailed, setDraftRestoreFailed] = useState(false);
+  const pendingDraftSave = useRef<(() => void) | null>(null);
+  useEffect(
+    () => () => {
+      pendingDraftSave.current?.();
+    },
+    [draftStorageKey],
+  );
   const [currentImage, setCurrentImage] = useState<string | null>(null);
   const [history, setHistory] = useState<string[]>([]);
   const [prompt, setPrompt] = useState("");
@@ -45,6 +54,8 @@ export const ImageStudio: React.FC<{ draftStorageKey?: string }> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     let active = true;
+    setDraftReady(false);
+    setDraftRestoreFailed(false);
     void getDraft<{
       currentImage: string | null;
       history: string[];
@@ -56,24 +67,27 @@ export const ImageStudio: React.FC<{ draftStorageKey?: string }> = ({
           setHistory(d.history);
           setPrompt(d.prompt);
         }
+        if (active) setDraftReady(true);
       })
       .catch(() => {
-        if (active)
+        if (active) {
+          setDraftRestoreFailed(true);
           setStatusMessage({
             type: "error",
-            text: "Could not restore image draft.",
+            text: "Draft recovery failed. Stored data was preserved; new edits will not autosave until recovery succeeds.",
           });
-      })
-      .finally(() => {
-        if (active) setDraftReady(true);
+        }
       });
     return () => {
       active = false;
     };
-  }, [draftStorageKey]);
+  }, [draftStorageKey, draftRetry]);
   useEffect(() => {
     if (!draftReady) return;
-    const persist = () =>
+    let flushed = false;
+    const persist = () => {
+      if (flushed) return;
+      flushed = true;
       void setDraft(draftStorageKey, { currentImage, history, prompt }).catch(
         () =>
           setStatusMessage({
@@ -81,10 +95,11 @@ export const ImageStudio: React.FC<{ draftStorageKey?: string }> = ({
             text: "Could not save image draft.",
           }),
       );
+    };
+    pendingDraftSave.current = persist;
     const timer = setTimeout(persist, 500);
     return () => {
       clearTimeout(timer);
-      persist();
     };
   }, [currentImage, history, prompt, draftReady, draftStorageKey]);
 
@@ -331,6 +346,15 @@ export const ImageStudio: React.FC<{ draftStorageKey?: string }> = ({
                 </Button>
               </form>
 
+              {draftRestoreFailed && (
+                <button
+                  type="button"
+                  className="text-sm text-primary underline"
+                  onClick={() => setDraftRetry((n) => n + 1)}
+                >
+                  Retry draft recovery
+                </button>
+              )}
               {statusMessage && (
                 <p
                   className={`text-xs ${statusMessage.type === "error" ? "text-red-400" : "text-green-400"}`}
