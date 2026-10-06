@@ -108,9 +108,33 @@ export const getOrCreateRequestKey = async (key: string): Promise<string> => {
       request.onsuccess = () => {
         const previous = request.result ? unpackDraft(request.result) : null;
         result = typeof previous === "string" ? previous : crypto.randomUUID();
-        if (!previous) store.put(packDraft(result), key);
+        if (typeof previous !== "string") store.put(packDraft(result), key);
       };
       tx.oncomplete = () => resolve(result);
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
+    });
+  } finally {
+    db.close();
+  }
+};
+
+// Late completion of an earlier attempt must not delete a newer attempt's key.
+export const clearRequestKey = async (
+  storageKey: string,
+  expected: string,
+): Promise<void> => {
+  const db = await openDb();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction("drafts", "readwrite");
+      const store = tx.objectStore("drafts");
+      const request = store.get(storageKey);
+      request.onsuccess = () => {
+        if (request.result && unpackDraft(request.result) === expected)
+          store.delete(storageKey);
+      };
+      tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
       tx.onabort = () => reject(tx.error);
     });

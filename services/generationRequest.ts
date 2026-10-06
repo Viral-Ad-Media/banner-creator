@@ -1,6 +1,7 @@
+import { dispatchWithRequestKey } from "./requestLifecycle";
 import { apiFetch, HttpError } from "./apiClient";
 import { supabase } from "./supabaseClient";
-import { getOrCreateRequestKey, removeDraft } from "./draftStore";
+import { getOrCreateRequestKey, clearRequestKey } from "./draftStore";
 // An interrupted dispatch keeps its key across navigation/reload. Repeating it never buys a second job.
 export const generationPost = async <T>(
   path: string,
@@ -22,20 +23,17 @@ export const generationPost = async <T>(
     .join("");
   const storageKey = `generation-request:${userId}:${hash}`;
   const key = await getOrCreateRequestKey(storageKey);
-  try {
-    const result = await apiFetch<T>(path, {
-      method: "POST",
-      headers: { "Idempotency-Key": key },
-      body,
-    });
-    await removeDraft(storageKey);
-    return result;
-  } catch (error) {
-    if (
+  return dispatchWithRequestKey(
+    key,
+    () =>
+      apiFetch<T>(path, {
+        method: "POST",
+        headers: { "Idempotency-Key": key },
+        body,
+      }),
+    (expected) => clearRequestKey(storageKey, expected),
+    (error) =>
       error instanceof HttpError &&
-      [400, 401, 402, 404, 413, 422, 501].includes(error.status)
-    )
-      await removeDraft(storageKey);
-    throw error;
-  }
+      [400, 401, 402, 404, 413, 422, 501].includes(error.status),
+  );
 };
