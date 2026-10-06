@@ -1,7 +1,7 @@
-import { apiFetch } from './apiClient';
-import { supabase } from './supabaseClient';
+import { apiFetch, HttpError } from "./apiClient";
+import { supabase } from "./supabaseClient";
 
-export type UserPlan = 'FREE' | 'PRO' | 'ENTERPRISE';
+export type UserPlan = "FREE" | "PRO" | "ENTERPRISE";
 
 export interface AuthUser {
   id: string;
@@ -14,8 +14,8 @@ type MeResponse = {
   user: AuthUser;
 };
 
-const getAuthRedirectUrl = (path = '/auth', search = '') => {
-  if (typeof window === 'undefined') {
+const getAuthRedirectUrl = (path = "/auth", search = "") => {
+  if (typeof window === "undefined") {
     return undefined;
   }
 
@@ -23,7 +23,7 @@ const getAuthRedirectUrl = (path = '/auth', search = '') => {
 };
 
 const fetchCurrentProfile = async (): Promise<AuthUser> => {
-  const response = await apiFetch<MeResponse>('/auth/me');
+  const response = await apiFetch<MeResponse>("/auth/me");
   return response.user;
 };
 
@@ -48,7 +48,7 @@ export const registerUser = async (payload: {
   }
 
   if (!data.session) {
-    throw new Error('Sign-up created. Confirm your email before logging in.');
+    throw new Error("Sign-up created. Confirm your email before logging in.");
   }
 
   return fetchCurrentProfile();
@@ -64,7 +64,7 @@ export const loginUser = async (payload: {
   });
 
   if (error || !data.session) {
-    throw new Error(error?.message || 'Unable to sign in.');
+    throw new Error(error?.message || "Unable to sign in.");
   }
 
   return fetchCurrentProfile();
@@ -72,7 +72,7 @@ export const loginUser = async (payload: {
 
 export const sendPasswordResetEmail = async (email: string) => {
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: getAuthRedirectUrl('/auth', '?mode=reset'),
+    redirectTo: getAuthRedirectUrl("/auth", "?mode=reset"),
   });
 
   if (error) {
@@ -80,7 +80,9 @@ export const sendPasswordResetEmail = async (email: string) => {
   }
 };
 
-export const resetPassword = async (password: string): Promise<AuthUser | null> => {
+export const resetPassword = async (
+  password: string,
+): Promise<AuthUser | null> => {
   const { error } = await supabase.auth.updateUser({ password });
 
   if (error) {
@@ -102,9 +104,12 @@ export const getCurrentUser = async (): Promise<AuthUser | null> => {
 
   try {
     return await fetchCurrentProfile();
-  } catch {
-    await supabase.auth.signOut();
-    return null;
+  } catch (error) {
+    if (error instanceof HttpError && error.status === 401) {
+      await supabase.auth.signOut();
+      return null;
+    }
+    throw error;
   }
 };
 
@@ -115,9 +120,11 @@ export const logoutUser = async () => {
   }
 };
 
-export const updateProfile = async (payload: { name: string }): Promise<AuthUser> => {
-  const response = await apiFetch<MeResponse>('/auth/me', {
-    method: 'PATCH',
+export const updateProfile = async (payload: {
+  name: string;
+}): Promise<AuthUser> => {
+  const response = await apiFetch<MeResponse>("/auth/me", {
+    method: "PATCH",
     body: JSON.stringify(payload),
   });
 

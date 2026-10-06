@@ -1,5 +1,5 @@
-import type { UserPlan } from './authService';
-import { apiFetch } from './apiClient';
+import type { UserPlan } from "./authService";
+import { apiFetch } from "./apiClient";
 
 export interface UsageSummary {
   usedCredits: number;
@@ -10,8 +10,8 @@ export interface UsageSummary {
 export interface GenerationRecord {
   id: string;
   project_id: string | null;
-  type: 'BANNER_PLAN' | 'IMAGE_GENERATION' | 'IMAGE_EDIT' | 'VIDEO_GENERATION';
-  status: 'SUCCESS' | 'FAILED';
+  type: "BANNER_PLAN" | "IMAGE_GENERATION" | "IMAGE_EDIT" | "VIDEO_GENERATION";
+  status: "QUEUED" | "RUNNING" | "UNKNOWN" | "SUCCESS" | "FAILED";
   prompt: string;
   aspect_ratio: string | null;
   error_message: string | null;
@@ -21,6 +21,7 @@ export interface GenerationRecord {
 type GenerationsResponse = {
   generations: GenerationRecord[];
   usage: UsageSummary;
+  nextOffset?: number | null;
 };
 
 export interface PlanSummary {
@@ -48,10 +49,13 @@ type BillingResponse = {
   billing: BillingSummary | null;
 };
 
-export const getGenerationActivity = async () => {
-  return apiFetch<GenerationsResponse>('/generations');
+export const getGenerationActivity = async (offset = 0) => {
+  return apiFetch<GenerationsResponse>(`/generations?offset=${offset}`);
 };
 
 export const getBillingSummary = async () => {
-  return apiFetch<BillingResponse>('/billing/summary');
+  return apiFetch<BillingResponse>("/billing/summary");
 };
+
+export const getGenerationDetail = (id: string) =>
+  apiFetch<{ generation: any }>(`/generations/${id}`);

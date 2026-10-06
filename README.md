@@ -1,412 +1,116 @@
-# Social Studio SaaS
+# Banner Creator / Social Studio
 
-Full-stack social creative SaaS for generating banner plans, producing AI backgrounds, editing images, and generating short videos, with authenticated users, usage metering, and plan-based limits.
+React/TypeScript workspace for AI banner planning, image generation/editing, reusable avatars, canvas editing, and short video storyboards. Uses Supabase Auth and the separate [Banner Creator API](https://github.com/Viral-Ad-Media/banner-creator-api); provider and service-role keys stay on the server.
 
-Current workspace layout:
+## Local setup
 
-- Frontend repo: `banner-creator/`
-- Backend app: `../banner-creator-backend/`
-
-## Features
-
-- Supabase Auth (email/password) for signup, login, and session persistence
-- Protected backend API (Gemini/OpenRouter keys never exposed to browser)
-- Banner campaign planning with structured JSON output from Gemini or OpenRouter
-- Image generation and image editing workflows
-- Gemini or OpenRouter video generation workflows with async status polling
-- Project and generation history persistence
-- Monthly credit metering per plan tier
-- Mock billing upgrade and customer portal endpoints
-- Public SaaS pages (`Home`, `Features`, `Pricing`, `About`, `Contact`, `Privacy`, `Terms`)
-- Route-based app shell with protected `/app` workspace and dedicated `/auth` (login/signup)
-
-## Architecture
-
-### Frontend
-
-- React 19 + TypeScript + Vite
-- React Router for public and protected route management
-- Supabase JS client for auth/session
-- Backend API client for app data and generation calls
-
-### Backend
-
-- Express + TypeScript
-- Supabase Postgres for application data
-- Supabase Auth token verification via service role
-- Gemini API integration through `@google/genai`
-- Optional OpenRouter integration for banner planning and video generation
-- Zod request validation and centralized error handling
-
-### Data + Auth Flow
-
-1. User signs in from frontend via Supabase Auth (`signInWithPassword` / `signUp`).
-2. Frontend sends Supabase access token as `Authorization: Bearer ...` to backend.
-3. Backend validates token with Supabase Admin API.
-4. Backend creates/loads user profile in `app_users`.
-5. Protected routes use `req.auth.userId` + `req.auth.plan`.
-
-## Workspace Structure
-
-```text
-banner-maker/
-├── banner-creator/
-│   ├── App.tsx
-│   ├── .env.example
-│   ├── components/
-│   ├── pages/
-│   ├── services/
-│   ├── package.json
-│   ├── vercel.json
-│   └── vite.config.ts
-└── banner-creator-backend/
-    ├── .env.example
-    ├── package.json
-    ├── tsconfig.json
-    ├── supabase/schema.sql
-    └── src/
-```
-
-## Prerequisites
-
-- Node.js 20+
-- npm 10+
-- Supabase project
-- Gemini API key
-- Optional OpenRouter API key
-
-## Supabase Setup
-
-1. Create a new Supabase project.
-2. Open Supabase SQL editor.
-3. Run the SQL in `../banner-creator-backend/supabase/schema.sql`.
-4. In Supabase Auth settings:
-   - Enable Email provider.
-   - For local testing, disable email confirmation if you want immediate sign-in after signup.
-
-## Environment Variables
-
-### Frontend (`.env.local` at repo root)
-
-Start from `.env.example`:
+Use Node.js 22.12+ and npm. Clone both repositories into sibling directories named `banner-creator` and `banner-creator-api`.
 
 ```bash
+npm ci
+npm --prefix ../banner-creator-api ci
 cp .env.example .env.local
+cp ../banner-creator-api/.env.example ../banner-creator-api/.env
 ```
 
-Set:
+Configure the frontend:
 
-```bash
+```dotenv
 VITE_API_BASE_URL=/api
 VITE_BACKEND_URL=http://localhost:4000
 VITE_SUPABASE_URL=https://your-project-ref.supabase.co
 VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
 ```
 
-### Backend (`../banner-creator-backend/.env`)
+Only public browser configuration belongs in `VITE_*` variables. Set Gemini/OpenRouter and Supabase service-role credentials in the **API's** `.env`. See its [README](https://github.com/Viral-Ad-Media/banner-creator-api#readme) for server configuration.
 
-Start from `../banner-creator-backend/.env.example`:
+Initialize a new Supabase database using the API's `supabase/schema.sql`. For an existing database, apply `supabase/migrations/20261005_audit_hardening.sql` before deploying the matching API. Do not replace an existing database with the fresh schema. Configure Supabase Email Auth and allowed redirect/site URLs; keep email confirmation enabled for production.
 
-```bash
-cp ../banner-creator-backend/.env.example ../banner-creator-backend/.env
-```
-
-Set:
-
-```bash
-NODE_ENV=development
-PORT=4000
-GEMINI_API_KEY=your-gemini-api-key
-TEXT_GENERATION_PROVIDER=gemini
-OPENROUTER_API_KEY=your-openrouter-api-key
-OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
-OPENROUTER_TEXT_MODEL=openai/gpt-5.2
-OPENROUTER_VIDEO_MODEL_FAST=google/veo-3.1
-OPENROUTER_VIDEO_MODEL_QUALITY=google/veo-3.1
-OPENROUTER_APP_URL=http://localhost:3000
-OPENROUTER_APP_NAME=Social Studio
-CORS_ORIGIN=http://localhost:3000
-SUPABASE_URL=https://your-project-ref.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
-```
-
-OpenRouter values are only required when selecting OpenRouter in the banner planner or video generator, or when setting `TEXT_GENERATION_PROVIDER=openrouter`.
-
-## Local Development
-
-1. Install dependencies:
-
-```bash
-npm install
-npm --prefix ../banner-creator-backend install
-```
-
-2. Start backend:
+In separate terminals:
 
 ```bash
 npm run backend:dev
-```
-
-3. Start frontend:
-
-```bash
 npm run dev
 ```
 
-4. Open:
-
-- Frontend: `http://localhost:3000`
-- Backend: `http://localhost:4000`
-
-## Build + Run
-
-Frontend:
+Open `http://localhost:3000`; Vite proxies `/api` to the API at `http://localhost:4000`.
 
 ```bash
-npm run typecheck
-npm run build
-npm run preview
+npm run check       # frontend types, regression tests, production build
+npm run check:all   # both sibling repositories
+npm audit
+npm run preview    # preview an existing production build
 ```
 
-Backend:
+CI runs `npm ci`, checks, and a dependency audit. Regression tests cover shared canvas dimensions, wrapping, explicit layer deletion, and image-deduplicated draft serialization. They do not exercise paid providers or browser media encoders; test those on a staging deployment with the supported browser and actual provider accounts.
 
-```bash
-npm run backend:typecheck
-npm run backend:build
-npm run backend:start
+## Workspace behavior
+
+- **Banners:** plan a campaign, generate backgrounds, add text/CTA/assets, and edit layers. Card downloads and editor saves use the shared canvas renderer so overlays are included. Document height is 800 px, with width derived from the selected aspect ratio. Shapes, text wrapping, gradients, fonts, and layer order are composited into PNG exports. Fonts load before export; unavailable fonts use browser fallback.
+- **Projects:** use Save/Load in the banner workspace to persist an editable project to your account. Saving is explicit; load restores campaign settings, backgrounds, and layers. New generations can reference the selected project. The API enforces owner access and project quotas.
+- **Activity:** browse paginated generation history and open stored plan/image results or recover a video. Account output recovery survives clearing local drafts; provider video retention still applies. A recovered background is not a replacement for explicitly saving an editable project.
+- **Drafts:** banner, image, and video workspaces save account-scoped drafts asynchronously in IndexedDB. Images are deduplicated within each draft. Existing localStorage drafts migrate only after a successful save. Storage failures display an error. Browser drafts stay on that device; project saves and generation history are server-backed. Closing the browser before a debounce/transaction completes can lose the latest edit.
+- **Images/avatars:** uploads are resized/compressed before dispatch. PNG/JPEG/WebP inputs must fit the API's 1,000,000-character data URL limit; the optimized upload target is approximately 700 KB. The avatar library supports up to 12 entries per account.
+- **Video:** generate clips and poll by server-issued `generationId`. Recent account video jobs recover when reopening the workspace. Legacy browser jobs with only a provider operation name are not trusted; recover through Activity. Gemini image-to-video uses 8 seconds. Pending video work reserves credits until the provider confirms success/failure.
+- **Reels:** export one completed render per current scene, in storyboard order. Audio is mixed through Web Audio into the recorded output. All scenes must be complete and at least two are required. Export is recorded in real time and requires `MediaRecorder`, canvas capture, and Web Audio support. Output is WebM or MP4 according to browser support; silent provider clips remain silent. Keep the tab active during export.
+
+Keyboard delete/undo shortcuts ignore editable form fields, and each layer's trash button deletes that layer. A transient profile-load failure offers retry without discarding a valid session. Generation request keys persist across interrupted requests and are chosen atomically across tabs to avoid buying duplicate work.
+
+Gemini does not accept a 4:5 background ratio in this integration, so it generates a 3:4 background and the canvas crops it to the final 4:5 document. Video downloads are capped at **4,000,000 bytes** by the API; oversized clips return 413. Larger delivery needs an object-storage or streaming implementation.
+
+## Plans and billing
+
+| Tier       | Monthly credits | Project limit |
+| ---------- | --------------: | ------------: |
+| FREE       |             120 |             5 |
+| PRO        |            3000 |           100 |
+| ENTERPRISE |           50000 |          1000 |
+
+Plans cost 3 credits, image generation/editing 5, and video 25. The API reserves credits transactionally before dispatch, settles successful work once, and releases confirmed failures. Billing periods use UTC and the generation's creation month. Available credits account for pending reservations. Provider timeouts may leave an uncertain reservation requiring operator review; starting duplicate paid work is not automatically authorized.
+
+**Paid self-service billing is unavailable.** Checkout/portal endpoints return 501 and never grant paid entitlements. Pricing links contact support for paid access. PRO/ENTERPRISE require an operator to verify entitlement until real payment processing and signed subscription webhooks are implemented. There is no implemented team-management workflow.
+
+The API needs a private scheduled `npm run reconcile` job to settle pending videos when users close the browser. See the API README for verified manual resolution of unknown dispatch outcomes and historical billing review.
+
+## Deployment
+
+Deploy the frontend and API as separate projects, each using its own repository root. Frontend: `npm ci`, `npm run build`, output `dist`.
+
+Production frontend environment:
+
+```dotenv
+VITE_API_BASE_URL=https://your-api-domain/api
+VITE_BACKEND_URL=https://your-api-domain
+VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
 ```
 
-## Deploy to Vercel (Required Steps)
+`VITE_BACKEND_URL` controls the development proxy; production calls use `VITE_API_BASE_URL`. Vite embeds these values at build time, so rebuild after changing them. Set the exact frontend origin in API `CORS_ORIGIN`. [vercel.json](vercel.json) supports SPA deep links. Tailwind CSS is compiled during the build; there is no runtime Tailwind CDN dependency.
 
-With the current split layout, deploy the frontend and backend as **two separate projects**:
+Rollout order: apply the API database migration → deploy API → deploy this frontend → configure reconciliation. Generation requests require `Idempotency-Key` and video routes require `generationId`; old API/frontend versions are not interchangeable. Verify login, project save/load, composited PNG exports, activity recovery, credits, and video/reel audio in staging before production deployment. These source changes do not apply migrations, merge PRs, or deploy production automatically.
 
-- `social-studio-web` from `banner-creator/`
-- `social-studio-api` from `banner-creator-backend/`
+## Routes and code
 
-### 1. Prepare production services
+Public routes: `/`, `/features`, `/pricing`, `/about`, `/contact`, `/privacy`, `/terms`. Authentication: `/auth` and `/auth?mode=register`. Protected workspace: `/app`.
 
-1. Create a production Supabase project.
-2. Run the SQL in `../banner-creator-backend/supabase/schema.sql` in Supabase SQL Editor.
-3. Get production keys:
-   - `SUPABASE_URL`
-   - `SUPABASE_ANON_KEY`
-   - `SUPABASE_SERVICE_ROLE_KEY`
-4. Create/confirm your production Gemini API key.
+| Path                                                                         | Responsibility                                         |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------ |
+| `App.tsx`, `components/AppWorkspace.tsx`                                     | Routes, session recovery, workspace shell              |
+| `components/CopyGenerator.tsx`, `components/CanvasEditor.tsx`                | Banner planning and editing                            |
+| `components/ImageStudio.tsx`, `components/workspace/VideoGeneratorPanel.tsx` | Image and video workflows                              |
+| `components/workspace/ProjectToolbar.tsx`, `ActivitiesPanel.tsx`             | Cloud projects and stored outputs                      |
+| `services/apiClient.ts`, `generationRequest.ts`                              | Authenticated requests, deadlines, stable request keys |
+| `services/canvasRenderer.ts`, `draftStore.ts`                                | Shared export composition and IndexedDB persistence    |
+| `global.css`, `tailwind.config.cjs`, `postcss.config.cjs`                    | Compiled styling                                       |
 
-### 2. Deploy backend project on Vercel
-
-1. In Vercel, create a new project from the backend source directory or backend repo.
-2. Set **Root Directory** to `banner-creator-backend` (or use the backend repo directly if it is split out).
-3. Keep install/build defaults (`npm install`, `npm run build`).
-4. Add backend environment variables:
-   - `NODE_ENV=production`
-   - `PORT=4000`
-   - `GEMINI_API_KEY=...`
-   - `SUPABASE_URL=...`
-   - `SUPABASE_SERVICE_ROLE_KEY=...`
-   - `CORS_ORIGIN=https://<your-frontend-domain>`
-5. Deploy and verify:
-   - `https://<api-domain>/api/health` returns status JSON.
-
-### 3. Deploy frontend project on Vercel
-
-1. Create another Vercel project from the frontend source directory or frontend repo.
-2. Set **Root Directory** to `banner-creator`.
-3. Add frontend environment variables:
-   - `VITE_API_BASE_URL=https://<api-domain>/api`
-   - `VITE_BACKEND_URL=https://<api-domain>` (kept for proxy compatibility)
-   - `VITE_SUPABASE_URL=...`
-   - `VITE_SUPABASE_ANON_KEY=...`
-4. Deploy.
-5. Confirm deep-link routes work (`/pricing`, `/auth`, `/app`) using [`vercel.json`](vercel.json).
-
-### 4. Post-deploy checks
-
-1. Open frontend and complete signup/login.
-2. Confirm authenticated APIs work:
-   - `GET /api/auth/me`
-   - `POST /api/generations/plan`
-3. Verify CORS is correct (frontend domain allowed by backend `CORS_ORIGIN`).
-4. Trigger one generation and confirm rows appear in Supabase tables (`app_users`, `generations`, `usage_events`).
-
-### 5. Production hardening checklist
-
-1. Rotate all placeholder secrets and use production-only values.
-2. Configure Supabase Auth email templates and redirect URLs.
-3. Add custom domains for web + api projects.
-4. Replace mock billing endpoints with real Stripe checkout + webhooks.
-5. Add monitoring/alerts (Vercel + Supabase logs).
-
-## Frontend Routes
-
-Public pages:
-
-- `/`
-- `/features`
-- `/pricing`
-- `/about`
-- `/contact`
-- `/privacy`
-- `/terms`
-
-Authentication:
-
-- `/auth` (login)
-- `/auth?mode=register` (signup)
-
-Protected app:
-
-- `/app`
-
-## API Reference
-
-Base URL: `/api`
-
-### Health
-
-- `GET /health`
-
-### Auth (requires bearer token)
-
-- `GET /auth/me`
-- `PATCH /auth/me`
-
-`PATCH /auth/me` body:
-
-```json
-{
-  "name": "Updated Name"
-}
-```
-
-### Projects (requires bearer token)
-
-- `GET /projects`
-- `POST /projects`
-- `GET /projects/:projectId`
-- `PATCH /projects/:projectId`
-- `DELETE /projects/:projectId`
-
-`POST /projects` body:
-
-```json
-{
-  "name": "Campaign Q2",
-  "prompt": "Summer campaign",
-  "aspectRatio": "1:1",
-  "data": {}
-}
-```
-
-### Generations (requires bearer token)
-
-- `GET /generations`
-- `POST /generations/plan`
-- `POST /generations/image`
-- `POST /generations/edit`
-- `POST /generations/video`
-- `GET /generations/video/status`
-- `GET /generations/video/download`
-
-`POST /generations/plan` body:
-
-```json
-{
-  "userPrompt": "Launch campaign for product X",
-  "aspectRatio": "1:1",
-  "textProvider": "gemini",
-  "hasBackgroundImage": false,
-  "hasAssetImage": false,
-  "projectId": "optional-uuid"
-}
-```
-
-`POST /generations/image` body:
-
-```json
-{
-  "prompt": "Luxury product shot with natural light",
-  "aspectRatio": "1:1",
-  "referenceImages": [],
-  "projectId": "optional-uuid"
-}
-```
-
-`POST /generations/edit` body:
-
-```json
-{
-  "base64Image": "data:image/png;base64,...",
-  "prompt": "Make background warm and cinematic",
-  "projectId": "optional-uuid"
-}
-```
-
-`POST /generations/video` body:
-
-```json
-{
-  "prompt": "A cinematic product reveal with slow camera movement",
-  "negativePrompt": "shaky camera, text overlays",
-  "aspectRatio": "16:9",
-  "durationSeconds": 8,
-  "modelPreset": "fast",
-  "provider": "openrouter",
-  "includeAudio": false
-}
-```
-
-### Billing (requires bearer token)
-
-- `GET /billing/summary`
-- `POST /billing/checkout-session` (mock)
-- `POST /billing/portal-session` (mock)
-
-`POST /billing/checkout-session` body:
-
-```json
-{
-  "plan": "PRO"
-}
-```
-
-## Plan and Credit Model
-
-Plan tiers:
-
-- `FREE`: 120 monthly credits, 5 projects
-- `PRO`: 3000 monthly credits, 100 projects
-- `ENTERPRISE`: 50000 monthly credits, 1000 projects
-
-Credit costs:
-
-- `BANNER_PLAN`: 3 credits
-- `IMAGE_GENERATION`: 5 credits
-- `IMAGE_EDIT`: 5 credits
-- `VIDEO_GENERATION`: 25 credits
-
-Usage is tracked in `usage_events` and rolled up monthly by backend logic.
-
-## Security Notes
-
-- Gemini and OpenRouter API keys are backend-only.
-- Backend validates Supabase JWT per request.
-- Rate limiting enabled on `/api` and stricter on `/api/auth`.
-- Schema includes RLS policies for user-scoped access.
-
-## Billing Status
-
-Billing endpoints are currently mock implementations for SaaS flow wiring.
-
-To productionize billing:
-
-1. Integrate Stripe checkout + customer portal.
-2. Add webhook processing for subscription lifecycle.
-3. Sync subscription status and plan transitions from webhooks.
+For request schemas, credit lifecycle, shared limits, and operator procedures, use the [API documentation](https://github.com/Viral-Ad-Media/banner-creator-api#readme).
 
 ## Troubleshooting
 
-- `401 Invalid or expired token`: verify Supabase frontend keys and active session.
-- `Backend environment validation failed`: check `../banner-creator-backend/.env` against `../banner-creator-backend/.env.example`.
-- `Monthly credit limit reached`: upgrade plan via billing endpoint or adjust limits in `../banner-creator-backend/src/config/plans.ts`.
-- Signup requires email confirmation: disable confirmation for local testing or confirm inbox first.
+- **401:** verify the Supabase project/public key and active login. Transient API failures should be retried, not handled by deleting the session.
+- **400/413:** verify supported image types, compress inputs, or use smaller cloud project snapshots. API JSON requests are limited to 4 MB.
+- **402:** available credits or resource quota is exhausted, including held credits. Check Activity; paid checkout is unavailable.
+- **409 / UNKNOWN:** keep the existing request key and inspect Activity. Operators must verify uncertain provider outcomes before releasing or settling credits.
+- **429/503:** wait and retry; shared rate limiting fails closed if its database is unavailable.
+- **Draft storage error:** free browser storage and retry; use explicit project saves for account recovery.
+- **Reel export error:** use a browser supporting the required recording APIs and verify every current scene has a completed render.

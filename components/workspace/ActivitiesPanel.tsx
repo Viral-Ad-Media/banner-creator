@@ -1,53 +1,86 @@
-import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Activity, AlertTriangle, Clock3, Image as ImageIcon, RefreshCcw, Sparkles, Video, Wand2 } from 'lucide-react';
-import { Button } from '../ui/Button';
-import { getGenerationActivity, type GenerationRecord, type UsageSummary } from '../../services/workspaceService';
+import { downloadGeneratedVideo } from "../../services/videoService";
+import React, { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import {
+  Activity,
+  AlertTriangle,
+  Clock3,
+  Image as ImageIcon,
+  RefreshCcw,
+  Sparkles,
+  Video,
+  Wand2,
+} from "lucide-react";
+import { Button } from "../ui/Button";
+import {
+  getGenerationActivity,
+  getGenerationDetail,
+  type GenerationRecord,
+  type UsageSummary,
+} from "../../services/workspaceService";
 
-const formatGenerationType = (value: GenerationRecord['type']) => {
+const formatGenerationType = (value: GenerationRecord["type"]) => {
   switch (value) {
-    case 'BANNER_PLAN':
-      return 'Banner Plan';
-    case 'IMAGE_GENERATION':
-      return 'Image Generation';
-    case 'IMAGE_EDIT':
-      return 'Image Edit';
-    case 'VIDEO_GENERATION':
-      return 'Video Generation';
+    case "BANNER_PLAN":
+      return "Banner Plan";
+    case "IMAGE_GENERATION":
+      return "Image Generation";
+    case "IMAGE_EDIT":
+      return "Image Edit";
+    case "VIDEO_GENERATION":
+      return "Video Generation";
     default:
       return value;
   }
 };
 
 const formatTimestamp = (value: string) =>
-  new Intl.DateTimeFormat('en-US', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
+  new Intl.DateTimeFormat("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
   }).format(new Date(value));
 
-const getGenerationIcon = (type: GenerationRecord['type']) => {
-  if (type === 'BANNER_PLAN') return Sparkles;
-  if (type === 'IMAGE_EDIT') return Wand2;
-  if (type === 'VIDEO_GENERATION') return Video;
+const getGenerationIcon = (type: GenerationRecord["type"]) => {
+  if (type === "BANNER_PLAN") return Sparkles;
+  if (type === "IMAGE_EDIT") return Wand2;
+  if (type === "VIDEO_GENERATION") return Video;
   return ImageIcon;
 };
 
 export const ActivitiesPanel: React.FC = () => {
+  const [nextOffset, setNextOffset] = useState<number | null>(null);
+  const [selected, setSelected] = useState<any>(null);
+  const [resultUrl, setResultUrl] = useState<string | null>(null);
+  useEffect(
+    () => () => {
+      if (resultUrl) URL.revokeObjectURL(resultUrl);
+    },
+    [resultUrl],
+  );
   const [generations, setGenerations] = useState<GenerationRecord[]>([]);
   const [usage, setUsage] = useState<UsageSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const loadActivity = async () => {
+  const loadActivity = async (append = false) => {
     setIsLoading(true);
     setErrorMessage(null);
 
     try {
-      const response = await getGenerationActivity();
-      setGenerations(response.generations);
+      const response = await getGenerationActivity(
+        append ? (nextOffset ?? 0) : 0,
+      );
+      setGenerations((prev) =>
+        append ? [...prev, ...response.generations] : response.generations,
+      );
+      setNextOffset(response.nextOffset ?? null);
       setUsage(response.usage);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Could not load activity right now.');
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Could not load activity right now.",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -57,36 +90,120 @@ export const ActivitiesPanel: React.FC = () => {
     void loadActivity();
   }, []);
 
-  const successCount = generations.filter((item) => item.status === 'SUCCESS').length;
-  const failureCount = generations.filter((item) => item.status === 'FAILED').length;
+  const openResult = async (id: string) => {
+    try {
+      const { generation } = await getGenerationDetail(id);
+      setSelected(generation);
+      setResultUrl(null);
+      if (
+        generation.type === "VIDEO_GENERATION" &&
+        generation.status === "SUCCESS"
+      )
+        setResultUrl(URL.createObjectURL(await downloadGeneratedVideo(id)));
+    } catch (error) {
+      setErrorMessage((error as Error).message);
+    }
+  };
+  const successCount = generations.filter(
+    (item) => item.status === "SUCCESS",
+  ).length;
+  const failureCount = generations.filter(
+    (item) => item.status === "FAILED",
+  ).length;
 
   return (
     <div className="space-y-6">
+      {selected && (
+        <section className="surface-card rounded-3xl p-6 space-y-3">
+          <button className="text-primary" onClick={() => setSelected(null)}>
+            Close result
+          </button>
+          <p className="text-white">{selected.prompt}</p>
+          {typeof selected.result?.data === "string" ? (
+            <>
+              <img
+                alt="Recovered generation"
+                src={selected.result.data}
+                className="max-h-96"
+              />
+              <a
+                href={selected.result.data}
+                download={`generation-${selected.id}.png`}
+                className="text-primary"
+              >
+                Download image
+              </a>
+            </>
+          ) : selected.type === "VIDEO_GENERATION" ? (
+            <>
+              {resultUrl ? (
+                <>
+                  <video src={resultUrl} controls className="max-h-96" />
+                  <a
+                    href={resultUrl}
+                    download={`video-${selected.id}.mp4`}
+                    className="text-primary"
+                  >
+                    Download video
+                  </a>
+                </>
+              ) : (
+                <p className="text-muted">
+                  {selected.status}. Use Refresh result to check again.
+                </p>
+              )}
+              <button
+                className="text-primary"
+                onClick={() => void openResult(selected.id)}
+              >
+                Refresh result
+              </button>
+            </>
+          ) : (
+            <pre className="overflow-auto whitespace-pre-wrap text-xs text-white">
+              {JSON.stringify(selected.result?.data, null, 2)}
+            </pre>
+          )}
+        </section>
+      )}
+
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <section className="surface-card rounded-[28px] p-5">
-          <p className="text-[11px] uppercase tracking-[0.24em] text-muted">Credits Used</p>
+          <p className="text-[11px] uppercase tracking-[0.24em] text-muted">
+            Credits Used
+          </p>
           <div className="mt-4 flex items-end justify-between">
-            <p className="text-3xl font-bold text-white">{usage?.usedCredits ?? 0}</p>
+            <p className="text-3xl font-bold text-white">
+              {usage?.usedCredits ?? 0}
+            </p>
             <p className="text-sm text-muted">of {usage?.limit ?? 0}</p>
           </div>
           <div className="mt-4 h-2 rounded-full bg-white/6">
             <div
               className="h-full rounded-full bg-[linear-gradient(90deg,#83efe0_0%,#48d9c8_55%,#168d87_100%)]"
-              style={{ width: `${Math.min(100, Math.round(((usage?.usedCredits ?? 0) / Math.max(1, usage?.limit ?? 1)) * 100))}%` }}
+              style={{
+                width: `${Math.min(100, Math.round(((usage?.usedCredits ?? 0) / Math.max(1, usage?.limit ?? 1)) * 100))}%`,
+              }}
             />
           </div>
         </section>
 
         <section className="surface-card rounded-[28px] p-5">
-          <p className="text-[11px] uppercase tracking-[0.24em] text-muted">Credits Left</p>
+          <p className="text-[11px] uppercase tracking-[0.24em] text-muted">
+            Credits Left
+          </p>
           <div className="mt-4 flex items-end justify-between">
-            <p className="text-3xl font-bold text-white">{usage?.remainingCredits ?? 0}</p>
+            <p className="text-3xl font-bold text-white">
+              {usage?.remainingCredits ?? 0}
+            </p>
             <p className="text-sm text-emerald-300">available now</p>
           </div>
         </section>
 
         <section className="surface-card rounded-[28px] p-5">
-          <p className="text-[11px] uppercase tracking-[0.24em] text-muted">Recent Results</p>
+          <p className="text-[11px] uppercase tracking-[0.24em] text-muted">
+            Recent Results
+          </p>
           <div className="mt-4 flex items-end justify-between">
             <p className="text-3xl font-bold text-white">{successCount}</p>
             <p className="text-sm text-red-300">{failureCount} failed</p>
@@ -101,10 +218,18 @@ export const ActivitiesPanel: React.FC = () => {
               <Activity className="h-5 w-5 text-primary" />
               Activity Feed
             </span>
-            <p className="mt-4 text-sm leading-7 text-[#c0d1de]">Track recent plans, image renders, edits, and video jobs from your workspace.</p>
+            <p className="mt-4 text-sm leading-7 text-[#c0d1de]">
+              Track recent plans, image renders, edits, and video jobs from your
+              workspace.
+            </p>
           </div>
 
-          <Button variant="secondary" onClick={() => void loadActivity()} isLoading={isLoading} className="sm:self-start">
+          <Button
+            variant="secondary"
+            onClick={() => void loadActivity()}
+            isLoading={isLoading}
+            className="sm:self-start"
+          >
             <RefreshCcw className="h-4 w-4" />
             Refresh
           </Button>
@@ -114,7 +239,9 @@ export const ActivitiesPanel: React.FC = () => {
           <div className="flex min-h-[260px] items-center justify-center">
             <div className="text-center">
               <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-              <p className="mt-3 text-sm text-muted">Loading recent activity...</p>
+              <p className="mt-3 text-sm text-muted">
+                Loading recent activity...
+              </p>
             </div>
           </div>
         ) : errorMessage ? (
@@ -127,7 +254,10 @@ export const ActivitiesPanel: React.FC = () => {
         ) : generations.length === 0 ? (
           <div className="mt-6 rounded-[28px] border border-dashed border-white/10 bg-black/20 p-10 text-center">
             <p className="text-lg font-medium text-white">No activity yet</p>
-            <p className="mt-2 text-sm text-muted">Your banner runs, image edits, and video jobs will show up here once we start generating.</p>
+            <p className="mt-2 text-sm text-muted">
+              Your banner runs, image edits, and video jobs will show up here
+              once we start generating.
+            </p>
             <Link to="/app/banner-generator" className="mt-5 inline-block">
               <Button variant="secondary" size="sm">
                 <Sparkles className="h-4 w-4" />
@@ -154,9 +284,11 @@ export const ActivitiesPanel: React.FC = () => {
                         </span>
                         <span
                           className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                            generation.status === 'SUCCESS'
-                              ? 'bg-emerald-500/10 text-emerald-300'
-                              : 'bg-red-500/10 text-red-300'
+                            generation.status === "SUCCESS"
+                              ? "bg-emerald-500/10 text-emerald-300"
+                              : generation.status === "FAILED"
+                                ? "bg-red-500/10 text-red-300"
+                                : "bg-amber-500/10 text-amber-200"
                           }`}
                         >
                           {generation.status}
@@ -168,7 +300,15 @@ export const ActivitiesPanel: React.FC = () => {
                         )}
                       </div>
 
-                      <p className="line-clamp-2 text-sm leading-6 text-white/90">{generation.prompt}</p>
+                      <button
+                        className="text-primary text-sm"
+                        onClick={() => void openResult(generation.id)}
+                      >
+                        Open result
+                      </button>
+                      <p className="line-clamp-2 text-sm leading-6 text-white/90">
+                        {generation.prompt}
+                      </p>
 
                       {generation.error_message && (
                         <p className="rounded-xl border border-red-400/10 bg-red-500/5 px-3 py-2 text-xs text-red-200">
@@ -188,6 +328,11 @@ export const ActivitiesPanel: React.FC = () => {
           </div>
         )}
       </section>
+      {nextOffset !== null && (
+        <Button onClick={() => void loadActivity(true)} isLoading={isLoading}>
+          Load older activity
+        </Button>
+      )}
     </div>
   );
 };

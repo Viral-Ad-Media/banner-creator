@@ -1,10 +1,10 @@
-import { apiFetch } from './apiClient';
+import { apiFetch } from "./apiClient";
 
 export interface AvatarAsset {
   id: string;
   name: string;
   imageDataUrl: string;
-  source: 'upload' | 'generated';
+  source: "upload" | "generated";
   prompt?: string;
   createdAt: string;
 }
@@ -23,11 +23,15 @@ type AvatarResponse = {
 };
 
 const getDataUrlByteSize = (imageDataUrl: string) => {
-  const [, base64Data = ''] = imageDataUrl.split(',', 2);
+  const [, base64Data = ""] = imageDataUrl.split(",", 2);
   return Math.ceil((base64Data.length * 3) / 4);
 };
 
-const getScaledDimensions = (width: number, height: number, maxDimension: number) => {
+const getScaledDimensions = (
+  width: number,
+  height: number,
+  maxDimension: number,
+) => {
   if (Math.max(width, height) <= maxDimension) {
     return { width, height };
   }
@@ -43,23 +47,24 @@ const loadImageElement = (imageDataUrl: string) =>
   new Promise<HTMLImageElement>((resolve, reject) => {
     const image = new Image();
     image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error('Could not process the avatar image.'));
+    image.onerror = () =>
+      reject(new Error("Could not process the avatar image."));
     image.src = imageDataUrl;
   });
 
 export const listAvatarLibrary = async (): Promise<AvatarAsset[]> => {
-  const response = await apiFetch<AvatarLibraryResponse>('/avatars');
+  const response = await apiFetch<AvatarLibraryResponse>("/avatars");
   return response.avatars;
 };
 
 export const createAvatar = async (params: {
   name: string;
   imageDataUrl: string;
-  source: AvatarAsset['source'];
+  source: AvatarAsset["source"];
   prompt?: string;
 }): Promise<AvatarAsset> => {
-  const response = await apiFetch<AvatarResponse>('/avatars', {
-    method: 'POST',
+  const response = await apiFetch<AvatarResponse>("/avatars", {
+    method: "POST",
     body: JSON.stringify(params),
   });
 
@@ -68,16 +73,24 @@ export const createAvatar = async (params: {
 
 export const deleteAvatar = async (avatarId: string): Promise<void> => {
   await apiFetch(`/avatars/${avatarId}`, {
-    method: 'DELETE',
+    method: "DELETE",
   });
 };
 
-export const optimizeAvatarImageDataUrl = async (imageDataUrl: string): Promise<string> => {
-  if (typeof document === 'undefined' || !imageDataUrl.startsWith('data:image/')) {
+export const optimizeAvatarImageDataUrl = async (
+  imageDataUrl: string,
+): Promise<string> => {
+  if (
+    typeof document === "undefined" ||
+    !imageDataUrl.startsWith("data:image/")
+  ) {
     return imageDataUrl;
   }
 
-  if (getDataUrlByteSize(imageDataUrl) <= MAX_AVATAR_STORAGE_BYTES) {
+  if (
+    /^data:image\/(png|jpeg|webp);base64,/.test(imageDataUrl) &&
+    getDataUrlByteSize(imageDataUrl) <= MAX_AVATAR_STORAGE_BYTES
+  ) {
     return imageDataUrl;
   }
 
@@ -90,15 +103,22 @@ export const optimizeAvatarImageDataUrl = async (imageDataUrl: string): Promise<
   }
 
   let bestCandidate = imageDataUrl;
-  let maxDimension = Math.min(Math.max(naturalWidth, naturalHeight), MAX_AVATAR_DIMENSION_PX);
+  let maxDimension = Math.min(
+    Math.max(naturalWidth, naturalHeight),
+    MAX_AVATAR_DIMENSION_PX,
+  );
 
   while (true) {
-    const { width, height } = getScaledDimensions(naturalWidth, naturalHeight, maxDimension);
-    const canvas = document.createElement('canvas');
+    const { width, height } = getScaledDimensions(
+      naturalWidth,
+      naturalHeight,
+      maxDimension,
+    );
+    const canvas = document.createElement("canvas");
     canvas.width = width;
     canvas.height = height;
 
-    const context = canvas.getContext('2d');
+    const context = canvas.getContext("2d");
     if (!context) {
       return bestCandidate;
     }
@@ -107,7 +127,7 @@ export const optimizeAvatarImageDataUrl = async (imageDataUrl: string): Promise<
     context.drawImage(image, 0, 0, width, height);
 
     for (const quality of AVATAR_QUALITY_STEPS) {
-      const candidate = canvas.toDataURL('image/webp', quality);
+      const candidate = canvas.toDataURL("image/webp", quality);
 
       if (getDataUrlByteSize(candidate) < getDataUrlByteSize(bestCandidate)) {
         bestCandidate = candidate;
@@ -119,10 +139,17 @@ export const optimizeAvatarImageDataUrl = async (imageDataUrl: string): Promise<
     }
 
     if (maxDimension <= MIN_AVATAR_DIMENSION_PX) {
+      if (bestCandidate.length > 1_000_000)
+        throw new Error(
+          "Image could not be reduced to the upload budget. Use a smaller image.",
+        );
       return bestCandidate;
     }
 
-    const nextDimension = Math.max(MIN_AVATAR_DIMENSION_PX, Math.floor(maxDimension * 0.82));
+    const nextDimension = Math.max(
+      MIN_AVATAR_DIMENSION_PX,
+      Math.floor(maxDimension * 0.82),
+    );
     if (nextDimension === maxDimension) {
       return bestCandidate;
     }

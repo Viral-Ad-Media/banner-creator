@@ -1,4 +1,16 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { latestSceneJobs } from "../../services/videoStoryboard";
+import {
+  getGenerationActivity,
+  getGenerationDetail,
+} from "../../services/workspaceService";
+import { getDraft, setDraft, removeDraft } from "../../services/draftStore";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -17,7 +29,7 @@ import {
   Volume2,
   Wand2,
   X,
-} from 'lucide-react';
+} from "lucide-react";
 import {
   downloadGeneratedVideo,
   getVideoGenerationStatus,
@@ -27,60 +39,136 @@ import {
   type VideoGenerationJobStatus,
   type VideoModelPreset,
   type VideoProvider,
-} from '../../services/videoService';
-import { optimizeAvatarImageDataUrl, type AvatarAsset } from '../../services/avatarLibrary';
-import { Button } from '../ui/Button';
-import { AvatarLibraryPicker } from './AvatarLibraryPicker';
+} from "../../services/videoService";
+import {
+  optimizeAvatarImageDataUrl,
+  type AvatarAsset,
+} from "../../services/avatarLibrary";
+import { Button } from "../ui/Button";
+import { AvatarLibraryPicker } from "./AvatarLibraryPicker";
 
-const VIDEO_DURATION_OPTIONS_BY_PROVIDER: Record<VideoProvider, readonly [VideoDurationSeconds, ...VideoDurationSeconds[]]> = {
+const VIDEO_DURATION_OPTIONS_BY_PROVIDER: Record<
+  VideoProvider,
+  readonly [VideoDurationSeconds, ...VideoDurationSeconds[]]
+> = {
   gemini: [4, 6, 8],
   openrouter: [5, 8],
 };
-const VIDEO_PROVIDER_OPTIONS: Array<{ id: VideoProvider; label: string; description: string }> = [
-  { id: 'gemini', label: 'Gemini Veo', description: 'Google Gemini Veo direct API' },
-  { id: 'openrouter', label: 'OpenRouter Veo 3.1', description: 'OpenRouter video API using google/veo-3.1' },
+const VIDEO_PROVIDER_OPTIONS: Array<{
+  id: VideoProvider;
+  label: string;
+  description: string;
+}> = [
+  {
+    id: "gemini",
+    label: "Gemini Veo",
+    description: "Google Gemini Veo direct API",
+  },
+  {
+    id: "openrouter",
+    label: "OpenRouter Veo 3.1",
+    description: "OpenRouter video API using google/veo-3.1",
+  },
 ];
 const VIDEO_MODEL_OPTIONS = [
-  { id: 'fast', label: 'Fast', description: 'Quicker preview renders' },
-  { id: 'quality', label: 'Quality', description: 'Higher fidelity, slower jobs' },
+  { id: "fast", label: "Fast", description: "Quicker preview renders" },
+  {
+    id: "quality",
+    label: "Quality",
+    description: "Higher fidelity, slower jobs",
+  },
 ] as const;
 const WORKFLOW_OPTIONS = [
-  { id: 'single', label: 'Single Clip' },
-  { id: 'storyboard', label: 'Scene Reel' },
+  { id: "single", label: "Single Clip" },
+  { id: "storyboard", label: "Scene Reel" },
 ] as const;
 const SOURCE_MODE_OPTIONS = [
-  { id: 'text', label: 'Text', icon: Wand2 },
-  { id: 'upload', label: 'Image', icon: ImagePlus },
-  { id: 'avatar', label: 'Avatar', icon: Video },
+  { id: "text", label: "Text", icon: Wand2 },
+  { id: "upload", label: "Image", icon: ImagePlus },
+  { id: "avatar", label: "Avatar", icon: Video },
 ] as const;
 const CAMERA_MOTION_OPTIONS = [
-  { id: 'cinematic', label: 'Cinematic', prompt: 'cinematic camera movement with a clean push-in and subtle parallax' },
-  { id: 'dynamic', label: 'Dynamic', prompt: 'dynamic camera movement with purposeful motion and energetic reframing' },
-  { id: 'locked', label: 'Locked', prompt: 'locked-off camera with polished subject movement and stable composition' },
-  { id: 'handheld', label: 'Handheld', prompt: 'natural handheld motion with controlled shake and documentary realism' },
+  {
+    id: "cinematic",
+    label: "Cinematic",
+    prompt:
+      "cinematic camera movement with a clean push-in and subtle parallax",
+  },
+  {
+    id: "dynamic",
+    label: "Dynamic",
+    prompt:
+      "dynamic camera movement with purposeful motion and energetic reframing",
+  },
+  {
+    id: "locked",
+    label: "Locked",
+    prompt:
+      "locked-off camera with polished subject movement and stable composition",
+  },
+  {
+    id: "handheld",
+    label: "Handheld",
+    prompt:
+      "natural handheld motion with controlled shake and documentary realism",
+  },
 ] as const;
 const VISUAL_STYLE_OPTIONS = [
-  { id: 'premium', label: 'Premium Ad', prompt: 'premium commercial lighting, polished product-ad finish, crisp detail' },
-  { id: 'ugc', label: 'UGC', prompt: 'authentic social-first UGC style, natural light, approachable realism' },
-  { id: 'editorial', label: 'Editorial', prompt: 'editorial cinematic color grade, refined composition, fashion-film texture' },
-  { id: 'bright', label: 'Bright Social', prompt: 'bright social media look, high clarity, saturated but tasteful colors' },
+  {
+    id: "premium",
+    label: "Premium Ad",
+    prompt:
+      "premium commercial lighting, polished product-ad finish, crisp detail",
+  },
+  {
+    id: "ugc",
+    label: "UGC",
+    prompt:
+      "authentic social-first UGC style, natural light, approachable realism",
+  },
+  {
+    id: "editorial",
+    label: "Editorial",
+    prompt:
+      "editorial cinematic color grade, refined composition, fashion-film texture",
+  },
+  {
+    id: "bright",
+    label: "Bright Social",
+    prompt:
+      "bright social media look, high clarity, saturated but tasteful colors",
+  },
 ] as const;
 const SHOT_PACING_OPTIONS = [
-  { id: 'smooth', label: 'Smooth', prompt: 'smooth pacing with readable visual beats and elegant transitions' },
-  { id: 'snappy', label: 'Snappy', prompt: 'snappy pacing with quick visual payoff and strong opening movement' },
-  { id: 'slow', label: 'Slow Burn', prompt: 'slow-burn pacing with atmospheric buildup and lingering detail shots' },
+  {
+    id: "smooth",
+    label: "Smooth",
+    prompt: "smooth pacing with readable visual beats and elegant transitions",
+  },
+  {
+    id: "snappy",
+    label: "Snappy",
+    prompt:
+      "snappy pacing with quick visual payoff and strong opening movement",
+  },
+  {
+    id: "slow",
+    label: "Slow Burn",
+    prompt:
+      "slow-burn pacing with atmospheric buildup and lingering detail shots",
+  },
 ] as const;
-const DEFAULT_SCENE_TITLES = ['Hook', 'Product', 'Proof', 'CTA'];
-const DEFAULT_STORAGE_KEY = 'social-studio:video-generator:v2';
+const DEFAULT_SCENE_TITLES = ["Hook", "Product", "Proof", "CTA"];
+const DEFAULT_STORAGE_KEY = "social-studio:video-generator:v2";
 const MAX_STORED_JOBS = 24;
 const MAX_SOURCE_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024;
 const VIDEO_POLL_INTERVAL_MS = 30000;
 
-type VideoWorkflowMode = (typeof WORKFLOW_OPTIONS)[number]['id'];
-type VideoSourceMode = (typeof SOURCE_MODE_OPTIONS)[number]['id'];
-type CameraMotion = (typeof CAMERA_MOTION_OPTIONS)[number]['id'];
-type VisualStyle = (typeof VISUAL_STYLE_OPTIONS)[number]['id'];
-type ShotPacing = (typeof SHOT_PACING_OPTIONS)[number]['id'];
+type VideoWorkflowMode = (typeof WORKFLOW_OPTIONS)[number]["id"];
+type VideoSourceMode = (typeof SOURCE_MODE_OPTIONS)[number]["id"];
+type CameraMotion = (typeof CAMERA_MOTION_OPTIONS)[number]["id"];
+type VisualStyle = (typeof VISUAL_STYLE_OPTIONS)[number]["id"];
+type ShotPacing = (typeof SHOT_PACING_OPTIONS)[number]["id"];
 
 type VideoScene = {
   id: string;
@@ -130,7 +218,9 @@ type PersistedVideoWorkspace = {
   jobs: PersistedVideoJob[];
 };
 
-type RestoredVideoWorkspace = Partial<Omit<PersistedVideoWorkspace, 'version'>> & {
+type RestoredVideoWorkspace = Partial<
+  Omit<PersistedVideoWorkspace, "version">
+> & {
   version?: number;
 };
 
@@ -139,52 +229,63 @@ interface VideoGeneratorPanelProps {
 }
 
 const createSceneId = () =>
-  typeof globalThis.crypto?.randomUUID === 'function'
+  typeof globalThis.crypto?.randomUUID === "function"
     ? globalThis.crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-const createBlankScene = (index: number, durationSeconds: VideoDurationSeconds): VideoScene => ({
+const createBlankScene = (
+  index: number,
+  durationSeconds: VideoDurationSeconds,
+): VideoScene => ({
   id: createSceneId(),
   title: DEFAULT_SCENE_TITLES[index - 1] ?? `Scene ${index}`,
-  prompt: '',
+  prompt: "",
   durationSeconds,
 });
 
-const createDefaultScenes = (durationSeconds: VideoDurationSeconds): VideoScene[] =>
-  Array.from({ length: 3 }, (_, index) => createBlankScene(index + 1, durationSeconds));
+const createDefaultScenes = (
+  durationSeconds: VideoDurationSeconds,
+): VideoScene[] =>
+  Array.from({ length: 3 }, (_, index) =>
+    createBlankScene(index + 1, durationSeconds),
+  );
 
 const readFileAsDataUrl = (file: File) =>
   new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onloadend = () => resolve(reader.result as string);
-    reader.onerror = () => reject(new Error('Could not read the selected image.'));
+    reader.onerror = () =>
+      reject(new Error("Could not read the selected image."));
     reader.readAsDataURL(file);
   });
 
 const formatTimestamp = (value: string) =>
-  new Intl.DateTimeFormat('en-US', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
+  new Intl.DateTimeFormat("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
   }).format(new Date(value));
 
-const getStatusTone = (status: PersistedVideoJob['status']) => {
+const getStatusTone = (status: PersistedVideoJob["status"]) => {
   switch (status) {
-    case 'SUCCEEDED':
-      return 'bg-emerald-500/10 text-emerald-300';
-    case 'FAILED':
-      return 'bg-red-500/10 text-red-300';
+    case "SUCCEEDED":
+      return "bg-emerald-500/10 text-emerald-300";
+    case "FAILED":
+      return "bg-red-500/10 text-red-300";
     default:
-      return 'bg-amber-500/10 text-amber-200';
+      return "bg-amber-500/10 text-amber-200";
   }
 };
 
 const getVideoAspectRatioClass = (aspectRatio: VideoAspectRatio) =>
-  aspectRatio === '9:16' ? 'aspect-[9/16] max-h-[620px]' : 'aspect-video';
+  aspectRatio === "9:16" ? "aspect-[9/16] max-h-[620px]" : "aspect-video";
 
-const getProviderLabel = (provider: VideoProvider) => (provider === 'openrouter' ? 'OpenRouter' : 'Gemini Veo');
+const getProviderLabel = (provider: VideoProvider) =>
+  provider === "openrouter" ? "OpenRouter" : "Gemini Veo";
 
-const getOptionPrompt = <T extends string>(options: readonly { id: T; prompt: string }[], selectedId: T) =>
-  options.find((option) => option.id === selectedId)?.prompt ?? '';
+const getOptionPrompt = <T extends string>(
+  options: readonly { id: T; prompt: string }[],
+  selectedId: T,
+) => options.find((option) => option.id === selectedId)?.prompt ?? "";
 
 const composeVideoPrompt = (params: {
   basePrompt: string;
@@ -202,37 +303,48 @@ const composeVideoPrompt = (params: {
     `Pacing: ${getOptionPrompt(SHOT_PACING_OPTIONS, params.shotPacing)}.`,
   ];
 
-  if (params.sourceMode !== 'text') {
-    parts.push('Use the supplied image as the starting frame and preserve the core subject identity, outfit, product details, and brand-safe composition.');
+  if (params.sourceMode !== "text") {
+    parts.push(
+      "Use the supplied image as the starting frame and preserve the core subject identity, outfit, product details, and brand-safe composition.",
+    );
   }
 
   if (params.sceneIndex && params.sceneCount) {
-    parts.push(`This is scene ${params.sceneIndex} of ${params.sceneCount}; make it self-contained but visually consistent with the rest of the reel.`);
+    parts.push(
+      `This is scene ${params.sceneIndex} of ${params.sceneCount}; make it self-contained but visually consistent with the rest of the reel.`,
+    );
   }
 
-  parts.push('No burned-in captions, subtitles, watermarks, logos, malformed hands, distorted faces, or unreadable text.');
+  parts.push(
+    "No burned-in captions, subtitles, watermarks, logos, malformed hands, distorted faces, or unreadable text.",
+  );
 
-  return parts.join(' ');
+  return parts.join(" ");
 };
 
 const getCanvasSize = (aspectRatio: VideoAspectRatio) =>
-  aspectRatio === '9:16' ? { width: 720, height: 1280 } : { width: 1280, height: 720 };
+  aspectRatio === "9:16"
+    ? { width: 720, height: 1280 }
+    : { width: 1280, height: 720 };
 
 const drawVideoCover = (
   context: CanvasRenderingContext2D,
   video: HTMLVideoElement,
   canvasWidth: number,
-  canvasHeight: number
+  canvasHeight: number,
 ) => {
   const sourceWidth = video.videoWidth || canvasWidth;
   const sourceHeight = video.videoHeight || canvasHeight;
-  const scale = Math.max(canvasWidth / sourceWidth, canvasHeight / sourceHeight);
+  const scale = Math.max(
+    canvasWidth / sourceWidth,
+    canvasHeight / sourceHeight,
+  );
   const sourceCropWidth = canvasWidth / scale;
   const sourceCropHeight = canvasHeight / scale;
   const sourceX = Math.max(0, (sourceWidth - sourceCropWidth) / 2);
   const sourceY = Math.max(0, (sourceHeight - sourceCropHeight) / 2);
 
-  context.fillStyle = '#061016';
+  context.fillStyle = "#061016";
   context.fillRect(0, 0, canvasWidth, canvasHeight);
   context.drawImage(
     video,
@@ -243,23 +355,28 @@ const drawVideoCover = (
     0,
     0,
     canvasWidth,
-    canvasHeight
+    canvasHeight,
   );
 };
 
 const drawVideoSegment = (
   videoUrl: string,
   canvas: HTMLCanvasElement,
-  context: CanvasRenderingContext2D
+  context: CanvasRenderingContext2D,
+  audioContext: AudioContext,
+  audioDestination: MediaStreamAudioDestinationNode,
 ) =>
   new Promise<void>((resolve, reject) => {
-    const video = document.createElement('video');
+    const video = document.createElement("video");
     let animationFrameId = 0;
+    const audioSource = audioContext.createMediaElementSource(video);
+    audioSource.connect(audioDestination);
 
     const cleanup = () => {
       window.cancelAnimationFrame(animationFrameId);
       video.pause();
-      video.removeAttribute('src');
+      audioSource.disconnect();
+      video.removeAttribute("src");
       video.load();
     };
 
@@ -271,9 +388,9 @@ const drawVideoSegment = (
       }
     };
 
-    video.muted = true;
+    video.muted = false;
     video.playsInline = true;
-    video.preload = 'auto';
+    video.preload = "auto";
     video.src = videoUrl;
 
     video.onloadedmetadata = () => {
@@ -285,7 +402,11 @@ const drawVideoSegment = (
         })
         .catch((error) => {
           cleanup();
-          reject(error instanceof Error ? error : new Error('Could not play one of the scene clips.'));
+          reject(
+            error instanceof Error
+              ? error
+              : new Error("Could not play one of the scene clips."),
+          );
         });
     };
 
@@ -297,19 +418,22 @@ const drawVideoSegment = (
 
     video.onerror = () => {
       cleanup();
-      reject(new Error('Could not decode one of the completed scene clips.'));
+      reject(new Error("Could not decode one of the completed scene clips."));
     };
   });
 
 const getRecorderMimeType = () => {
-  if (typeof MediaRecorder === 'undefined') {
-    return '';
+  if (typeof MediaRecorder === "undefined") {
+    return "";
   }
 
   return (
-    ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'].find((mimeType) =>
-      MediaRecorder.isTypeSupported(mimeType)
-    ) ?? ''
+    [
+      "video/webm;codecs=vp9,opus",
+      "video/webm;codecs=vp8,opus",
+      "video/webm",
+      "video/mp4",
+    ].find((mimeType) => MediaRecorder.isTypeSupported(mimeType)) ?? ""
   );
 };
 
@@ -317,47 +441,67 @@ const createMergedVideoBlob = async (params: {
   videoUrls: string[];
   aspectRatio: VideoAspectRatio;
   onProgress: (message: string) => void;
+  audioContext: AudioContext;
 }) => {
-  if (typeof MediaRecorder === 'undefined') {
-    throw new Error('This browser cannot export merged reels. Try a Chromium-based browser for reel export.');
+  if (typeof MediaRecorder === "undefined") {
+    throw new Error(
+      "This browser cannot export merged reels. Try a Chromium-based browser for reel export.",
+    );
   }
 
-  const canvas = document.createElement('canvas');
+  const canvas = document.createElement("canvas");
   const size = getCanvasSize(params.aspectRatio);
   canvas.width = size.width;
   canvas.height = size.height;
 
-  const context = canvas.getContext('2d');
+  const context = canvas.getContext("2d");
   if (!context) {
-    throw new Error('Could not prepare the browser video canvas.');
+    throw new Error("Could not prepare the browser video canvas.");
   }
 
-  if (typeof canvas.captureStream !== 'function') {
-    throw new Error('This browser does not support canvas video recording.');
+  if (typeof canvas.captureStream !== "function") {
+    throw new Error("This browser does not support canvas video recording.");
   }
 
   const stream = canvas.captureStream(30);
+  const audioDestination = params.audioContext.createMediaStreamDestination();
+  audioDestination.stream
+    .getAudioTracks()
+    .forEach((track) => stream.addTrack(track));
   const chunks: BlobPart[] = [];
   const mimeType = getRecorderMimeType();
-  const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+  const recorder = new MediaRecorder(
+    stream,
+    mimeType ? { mimeType } : undefined,
+  );
   const recording = new Promise<Blob>((resolve, reject) => {
     recorder.ondataavailable = (event) => {
       if (event.data.size > 0) {
         chunks.push(event.data);
       }
     };
-    recorder.onerror = () => reject(new Error('Browser video recording failed during reel export.'));
+    recorder.onerror = () =>
+      reject(new Error("Browser video recording failed during reel export."));
     recorder.onstop = () => {
-      resolve(new Blob(chunks, { type: recorder.mimeType || 'video/webm' }));
+      resolve(new Blob(chunks, { type: recorder.mimeType || "video/webm" }));
     };
   });
 
+  void recording.catch(() => {});
   recorder.start(500);
 
   try {
     for (const [index, videoUrl] of params.videoUrls.entries()) {
-      params.onProgress(`Merging scene ${index + 1} of ${params.videoUrls.length}`);
-      await drawVideoSegment(videoUrl, canvas, context);
+      params.onProgress(
+        `Merging scene ${index + 1} of ${params.videoUrls.length}`,
+      );
+      await drawVideoSegment(
+        videoUrl,
+        canvas,
+        context,
+        params.audioContext,
+        audioDestination,
+      );
     }
 
     recorder.stop();
@@ -365,7 +509,7 @@ const createMergedVideoBlob = async (params: {
     stream.getTracks().forEach((track) => track.stop());
     return blob;
   } catch (error) {
-    if (recorder.state !== 'inactive') {
+    if (recorder.state !== "inactive") {
       recorder.stop();
     }
     stream.getTracks().forEach((track) => track.stop());
@@ -376,71 +520,104 @@ const createMergedVideoBlob = async (params: {
 export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
   draftStorageKey = DEFAULT_STORAGE_KEY,
 }) => {
-  const [workflowMode, setWorkflowMode] = useState<VideoWorkflowMode>('single');
-  const [sourceMode, setSourceMode] = useState<VideoSourceMode>('text');
-  const [prompt, setPrompt] = useState('');
-  const [negativePrompt, setNegativePrompt] = useState('');
-  const [aspectRatio, setAspectRatio] = useState<VideoAspectRatio>('16:9');
-  const [durationSeconds, setDurationSeconds] = useState<VideoDurationSeconds>(4);
-  const [modelPreset, setModelPreset] = useState<VideoModelPreset>('fast');
-  const [provider, setProvider] = useState<VideoProvider>('gemini');
+  const [workflowMode, setWorkflowMode] = useState<VideoWorkflowMode>("single");
+  const [sourceMode, setSourceMode] = useState<VideoSourceMode>("text");
+  const [prompt, setPrompt] = useState("");
+  const [negativePrompt, setNegativePrompt] = useState("");
+  const [aspectRatio, setAspectRatio] = useState<VideoAspectRatio>("16:9");
+  const [durationSeconds, setDurationSeconds] =
+    useState<VideoDurationSeconds>(4);
+  const [modelPreset, setModelPreset] = useState<VideoModelPreset>("fast");
+  const [provider, setProvider] = useState<VideoProvider>("gemini");
   const [includeAudio, setIncludeAudio] = useState(false);
-  const [cameraMotion, setCameraMotion] = useState<CameraMotion>('cinematic');
-  const [visualStyle, setVisualStyle] = useState<VisualStyle>('premium');
-  const [shotPacing, setShotPacing] = useState<ShotPacing>('smooth');
+  const [cameraMotion, setCameraMotion] = useState<CameraMotion>("cinematic");
+  const [visualStyle, setVisualStyle] = useState<VisualStyle>("premium");
+  const [shotPacing, setShotPacing] = useState<ShotPacing>("smooth");
   const [selectedAvatarId, setSelectedAvatarId] = useState<string | null>(null);
-  const [selectedAvatar, setSelectedAvatar] = useState<AvatarAsset | null>(null);
-  const [uploadedSourceImageDataUrl, setUploadedSourceImageDataUrl] = useState<string | null>(null);
-  const [uploadedSourceImageName, setUploadedSourceImageName] = useState<string | null>(null);
-  const [scenes, setScenes] = useState<VideoScene[]>(() => createDefaultScenes(4));
+  const [selectedAvatar, setSelectedAvatar] = useState<AvatarAsset | null>(
+    null,
+  );
+  const [uploadedSourceImageDataUrl, setUploadedSourceImageDataUrl] = useState<
+    string | null
+  >(null);
+  const [uploadedSourceImageName, setUploadedSourceImageName] = useState<
+    string | null
+  >(null);
+  const [scenes, setScenes] = useState<VideoScene[]>(() =>
+    createDefaultScenes(4),
+  );
   const [jobs, setJobs] = useState<PersistedVideoJob[]>([]);
-  const [selectedOperationName, setSelectedOperationName] = useState<string | null>(null);
+  const [selectedOperationName, setSelectedOperationName] = useState<
+    string | null
+  >(null);
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isMerging, setIsMerging] = useState(false);
   const [mergeProgress, setMergeProgress] = useState<string | null>(null);
-  const [loadingPreviewFor, setLoadingPreviewFor] = useState<string | null>(null);
-  const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [loadingPreviewFor, setLoadingPreviewFor] = useState<string | null>(
+    null,
+  );
+  const [statusMessage, setStatusMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
   const [isDraftReady, setIsDraftReady] = useState(false);
+  const pendingDraftSave = useRef<(() => void) | null>(null);
+  useEffect(
+    () => () => {
+      pendingDraftSave.current?.();
+    },
+    [draftStorageKey],
+  );
   const sourceImageInputRef = useRef<HTMLInputElement>(null);
   const previewUrlsRef = useRef<Record<string, string>>({});
-  const durationOptions = useMemo(() => VIDEO_DURATION_OPTIONS_BY_PROVIDER[provider], [provider]);
+  const previewFailuresRef = useRef(new Set<string>());
+  const durationOptions = useMemo(
+    () => VIDEO_DURATION_OPTIONS_BY_PROVIDER[provider],
+    [provider],
+  );
   const activeProviderLabel = getProviderLabel(provider);
 
   const selectedJob = useMemo(
-    () => jobs.find((job) => job.operationName === selectedOperationName) ?? jobs[0] ?? null,
-    [jobs, selectedOperationName]
+    () =>
+      jobs.find((job) => job.operationName === selectedOperationName) ??
+      jobs[0] ??
+      null,
+    [jobs, selectedOperationName],
   );
   const validScenes = useMemo(
     () => scenes.filter((scene) => scene.prompt.trim().length >= 10),
-    [scenes]
+    [scenes],
   );
-  const currentSceneJobs = useMemo(() => {
-    const sceneOrder = new Map<string, number>(scenes.map((scene, index) => [scene.id, index]));
-
-    return jobs
-      .filter((job) => job.workflowMode === 'storyboard' && job.sceneId && sceneOrder.has(job.sceneId))
-      .sort((a, b) => (sceneOrder.get(a.sceneId ?? '') ?? 0) - (sceneOrder.get(b.sceneId ?? '') ?? 0));
-  }, [jobs, scenes]);
+  const currentSceneJobs = useMemo(
+    () =>
+      latestSceneJobs(
+        jobs,
+        scenes.map((scene) => scene.id),
+      ),
+    [jobs, scenes],
+  );
   const completedSceneJobs = useMemo(
-    () => currentSceneJobs.filter((job) => job.status === 'SUCCEEDED'),
-    [currentSceneJobs]
+    () => currentSceneJobs.filter((job) => job.status === "SUCCEEDED"),
+    [currentSceneJobs],
   );
   const sourceLabel = useMemo(() => {
-    if (sourceMode === 'avatar') {
-      return selectedAvatar ? selectedAvatar.name : 'No avatar selected';
+    if (sourceMode === "avatar") {
+      return selectedAvatar ? selectedAvatar.name : "No avatar selected";
     }
 
-    if (sourceMode === 'upload') {
-      return uploadedSourceImageName ?? 'No image uploaded';
+    if (sourceMode === "upload") {
+      return uploadedSourceImageName ?? "No image uploaded";
     }
 
-    return 'Text prompt only';
+    return "Text prompt only";
   }, [selectedAvatar, sourceMode, uploadedSourceImageName]);
 
   const upsertJob = useCallback((nextJob: PersistedVideoJob) => {
     setJobs((prev) => {
-      const existingIndex = prev.findIndex((job) => job.operationName === nextJob.operationName);
+      const existingIndex = prev.findIndex(
+        (job) => job.operationName === nextJob.operationName,
+      );
 
       if (existingIndex >= 0) {
         const updated = [...prev];
@@ -453,11 +630,11 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
   }, []);
 
   const getActiveSourceImageDataUrl = useCallback(() => {
-    if (sourceMode === 'avatar') {
+    if (sourceMode === "avatar") {
       return selectedAvatar?.imageDataUrl;
     }
 
-    if (sourceMode === 'upload') {
+    if (sourceMode === "upload") {
       return uploadedSourceImageDataUrl ?? undefined;
     }
 
@@ -465,13 +642,19 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
   }, [selectedAvatar, sourceMode, uploadedSourceImageDataUrl]);
 
   const validateSource = useCallback(() => {
-    if (sourceMode === 'avatar' && !selectedAvatar) {
-      setStatusMessage({ type: 'error', text: 'Select an avatar or switch the source to text before rendering.' });
+    if (sourceMode === "avatar" && !selectedAvatar) {
+      setStatusMessage({
+        type: "error",
+        text: "Select an avatar or switch the source to text before rendering.",
+      });
       return false;
     }
 
-    if (sourceMode === 'upload' && !uploadedSourceImageDataUrl) {
-      setStatusMessage({ type: 'error', text: 'Upload a source image or switch the source to text before rendering.' });
+    if (sourceMode === "upload" && !uploadedSourceImageDataUrl) {
+      setStatusMessage({
+        type: "error",
+        text: "Upload a source image or switch the source to text before rendering.",
+      });
       return false;
     }
 
@@ -479,67 +662,142 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
   }, [selectedAvatar, sourceMode, uploadedSourceImageDataUrl]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') {
+    if (typeof window === "undefined") {
       setIsDraftReady(true);
       return;
     }
 
-    try {
-      const rawDraft = window.localStorage.getItem(draftStorageKey);
-      if (!rawDraft) {
-        setIsDraftReady(true);
-        return;
-      }
+    let cancelled = false;
+    setIsDraftReady(false);
+    const restore = async () => {
+      try {
+        const rawDraft = await getDraft(draftStorageKey);
+        if (cancelled) return;
+        // History recovery also runs on a new browser with no local draft.
 
-      const draft = JSON.parse(rawDraft) as RestoredVideoWorkspace;
-      if (draft.version !== 1 && draft.version !== 2) {
-        window.localStorage.removeItem(draftStorageKey);
-        setIsDraftReady(true);
-        return;
-      }
+        const draft = (rawDraft ?? { version: 2 }) as RestoredVideoWorkspace;
+        if (draft.version !== 1 && draft.version !== 2) {
+          await removeDraft(draftStorageKey);
+          setIsDraftReady(true);
+          return;
+        }
 
-      setWorkflowMode(draft.workflowMode ?? 'single');
-      setSourceMode(draft.sourceMode ?? ((draft.selectedAvatarId ?? null) ? 'avatar' : 'text'));
-      setPrompt(draft.prompt ?? '');
-      setNegativePrompt(draft.negativePrompt ?? '');
-      setAspectRatio(draft.aspectRatio ?? '16:9');
-      setDurationSeconds(draft.durationSeconds ?? 4);
-      setModelPreset(draft.modelPreset ?? 'fast');
-      setProvider(draft.provider ?? 'gemini');
-      setIncludeAudio(draft.includeAudio ?? false);
-      setSelectedAvatarId(draft.selectedAvatarId ?? null);
-      setUploadedSourceImageDataUrl(draft.uploadedSourceImageDataUrl ?? null);
-      setUploadedSourceImageName(draft.uploadedSourceImageName ?? null);
-      setCameraMotion(draft.cameraMotion ?? 'cinematic');
-      setVisualStyle(draft.visualStyle ?? 'premium');
-      setShotPacing(draft.shotPacing ?? 'smooth');
-      setScenes(draft.scenes?.length ? draft.scenes : createDefaultScenes(draft.durationSeconds ?? 4));
-      const restoredJobs = (draft.jobs ?? []).map((job) => ({
-        ...job,
-        provider: job.provider ?? 'gemini',
-        workflowMode: job.workflowMode ?? 'single',
-        sourceMode: job.sourceMode ?? 'text',
-      }));
-      setJobs(restoredJobs);
-      setSelectedOperationName(draft.selectedOperationName ?? restoredJobs[0]?.operationName ?? null);
+        setWorkflowMode(draft.workflowMode ?? "single");
+        setSourceMode(
+          draft.sourceMode ??
+            ((draft.selectedAvatarId ?? null) ? "avatar" : "text"),
+        );
+        setPrompt(draft.prompt ?? "");
+        setNegativePrompt(draft.negativePrompt ?? "");
+        setAspectRatio(draft.aspectRatio ?? "16:9");
+        setDurationSeconds(draft.durationSeconds ?? 4);
+        setModelPreset(draft.modelPreset ?? "fast");
+        setProvider(draft.provider ?? "gemini");
+        setIncludeAudio(draft.includeAudio ?? false);
+        setSelectedAvatarId(draft.selectedAvatarId ?? null);
+        setUploadedSourceImageDataUrl(draft.uploadedSourceImageDataUrl ?? null);
+        setUploadedSourceImageName(draft.uploadedSourceImageName ?? null);
+        setCameraMotion(draft.cameraMotion ?? "cinematic");
+        setVisualStyle(draft.visualStyle ?? "premium");
+        setShotPacing(draft.shotPacing ?? "smooth");
+        setScenes(
+          draft.scenes?.length
+            ? draft.scenes
+            : createDefaultScenes(draft.durationSeconds ?? 4),
+        );
+        const restoredJobs = (draft.jobs ?? [])
+          .filter((job) => !!job.generationId)
+          .map((job) => ({
+            ...job,
+            provider: job.provider ?? "gemini",
+            workflowMode: job.workflowMode ?? "single",
+            sourceMode: job.sourceMode ?? "text",
+          }));
+        setJobs(restoredJobs);
+        try {
+          const activity = await getGenerationActivity();
+          const recovered: PersistedVideoJob[] = [];
+          for (const record of activity.generations
+            .filter((g) => g.type === "VIDEO_GENERATION")
+            .slice(0, MAX_STORED_JOBS)) {
+            try {
+              const { generation: g } = await getGenerationDetail(record.id);
+              if (!g.result?.job) continue;
+              recovered.push({
+                ...g.result.job,
+                generationId: g.id,
+                status:
+                  g.status === "SUCCESS"
+                    ? "SUCCEEDED"
+                    : g.status === "FAILED"
+                      ? "FAILED"
+                      : g.result.job.status,
+                done: g.status === "SUCCESS" || g.status === "FAILED",
+                prompt: g.prompt,
+                negativePrompt: g.input?.negativePrompt ?? "",
+                aspectRatio: g.aspect_ratio ?? "16:9",
+                durationSeconds: g.input?.durationSeconds ?? 8,
+                modelPreset: g.input?.modelPreset ?? "fast",
+                provider: g.result.job.provider ?? "gemini",
+                includeAudio: g.input?.includeAudio ?? false,
+                workflowMode: "single",
+                sourceMode: "text",
+                createdAt: g.created_at,
+                updatedAt: g.updated_at,
+                errorMessage: g.error_message ?? undefined,
+              });
+            } catch {
+              /* Existing draft jobs remain available when a provider check is temporarily unavailable. */
+            }
+          }
+          if (!cancelled)
+            setJobs(
+              [
+                ...restoredJobs,
+                ...recovered.filter(
+                  (g) =>
+                    !restoredJobs.some(
+                      (r) => r.generationId === g.generationId,
+                    ),
+                ),
+              ].slice(0, MAX_STORED_JOBS),
+            );
+        } catch {
+          /* Local draft still restores when account history is offline. */
+        }
 
-      if (restoredJobs.length > 0) {
-        setStatusMessage({ type: 'success', text: 'Restored your recent video jobs.' });
+        setSelectedOperationName(
+          draft.selectedOperationName ?? restoredJobs[0]?.operationName ?? null,
+        );
+
+        if (restoredJobs.length > 0) {
+          setStatusMessage({
+            type: "success",
+            text: "Restored your recent video jobs.",
+          });
+        }
+      } catch (error) {
+        console.error("Failed to restore video workspace", error);
+        await removeDraft(draftStorageKey);
+      } finally {
+        if (!cancelled) setIsDraftReady(true);
       }
-    } catch (error) {
-      console.error('Failed to restore video workspace', error);
-      window.localStorage.removeItem(draftStorageKey);
-    } finally {
-      setIsDraftReady(true);
-    }
+    };
+    void restore();
+    return () => {
+      cancelled = true;
+    };
   }, [draftStorageKey]);
 
   useEffect(() => {
-    if (!isDraftReady || typeof window === 'undefined') {
+    if (!isDraftReady || typeof window === "undefined") {
       return;
     }
 
-    const hasSceneContent = scenes.some((scene) => scene.prompt.trim().length > 0 || scene.title.trim().length > 0);
+    const hasSceneContent = scenes.some(
+      (scene) =>
+        scene.prompt.trim().length > 0 || scene.title.trim().length > 0,
+    );
     const hasContent =
       prompt.trim().length > 0 ||
       negativePrompt.trim().length > 0 ||
@@ -547,19 +805,20 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
       !!selectedAvatarId ||
       !!uploadedSourceImageDataUrl ||
       includeAudio ||
-      workflowMode !== 'single' ||
-      sourceMode !== 'text' ||
-      aspectRatio !== '16:9' ||
+      workflowMode !== "single" ||
+      sourceMode !== "text" ||
+      aspectRatio !== "16:9" ||
       durationSeconds !== 4 ||
-      modelPreset !== 'fast' ||
-      provider !== 'gemini' ||
-      cameraMotion !== 'cinematic' ||
-      visualStyle !== 'premium' ||
-      shotPacing !== 'smooth' ||
+      modelPreset !== "fast" ||
+      provider !== "gemini" ||
+      cameraMotion !== "cinematic" ||
+      visualStyle !== "premium" ||
+      shotPacing !== "smooth" ||
       hasSceneContent;
 
     if (!hasContent) {
-      window.localStorage.removeItem(draftStorageKey);
+      pendingDraftSave.current = null;
+      void removeDraft(draftStorageKey).catch(console.error);
       return;
     }
 
@@ -585,15 +844,22 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
       jobs,
     };
 
-    try {
-      window.localStorage.setItem(draftStorageKey, JSON.stringify(draft));
-    } catch (error) {
-      console.error('Failed to persist video workspace draft', error);
-      setStatusMessage({
-        type: 'error',
-        text: 'Video workspace draft could not be saved locally. Clear old drafts or free browser storage.',
-      });
-    }
+    let flushed = false;
+    const persist = () => {
+      if (flushed) return;
+      flushed = true;
+      void setDraft(draftStorageKey, draft).catch(() =>
+        setStatusMessage({
+          type: "error",
+          text: "Video draft could not be saved. Free browser storage and retry.",
+        }),
+      );
+    };
+    pendingDraftSave.current = persist;
+    const timer = window.setTimeout(persist, 500);
+    return () => {
+      window.clearTimeout(timer);
+    };
   }, [
     aspectRatio,
     cameraMotion,
@@ -629,8 +895,8 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
           : {
               ...scene,
               durationSeconds: durationOptions[0],
-            }
-      )
+            },
+      ),
     );
   }, [durationOptions, durationSeconds]);
 
@@ -647,7 +913,11 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
       return previewUrlsRef.current[job.operationName];
     }
 
-    const blob = await downloadGeneratedVideo(job.operationName, job.modelPreset, job.provider);
+    const blob = await downloadGeneratedVideo(
+      job.generationId,
+      job.modelPreset,
+      job.provider,
+    );
     const objectUrl = URL.createObjectURL(blob);
     previewUrlsRef.current[job.operationName] = objectUrl;
     setPreviewUrls((prev) => ({ ...prev, [job.operationName]: objectUrl }));
@@ -664,21 +934,32 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
       try {
         await ensurePreviewUrl(job);
       } catch (error) {
+        previewFailuresRef.current.add(job.operationName);
         setStatusMessage({
-          type: 'error',
-          text: error instanceof Error ? error.message : 'Could not load the generated video preview.',
+          type: "error",
+          text:
+            error instanceof Error
+              ? error.message
+              : "Could not load the generated video preview.",
         });
       } finally {
-        setLoadingPreviewFor((current) => (current === job.operationName ? null : current));
+        setLoadingPreviewFor((current) =>
+          current === job.operationName ? null : current,
+        );
       }
     },
-    [ensurePreviewUrl]
+    [ensurePreviewUrl],
   );
 
   const refreshJob = useCallback(
     async (job: PersistedVideoJob) => {
       try {
-        const nextStatus = await getVideoGenerationStatus(job.operationName, job.modelPreset, job.provider);
+        previewFailuresRef.current.delete(job.operationName);
+        const nextStatus = await getVideoGenerationStatus(
+          job.generationId,
+          job.modelPreset,
+          job.provider,
+        );
         const updatedJob: PersistedVideoJob = {
           ...job,
           ...nextStatus,
@@ -688,12 +969,18 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
 
         upsertJob(updatedJob);
 
-        if (updatedJob.status === 'SUCCEEDED' && selectedOperationName === updatedJob.operationName) {
+        if (
+          updatedJob.status === "SUCCEEDED" &&
+          selectedOperationName === updatedJob.operationName
+        ) {
           void loadPreview(updatedJob);
         }
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'Could not refresh video status.';
-        setStatusMessage({ type: 'error', text: message });
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Could not refresh video status.";
+        setStatusMessage({ type: "error", text: message });
         upsertJob({
           ...job,
           errorMessage: message,
@@ -701,11 +988,13 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
         });
       }
     },
-    [loadPreview, selectedOperationName, upsertJob]
+    [loadPreview, selectedOperationName, upsertJob],
   );
 
   useEffect(() => {
-    const pendingJobs = jobs.filter((job) => job.status === 'PENDING' || job.status === 'RUNNING');
+    const pendingJobs = jobs.filter(
+      (job) => job.status === "PENDING" || job.status === "RUNNING",
+    );
     if (pendingJobs.length === 0) {
       return;
     }
@@ -718,56 +1007,84 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
   }, [jobs, refreshJob]);
 
   useEffect(() => {
-    if (!selectedJob || selectedJob.status !== 'SUCCEEDED') {
+    if (!selectedJob || selectedJob.status !== "SUCCEEDED") {
       return;
     }
 
-    if (previewUrls[selectedJob.operationName] || loadingPreviewFor === selectedJob.operationName) {
+    if (
+      previewFailuresRef.current.has(selectedJob.operationName) ||
+      previewUrls[selectedJob.operationName] ||
+      loadingPreviewFor === selectedJob.operationName
+    ) {
       return;
     }
 
     void loadPreview(selectedJob);
   }, [loadPreview, loadingPreviewFor, previewUrls, selectedJob]);
 
-  const handleSourceUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSourceUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const file = event.target.files?.[0];
-    event.target.value = '';
+    event.target.value = "";
 
     if (!file) {
       return;
     }
 
-    if (!file.type.startsWith('image/')) {
-      setStatusMessage({ type: 'error', text: 'Choose an image file for image-to-video.' });
+    if (!file.type.startsWith("image/")) {
+      setStatusMessage({
+        type: "error",
+        text: "Choose an image file for image-to-video.",
+      });
       return;
     }
 
     if (file.size > MAX_SOURCE_UPLOAD_SIZE_BYTES) {
-      setStatusMessage({ type: 'error', text: 'Source image is too large. Use a file under 10MB.' });
+      setStatusMessage({
+        type: "error",
+        text: "Source image is too large. Use a file under 10MB.",
+      });
       return;
     }
 
     try {
       const imageDataUrl = await readFileAsDataUrl(file);
-      const optimizedImageDataUrl = await optimizeAvatarImageDataUrl(imageDataUrl);
+      const optimizedImageDataUrl =
+        await optimizeAvatarImageDataUrl(imageDataUrl);
       setUploadedSourceImageDataUrl(optimizedImageDataUrl);
-      setUploadedSourceImageName(file.name.replace(/\.[^.]+$/, '') || 'Uploaded source');
-      setSourceMode('upload');
-      setStatusMessage({ type: 'success', text: 'Source image ready for image-to-video.' });
+      setUploadedSourceImageName(
+        file.name.replace(/\.[^.]+$/, "") || "Uploaded source",
+      );
+      setSourceMode("upload");
+      setStatusMessage({
+        type: "success",
+        text: "Source image ready for image-to-video.",
+      });
     } catch (error) {
       setStatusMessage({
-        type: 'error',
-        text: error instanceof Error ? error.message : 'Could not prepare the selected image.',
+        type: "error",
+        text:
+          error instanceof Error
+            ? error.message
+            : "Could not prepare the selected image.",
       });
     }
   };
 
   const updateScene = (sceneId: string, updates: Partial<VideoScene>) => {
-    setScenes((prev) => prev.map((scene) => (scene.id === sceneId ? { ...scene, ...updates } : scene)));
+    setScenes((prev) =>
+      prev.map((scene) =>
+        scene.id === sceneId ? { ...scene, ...updates } : scene,
+      ),
+    );
   };
 
   const addScene = () => {
-    setScenes((prev) => [...prev, createBlankScene(prev.length + 1, durationOptions[0])]);
+    setScenes((prev) => [
+      ...prev,
+      createBlankScene(prev.length + 1, durationOptions[0]),
+    ]);
   };
 
   const duplicateScene = (scene: VideoScene) => {
@@ -776,59 +1093,78 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
       const nextScene: VideoScene = {
         ...scene,
         id: createSceneId(),
-        title: `${scene.title || 'Scene'} Copy`,
+        title: `${scene.title || "Scene"} Copy`,
       };
 
       if (sourceIndex < 0) {
         return [...prev, nextScene];
       }
 
-      return [...prev.slice(0, sourceIndex + 1), nextScene, ...prev.slice(sourceIndex + 1)];
+      return [
+        ...prev.slice(0, sourceIndex + 1),
+        nextScene,
+        ...prev.slice(sourceIndex + 1),
+      ];
     });
   };
 
   const removeScene = (sceneId: string) => {
-    setScenes((prev) => (prev.length <= 1 ? prev : prev.filter((scene) => scene.id !== sceneId)));
+    setScenes((prev) =>
+      prev.length <= 1 ? prev : prev.filter((scene) => scene.id !== sceneId),
+    );
   };
 
   const buildScenesFromPrompt = () => {
     const trimmedPrompt = prompt.trim();
     if (trimmedPrompt.length < 10) {
-      setStatusMessage({ type: 'error', text: 'Add a stronger master prompt before building scenes.' });
+      setStatusMessage({
+        type: "error",
+        text: "Add a stronger master prompt before building scenes.",
+      });
       return;
     }
 
     const beats = [
       {
-        title: 'Hook',
-        instruction: 'Open with the strongest visual hook, immediate motion, and clear product or subject presence.',
+        title: "Hook",
+        instruction:
+          "Open with the strongest visual hook, immediate motion, and clear product or subject presence.",
       },
       {
-        title: 'Detail',
-        instruction: 'Move into a close detail shot that makes the product, person, or benefit feel tangible.',
+        title: "Detail",
+        instruction:
+          "Move into a close detail shot that makes the product, person, or benefit feel tangible.",
       },
       {
-        title: 'Payoff',
-        instruction: 'End with a memorable hero shot that resolves the idea and leaves a polished campaign finish.',
+        title: "Payoff",
+        instruction:
+          "End with a memorable hero shot that resolves the idea and leaves a polished campaign finish.",
       },
     ];
 
-    setWorkflowMode('storyboard');
+    setWorkflowMode("storyboard");
     setScenes(
       beats.map((beat, index) => ({
         id: createSceneId(),
         title: beat.title,
         prompt: `${trimmedPrompt}. ${beat.instruction}`,
-        durationSeconds: durationOptions[Math.min(index, durationOptions.length - 1)],
-      }))
+        durationSeconds:
+          durationOptions[Math.min(index, durationOptions.length - 1)],
+      })),
     );
-    setStatusMessage({ type: 'success', text: 'Built a three-scene reel from the master prompt.' });
+    setStatusMessage({
+      type: "success",
+      text: "Built a three-scene reel from the master prompt.",
+    });
   };
 
   const queueSingleClip = async () => {
     const trimmedPrompt = prompt.trim();
     if (trimmedPrompt.length < 10) {
-      setStatusMessage({ type: 'error', text: `Describe the scene in a little more detail so ${activeProviderLabel} has enough context.` });
+      setStatusMessage({
+        type: "error",
+        text: `Describe the scene in a little more detail so ${activeProviderLabel} has enough context.`,
+      });
       return;
     }
 
@@ -852,7 +1188,8 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
         prompt: renderPrompt,
         negativePrompt: negativePrompt.trim() || undefined,
         aspectRatio,
-        durationSeconds,
+        durationSeconds:
+          provider === "gemini" && sourceMode !== "text" ? 8 : durationSeconds,
         modelPreset,
         provider,
         includeAudio,
@@ -869,7 +1206,7 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
         modelPreset,
         provider: job.provider ?? provider,
         includeAudio,
-        workflowMode: 'single',
+        workflowMode: "single",
         sourceMode,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -878,13 +1215,16 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
       upsertJob(nextJob);
       setSelectedOperationName(nextJob.operationName);
       setStatusMessage({
-        type: 'success',
+        type: "success",
         text: `Video job queued. We will keep checking until ${activeProviderLabel} finishes it.`,
       });
     } catch (error) {
       setStatusMessage({
-        type: 'error',
-        text: error instanceof Error ? error.message : 'Could not start video generation.',
+        type: "error",
+        text:
+          error instanceof Error
+            ? error.message
+            : "Could not start video generation.",
       });
     } finally {
       setIsSubmitting(false);
@@ -897,7 +1237,10 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
     }
 
     if (validScenes.length < 2) {
-      setStatusMessage({ type: 'error', text: 'Add at least two scenes with full prompts before queueing a reel.' });
+      setStatusMessage({
+        type: "error",
+        text: "Add at least two scenes with full prompts before queueing a reel.",
+      });
       return;
     }
 
@@ -921,7 +1264,10 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
             prompt: renderPrompt,
             negativePrompt: negativePrompt.trim() || undefined,
             aspectRatio,
-            durationSeconds: scene.durationSeconds,
+            durationSeconds:
+              provider === "gemini" && sourceMode !== "text"
+                ? 8
+                : scene.durationSeconds,
             modelPreset,
             provider,
             includeAudio,
@@ -938,7 +1284,7 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
             modelPreset,
             provider: job.provider ?? provider,
             includeAudio,
-            workflowMode: 'storyboard' as const,
+            workflowMode: "storyboard" as const,
             sourceMode,
             sceneId: scene.id,
             sceneTitle: scene.title.trim() || `Scene ${index + 1}`,
@@ -947,40 +1293,53 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
           } satisfies PersistedVideoJob;
-        })
+        }),
       );
       const successfulJobs = queuedJobs
-        .filter((result): result is PromiseFulfilledResult<PersistedVideoJob> => result.status === 'fulfilled')
+        .filter(
+          (result): result is PromiseFulfilledResult<PersistedVideoJob> =>
+            result.status === "fulfilled",
+        )
         .map((result) => result.value);
       const failedCount = queuedJobs.length - successfulJobs.length;
 
       if (successfulJobs.length > 0) {
         setJobs((prev) => {
-          const queuedOperationNames = new Set(successfulJobs.map((job) => job.operationName));
-          return [...successfulJobs, ...prev.filter((job) => !queuedOperationNames.has(job.operationName))].slice(0, MAX_STORED_JOBS);
+          const queuedOperationNames = new Set(
+            successfulJobs.map((job) => job.operationName),
+          );
+          return [
+            ...successfulJobs,
+            ...prev.filter(
+              (job) => !queuedOperationNames.has(job.operationName),
+            ),
+          ].slice(0, MAX_STORED_JOBS);
         });
         setSelectedOperationName(successfulJobs[0].operationName);
       }
 
       if (failedCount > 0) {
         setStatusMessage({
-          type: successfulJobs.length > 0 ? 'success' : 'error',
+          type: successfulJobs.length > 0 ? "success" : "error",
           text:
             successfulJobs.length > 0
               ? `${successfulJobs.length} scenes queued; ${failedCount} could not start.`
-              : 'Could not start the scene reel.',
+              : "Could not start the scene reel.",
         });
         return;
       }
 
       setStatusMessage({
-        type: 'success',
+        type: "success",
         text: `${successfulJobs.length} scenes queued. Completed scenes can be exported into one reel.`,
       });
     } catch (error) {
       setStatusMessage({
-        type: 'error',
-        text: error instanceof Error ? error.message : 'Could not start the scene reel.',
+        type: "error",
+        text:
+          error instanceof Error
+            ? error.message
+            : "Could not start the scene reel.",
       });
     } finally {
       setIsSubmitting(false);
@@ -990,7 +1349,7 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
-    if (workflowMode === 'storyboard') {
+    if (workflowMode === "storyboard") {
       await queueSceneReel();
       return;
     }
@@ -1000,36 +1359,55 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
 
   const handleDownload = async (job: PersistedVideoJob) => {
     try {
-      const blob = await downloadGeneratedVideo(job.operationName, job.modelPreset, job.provider);
+      const blob = await downloadGeneratedVideo(
+        job.generationId,
+        job.modelPreset,
+        job.provider,
+      );
       const url = URL.createObjectURL(blob);
-      const extension = (blob.type.split('/')[1] || 'mp4').replace(/[^a-z0-9]/gi, '');
-      const anchor = document.createElement('a');
+      const extension = (blob.type.split("/")[1] || "mp4").replace(
+        /[^a-z0-9]/gi,
+        "",
+      );
+      const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = `social-studio-video-${Date.now()}.${extension || 'mp4'}`;
+      anchor.download = `social-studio-video-${Date.now()}.${extension || "mp4"}`;
       anchor.click();
       window.setTimeout(() => URL.revokeObjectURL(url), 0);
     } catch (error) {
       setStatusMessage({
-        type: 'error',
-        text: error instanceof Error ? error.message : 'Could not download video.',
+        type: "error",
+        text:
+          error instanceof Error ? error.message : "Could not download video.",
       });
     }
   };
 
   const handleExportReel = async () => {
-    if (completedSceneJobs.length < 2) {
-      setStatusMessage({ type: 'error', text: 'At least two completed scenes are needed before exporting a reel.' });
+    if (
+      completedSceneJobs.length < 2 ||
+      completedSceneJobs.length !== scenes.length
+    ) {
+      setStatusMessage({
+        type: "error",
+        text: "Every scene must have a completed current render before exporting a reel.",
+      });
       return;
     }
 
+    let audioContext: AudioContext | undefined;
     setIsMerging(true);
-    setMergeProgress('Preparing completed scenes');
+    setMergeProgress("Preparing completed scenes");
     setStatusMessage(null);
 
     try {
+      audioContext = new AudioContext();
+      await audioContext.resume();
       const videoUrls: string[] = [];
       for (const [index, job] of completedSceneJobs.entries()) {
-        setMergeProgress(`Loading scene ${index + 1} of ${completedSceneJobs.length}`);
+        setMergeProgress(
+          `Loading scene ${index + 1} of ${completedSceneJobs.length}`,
+        );
         videoUrls.push(await ensurePreviewUrl(job));
       }
 
@@ -1037,20 +1415,28 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
         videoUrls,
         aspectRatio,
         onProgress: setMergeProgress,
+        audioContext,
       });
       const url = URL.createObjectURL(blob);
-      const anchor = document.createElement('a');
+      const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = `social-studio-reel-${Date.now()}.webm`;
+      anchor.download = `social-studio-reel-${Date.now()}.${blob.type.includes("mp4") ? "mp4" : "webm"}`;
       anchor.click();
       window.setTimeout(() => URL.revokeObjectURL(url), 0);
-      setStatusMessage({ type: 'success', text: 'Scene reel exported as a WebM video.' });
+      setStatusMessage({
+        type: "success",
+        text: "Scene reel exported with audio.",
+      });
     } catch (error) {
       setStatusMessage({
-        type: 'error',
-        text: error instanceof Error ? error.message : 'Could not export the completed scene reel.',
+        type: "error",
+        text:
+          error instanceof Error
+            ? error.message
+            : "Could not export the completed scene reel.",
       });
     } finally {
+      await audioContext?.close().catch(() => {});
       setIsMerging(false);
       setMergeProgress(null);
     }
@@ -1071,7 +1457,9 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
                 type="button"
                 onClick={() => setWorkflowMode(option.id)}
                 className={`rounded-xl px-3 py-2 text-sm font-semibold transition-all ${
-                  workflowMode === option.id ? 'bg-primary text-[#04161a]' : 'text-muted hover:bg-white/5 hover:text-white'
+                  workflowMode === option.id
+                    ? "bg-primary text-[#04161a]"
+                    : "text-muted hover:bg-white/5 hover:text-white"
                 }`}
               >
                 {option.label}
@@ -1082,7 +1470,9 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-5">
           <div className="space-y-2">
-            <label className="text-xs font-semibold uppercase tracking-[0.24em] text-muted">Source</label>
+            <label className="text-xs font-semibold uppercase tracking-[0.24em] text-muted">
+              Source
+            </label>
             <div className="grid grid-cols-3 gap-2">
               {SOURCE_MODE_OPTIONS.map((option) => {
                 const Icon = option.icon;
@@ -1094,8 +1484,8 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
                     onClick={() => setSourceMode(option.id)}
                     className={`flex min-h-20 flex-col items-center justify-center gap-2 rounded-2xl border px-3 py-3 text-sm font-semibold transition-all ${
                       sourceMode === option.id
-                        ? 'border-primary bg-primary/10 text-white'
-                        : 'border-white/10 bg-black/20 text-muted hover:border-white/20 hover:text-white'
+                        ? "border-primary bg-primary/10 text-white"
+                        : "border-white/10 bg-black/20 text-muted hover:border-white/20 hover:text-white"
                     }`}
                   >
                     <Icon className="h-4 w-4" />
@@ -1106,18 +1496,35 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
             </div>
           </div>
 
-          {sourceMode === 'upload' && (
+          {sourceMode === "upload" && (
             <div className="rounded-[24px] border border-white/10 bg-black/20 p-4">
-              <input ref={sourceImageInputRef} type="file" accept="image/*" onChange={handleSourceUpload} className="hidden" />
+              <input
+                ref={sourceImageInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleSourceUpload}
+                className="hidden"
+              />
               {uploadedSourceImageDataUrl ? (
                 <div className="space-y-3">
                   <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/5">
-                    <img src={uploadedSourceImageDataUrl} alt={uploadedSourceImageName ?? 'Uploaded source'} className="aspect-video w-full object-cover" />
+                    <img
+                      src={uploadedSourceImageDataUrl}
+                      alt={uploadedSourceImageName ?? "Uploaded source"}
+                      className="aspect-video w-full object-cover"
+                    />
                   </div>
                   <div className="flex items-center justify-between gap-3">
-                    <p className="min-w-0 truncate text-sm font-medium text-white">{uploadedSourceImageName}</p>
+                    <p className="min-w-0 truncate text-sm font-medium text-white">
+                      {uploadedSourceImageName}
+                    </p>
                     <div className="flex shrink-0 items-center gap-2">
-                      <Button type="button" variant="ghost" size="sm" onClick={() => sourceImageInputRef.current?.click()}>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => sourceImageInputRef.current?.click()}
+                      >
                         <Upload className="h-4 w-4" />
                         Replace
                       </Button>
@@ -1128,7 +1535,7 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
                         onClick={() => {
                           setUploadedSourceImageDataUrl(null);
                           setUploadedSourceImageName(null);
-                          setSourceMode('text');
+                          setSourceMode("text");
                         }}
                       >
                         <X className="h-4 w-4" />
@@ -1138,7 +1545,12 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
                   </div>
                 </div>
               ) : (
-                <Button type="button" variant="secondary" onClick={() => sourceImageInputRef.current?.click()} className="w-full">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => sourceImageInputRef.current?.click()}
+                  className="w-full"
+                >
                   <Upload className="h-4 w-4" />
                   Upload Source Image
                 </Button>
@@ -1146,7 +1558,7 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
             </div>
           )}
 
-          {sourceMode === 'avatar' && (
+          {sourceMode === "avatar" && (
             <AvatarLibraryPicker
               selectedAvatarId={selectedAvatarId}
               onSelectedAvatarIdChange={setSelectedAvatarId}
@@ -1157,12 +1569,13 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
           )}
 
           <div className="rounded-2xl border border-primary/15 bg-primary/5 p-4 text-xs leading-6 text-white/80">
-            Active source: <span className="font-medium text-white">{sourceLabel}</span>
+            Active source:{" "}
+            <span className="font-medium text-white">{sourceLabel}</span>
           </div>
 
           <div className="space-y-2">
             <label className="text-xs font-semibold uppercase tracking-[0.24em] text-muted">
-              {workflowMode === 'storyboard' ? 'Master Brief' : 'Video Prompt'}
+              {workflowMode === "storyboard" ? "Master Brief" : "Video Prompt"}
             </label>
             <textarea
               value={prompt}
@@ -1170,8 +1583,14 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
               className="h-36 w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none transition-colors placeholder:text-muted focus:border-primary/50 focus:ring-1 focus:ring-primary"
               placeholder="A kinetic ad for a luxury coffee brand, slow camera push-in, steam in the air, premium product close-up, cinematic lighting..."
             />
-            {workflowMode === 'storyboard' && (
-              <Button type="button" variant="secondary" size="sm" onClick={buildScenesFromPrompt} className="w-full">
+            {workflowMode === "storyboard" && (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={buildScenesFromPrompt}
+                className="w-full"
+              >
                 <Sparkles className="h-4 w-4" />
                 Build Scenes From Brief
               </Button>
@@ -1180,10 +1599,14 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div className="space-y-2">
-              <label className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">Motion</label>
+              <label className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">
+                Motion
+              </label>
               <select
                 value={cameraMotion}
-                onChange={(event) => setCameraMotion(event.target.value as CameraMotion)}
+                onChange={(event) =>
+                  setCameraMotion(event.target.value as CameraMotion)
+                }
                 className="w-full rounded-2xl border border-white/10 bg-black/20 px-3 py-3 text-sm text-white outline-none focus:border-primary/50"
               >
                 {CAMERA_MOTION_OPTIONS.map((option) => (
@@ -1195,10 +1618,14 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
             </div>
 
             <div className="space-y-2">
-              <label className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">Style</label>
+              <label className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">
+                Style
+              </label>
               <select
                 value={visualStyle}
-                onChange={(event) => setVisualStyle(event.target.value as VisualStyle)}
+                onChange={(event) =>
+                  setVisualStyle(event.target.value as VisualStyle)
+                }
                 className="w-full rounded-2xl border border-white/10 bg-black/20 px-3 py-3 text-sm text-white outline-none focus:border-primary/50"
               >
                 {VISUAL_STYLE_OPTIONS.map((option) => (
@@ -1210,10 +1637,14 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
             </div>
 
             <div className="space-y-2">
-              <label className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">Pace</label>
+              <label className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">
+                Pace
+              </label>
               <select
                 value={shotPacing}
-                onChange={(event) => setShotPacing(event.target.value as ShotPacing)}
+                onChange={(event) =>
+                  setShotPacing(event.target.value as ShotPacing)
+                }
                 className="w-full rounded-2xl border border-white/10 bg-black/20 px-3 py-3 text-sm text-white outline-none focus:border-primary/50"
               >
                 {SHOT_PACING_OPTIONS.map((option) => (
@@ -1226,7 +1657,9 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs font-semibold uppercase tracking-[0.24em] text-muted">Negative Prompt</label>
+            <label className="text-xs font-semibold uppercase tracking-[0.24em] text-muted">
+              Negative Prompt
+            </label>
             <textarea
               value={negativePrompt}
               onChange={(event) => setNegativePrompt(event.target.value)}
@@ -1237,17 +1670,19 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <label className="text-xs font-semibold uppercase tracking-[0.24em] text-muted">Aspect Ratio</label>
+              <label className="text-xs font-semibold uppercase tracking-[0.24em] text-muted">
+                Aspect Ratio
+              </label>
               <div className="grid grid-cols-2 gap-2">
-                {(['16:9', '9:16'] as const).map((ratio) => (
+                {(["16:9", "9:16"] as const).map((ratio) => (
                   <button
                     key={ratio}
                     type="button"
                     onClick={() => setAspectRatio(ratio)}
                     className={`rounded-xl border px-3 py-2 text-sm font-medium transition-all ${
                       aspectRatio === ratio
-                        ? 'border-primary bg-primary/15 text-primary'
-                        : 'border-white/10 bg-black/20 text-muted hover:border-white/20 hover:text-white'
+                        ? "border-primary bg-primary/15 text-primary"
+                        : "border-white/10 bg-black/20 text-muted hover:border-white/20 hover:text-white"
                     }`}
                   >
                     {ratio}
@@ -1257,7 +1692,9 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
             </div>
 
             <div className="space-y-2">
-              <label className="text-xs font-semibold uppercase tracking-[0.24em] text-muted">Duration</label>
+              <label className="text-xs font-semibold uppercase tracking-[0.24em] text-muted">
+                Duration
+              </label>
               <div className="grid grid-cols-3 gap-2">
                 {durationOptions.map((seconds) => (
                   <button
@@ -1266,8 +1703,8 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
                     onClick={() => setDurationSeconds(seconds)}
                     className={`rounded-xl border px-3 py-2 text-sm font-medium transition-all ${
                       durationSeconds === seconds
-                        ? 'border-primary bg-primary/15 text-primary'
-                        : 'border-white/10 bg-black/20 text-muted hover:border-white/20 hover:text-white'
+                        ? "border-primary bg-primary/15 text-primary"
+                        : "border-white/10 bg-black/20 text-muted hover:border-white/20 hover:text-white"
                     }`}
                   >
                     {seconds}s
@@ -1278,23 +1715,35 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs font-semibold uppercase tracking-[0.24em] text-muted">Video model</label>
+            <label className="text-xs font-semibold uppercase tracking-[0.24em] text-muted">
+              Video model
+            </label>
             <select
               value={provider}
-              onChange={(event) => setProvider(event.target.value as VideoProvider)}
+              onChange={(event) =>
+                setProvider(event.target.value as VideoProvider)
+              }
               className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none transition-colors focus:border-primary/50 focus:ring-1 focus:ring-primary/20"
             >
               {VIDEO_PROVIDER_OPTIONS.map((option) => (
-                <option key={option.id} value={option.id} className="bg-[#0b1620] text-white">
+                <option
+                  key={option.id}
+                  value={option.id}
+                  className="bg-[#0b1620] text-white"
+                >
                   {option.label}
                 </option>
               ))}
             </select>
-            <p className="text-xs text-muted">Select the available video model for this task.</p>
+            <p className="text-xs text-muted">
+              Select the available video model for this task.
+            </p>
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs font-semibold uppercase tracking-[0.24em] text-muted">Render Mode</label>
+            <label className="text-xs font-semibold uppercase tracking-[0.24em] text-muted">
+              Render Mode
+            </label>
             <div className="grid gap-2">
               {VIDEO_MODEL_OPTIONS.map((option) => (
                 <button
@@ -1303,17 +1752,23 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
                   onClick={() => setModelPreset(option.id)}
                   className={`rounded-2xl border px-4 py-3 text-left transition-all ${
                     modelPreset === option.id
-                      ? 'border-primary bg-primary/10'
-                      : 'border-white/10 bg-black/20 hover:border-white/20 hover:bg-white/5'
+                      ? "border-primary bg-primary/10"
+                      : "border-white/10 bg-black/20 hover:border-white/20 hover:bg-white/5"
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className={`text-sm font-medium ${modelPreset === option.id ? 'text-white' : 'text-white/85'}`}>
+                    <span
+                      className={`text-sm font-medium ${modelPreset === option.id ? "text-white" : "text-white/85"}`}
+                    >
                       {option.label}
                     </span>
-                    {modelPreset === option.id && <CheckCircle2 className="h-4 w-4 text-primary" />}
+                    {modelPreset === option.id && (
+                      <CheckCircle2 className="h-4 w-4 text-primary" />
+                    )}
                   </div>
-                  <p className="mt-1 text-xs text-muted">{option.description}</p>
+                  <p className="mt-1 text-xs text-muted">
+                    {option.description}
+                  </p>
                 </button>
               ))}
             </div>
@@ -1326,7 +1781,9 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
               </div>
               <div>
                 <p className="text-sm font-medium text-white">Generate audio</p>
-                <p className="text-xs text-muted">Enabled when the selected model supports audio.</p>
+                <p className="text-xs text-muted">
+                  Enabled when the selected model supports audio.
+                </p>
               </div>
             </div>
             <input
@@ -1337,16 +1794,26 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
             />
           </label>
 
-          {workflowMode === 'storyboard' && (
+          {workflowMode === "storyboard" && (
             <div className="space-y-3 rounded-[28px] border border-white/10 bg-black/20 p-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <h3 className="text-sm font-semibold text-white">Scenes</h3>
                   <p className="mt-1 text-xs text-muted">
-                    {validScenes.length}/{scenes.length} ready, {validScenes.reduce((total, scene) => total + scene.durationSeconds, 0)}s target
+                    {validScenes.length}/{scenes.length} ready,{" "}
+                    {validScenes.reduce(
+                      (total, scene) => total + scene.durationSeconds,
+                      0,
+                    )}
+                    s target
                   </p>
                 </div>
-                <Button type="button" variant="secondary" size="sm" onClick={addScene}>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={addScene}
+                >
                   <Plus className="h-4 w-4" />
                   Add
                 </Button>
@@ -1354,7 +1821,10 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
 
               <div className="space-y-3">
                 {scenes.map((scene, index) => (
-                  <div key={scene.id} className="rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
+                  <div
+                    key={scene.id}
+                    className="rounded-[24px] border border-white/10 bg-white/[0.03] p-4"
+                  >
                     <div className="flex items-start gap-3">
                       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
                         {index + 1}
@@ -1362,13 +1832,19 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
                       <div className="min-w-0 flex-1 space-y-3">
                         <input
                           value={scene.title}
-                          onChange={(event) => updateScene(scene.id, { title: event.target.value })}
+                          onChange={(event) =>
+                            updateScene(scene.id, { title: event.target.value })
+                          }
                           className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm font-medium text-white outline-none focus:border-primary/50"
                           placeholder={`Scene ${index + 1}`}
                         />
                         <textarea
                           value={scene.prompt}
-                          onChange={(event) => updateScene(scene.id, { prompt: event.target.value })}
+                          onChange={(event) =>
+                            updateScene(scene.id, {
+                              prompt: event.target.value,
+                            })
+                          }
                           className="h-28 w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none placeholder:text-muted focus:border-primary/50"
                           placeholder="Describe the visual beat, action, camera movement, and subject..."
                         />
@@ -1377,11 +1853,15 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
                             <button
                               key={seconds}
                               type="button"
-                              onClick={() => updateScene(scene.id, { durationSeconds: seconds })}
+                              onClick={() =>
+                                updateScene(scene.id, {
+                                  durationSeconds: seconds,
+                                })
+                              }
                               className={`rounded-full border px-3 py-1 text-xs font-semibold ${
                                 scene.durationSeconds === seconds
-                                  ? 'border-primary bg-primary/15 text-primary'
-                                  : 'border-white/10 bg-black/20 text-muted hover:text-white'
+                                  ? "border-primary bg-primary/15 text-primary"
+                                  : "border-white/10 bg-black/20 text-muted hover:text-white"
                               }`}
                             >
                               {seconds}s
@@ -1415,13 +1895,21 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
             </div>
           )}
 
-          <Button type="submit" isLoading={isSubmitting} className="w-full py-4">
+          <Button
+            type="submit"
+            isLoading={isSubmitting}
+            className="w-full py-4"
+          >
             <Wand2 className="h-4 w-4" />
-            {workflowMode === 'storyboard' ? 'Queue Scene Reel' : 'Generate Video'}
+            {workflowMode === "storyboard"
+              ? "Queue Scene Reel"
+              : "Generate Video"}
           </Button>
 
           {statusMessage && (
-            <p className={`text-sm ${statusMessage.type === 'error' ? 'text-red-300' : 'text-emerald-300'}`}>
+            <p
+              className={`text-sm ${statusMessage.type === "error" ? "text-red-300" : "text-emerald-300"}`}
+            >
               {statusMessage.text}
             </p>
           )}
@@ -1429,13 +1917,15 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
       </section>
 
       <div className="space-y-6">
-        {workflowMode === 'storyboard' && (
+        {workflowMode === "storyboard" && (
           <section className="surface-card rounded-[32px] p-6">
             <div className="flex flex-col gap-4 border-b border-white/8 pb-5 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <h3 className="text-xl font-semibold text-white">Scene Reel</h3>
                 <p className="mt-1 text-sm text-muted">
-                  {completedSceneJobs.length}/{Math.max(validScenes.length, currentSceneJobs.length)} scenes complete
+                  {completedSceneJobs.length}/
+                  {Math.max(validScenes.length, currentSceneJobs.length)} scenes
+                  complete
                 </p>
               </div>
               <Button
@@ -1452,33 +1942,49 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
 
             <div className="mt-5 grid gap-3 md:grid-cols-3">
               {scenes.map((scene, index) => {
-                const sceneJob = currentSceneJobs.find((job) => job.sceneId === scene.id);
+                const sceneJob = currentSceneJobs.find(
+                  (job) => job.sceneId === scene.id,
+                );
 
                 return (
                   <button
                     key={scene.id}
                     type="button"
-                    onClick={() => sceneJob && setSelectedOperationName(sceneJob.operationName)}
+                    onClick={() =>
+                      sceneJob &&
+                      setSelectedOperationName(sceneJob.operationName)
+                    }
                     className={`rounded-[22px] border p-4 text-left transition-all ${
-                      sceneJob && selectedJob?.operationName === sceneJob.operationName
-                        ? 'border-primary/30 bg-primary/10'
-                        : 'border-white/10 bg-black/20 hover:border-white/20'
+                      sceneJob &&
+                      selectedJob?.operationName === sceneJob.operationName
+                        ? "border-primary/30 bg-primary/10"
+                        : "border-white/10 bg-black/20 hover:border-white/20"
                     }`}
                   >
                     <div className="flex items-center justify-between gap-3">
-                      <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">Scene {index + 1}</span>
-                      <span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${sceneJob ? getStatusTone(sceneJob.status) : 'bg-white/5 text-muted'}`}>
-                        {sceneJob?.status ?? 'Draft'}
+                      <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+                        Scene {index + 1}
+                      </span>
+                      <span
+                        className={`rounded-full px-2 py-1 text-[10px] font-semibold ${sceneJob ? getStatusTone(sceneJob.status) : "bg-white/5 text-muted"}`}
+                      >
+                        {sceneJob?.status ?? "Draft"}
                       </span>
                     </div>
-                    <p className="mt-3 line-clamp-1 text-sm font-medium text-white">{scene.title || `Scene ${index + 1}`}</p>
-                    <p className="mt-2 line-clamp-2 text-xs leading-5 text-muted">{scene.prompt || 'No prompt yet.'}</p>
+                    <p className="mt-3 line-clamp-1 text-sm font-medium text-white">
+                      {scene.title || `Scene ${index + 1}`}
+                    </p>
+                    <p className="mt-2 line-clamp-2 text-xs leading-5 text-muted">
+                      {scene.prompt || "No prompt yet."}
+                    </p>
                   </button>
                 );
               })}
             </div>
 
-            {mergeProgress && <p className="mt-4 text-sm text-primary">{mergeProgress}</p>}
+            {mergeProgress && (
+              <p className="mt-4 text-sm text-primary">{mergeProgress}</p>
+            )}
           </section>
         )}
 
@@ -1488,26 +1994,34 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
               <h3 className="text-xl font-semibold text-white">Preview</h3>
               <p className="mt-1 text-sm text-muted">
                 {selectedJob
-                  ? `${selectedJob.sceneTitle ? `${selectedJob.sceneTitle} - ` : ''}${formatTimestamp(selectedJob.createdAt)}`
-                  : 'Start a render to see the generated clip here.'}
+                  ? `${selectedJob.sceneTitle ? `${selectedJob.sceneTitle} - ` : ""}${formatTimestamp(selectedJob.createdAt)}`
+                  : "Start a render to see the generated clip here."}
               </p>
             </div>
 
             {selectedJob && (
               <div className="flex flex-wrap items-center gap-2">
-                <span className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusTone(selectedJob.status)}`}>
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusTone(selectedJob.status)}`}
+                >
                   {selectedJob.status}
                 </span>
                 <Button
                   variant="secondary"
                   onClick={() => void refreshJob(selectedJob)}
-                  disabled={selectedJob.status === 'SUCCEEDED' && !!previewUrls[selectedJob.operationName]}
+                  disabled={
+                    selectedJob.status === "SUCCEEDED" &&
+                    !!previewUrls[selectedJob.operationName]
+                  }
                 >
                   <RefreshCcw className="h-4 w-4" />
                   Refresh
                 </Button>
-                {selectedJob.status === 'SUCCEEDED' && (
-                  <Button variant="secondary" onClick={() => void handleDownload(selectedJob)}>
+                {selectedJob.status === "SUCCEEDED" && (
+                  <Button
+                    variant="secondary"
+                    onClick={() => void handleDownload(selectedJob)}
+                  >
                     <Download className="h-4 w-4" />
                     Download
                   </Button>
@@ -1523,57 +2037,77 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
                   <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-white/5">
                     <Video className="h-8 w-8 text-muted" />
                   </div>
-                  <p className="mt-5 text-lg font-medium text-white">No video jobs yet</p>
-                  <p className="mt-2 text-sm text-muted">Queued clips and completed scenes will appear here.</p>
+                  <p className="mt-5 text-lg font-medium text-white">
+                    No video jobs yet
+                  </p>
+                  <p className="mt-2 text-sm text-muted">
+                    Queued clips and completed scenes will appear here.
+                  </p>
                   <ul className="mt-5 space-y-2 text-left text-xs text-muted">
                     <li className="flex items-start gap-2">
                       <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-                      Start with a text prompt, or switch Source to an uploaded image or a saved avatar.
+                      Start with a text prompt, or switch Source to an uploaded
+                      image or a saved avatar.
                     </li>
                     <li className="flex items-start gap-2">
                       <Film className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-                      Try Scene Reel for a multi-shot storyboard you can merge into one clip.
+                      Try Scene Reel for a multi-shot storyboard you can merge
+                      into one clip.
                     </li>
                   </ul>
                 </div>
               </div>
-            ) : selectedJob.status === 'FAILED' ? (
+            ) : selectedJob.status === "FAILED" ? (
               <div className="rounded-[28px] border border-red-400/20 bg-red-500/5 p-6">
                 <div className="flex items-start gap-3">
                   <AlertTriangle className="mt-1 h-5 w-5 shrink-0 text-red-300" />
                   <div>
-                    <p className="text-lg font-medium text-white">Generation failed</p>
+                    <p className="text-lg font-medium text-white">
+                      Generation failed
+                    </p>
                     <p className="mt-2 text-sm leading-6 text-red-200">
-                      {selectedJob.errorMessage || `${getProviderLabel(selectedJob.provider)} was unable to complete this request.`}
+                      {selectedJob.errorMessage ||
+                        `${getProviderLabel(selectedJob.provider)} was unable to complete this request.`}
                     </p>
                   </div>
                 </div>
               </div>
-            ) : selectedJob.status !== 'SUCCEEDED' ? (
+            ) : selectedJob.status !== "SUCCEEDED" ? (
               <div className="flex min-h-[420px] items-center justify-center rounded-[28px] border border-white/10 bg-black/20 p-8 text-center">
                 <div>
                   <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 text-primary">
                     <Loader2 className="h-8 w-8 animate-spin" />
                   </div>
-                  <p className="mt-5 text-lg font-medium text-white">Video is rendering</p>
+                  <p className="mt-5 text-lg font-medium text-white">
+                    Video is rendering
+                  </p>
                   <p className="mt-2 text-sm text-muted">
-                    {getProviderLabel(selectedJob.provider)} is still working on this clip.
+                    {getProviderLabel(selectedJob.provider)} is still working on
+                    this clip.
                   </p>
                 </div>
               </div>
-            ) : loadingPreviewFor === selectedJob.operationName || !previewUrls[selectedJob.operationName] ? (
+            ) : loadingPreviewFor === selectedJob.operationName ||
+              !previewUrls[selectedJob.operationName] ? (
               <div className="flex min-h-[420px] items-center justify-center rounded-[28px] border border-white/10 bg-black/20 p-8 text-center">
                 <div>
                   <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 text-primary">
                     <Sparkles className="h-8 w-8 animate-pulse" />
                   </div>
-                  <p className="mt-5 text-lg font-medium text-white">Loading preview</p>
-                  <p className="mt-2 text-sm text-muted">Downloading the generated clip so it can play inside the workspace.</p>
+                  <p className="mt-5 text-lg font-medium text-white">
+                    Loading preview
+                  </p>
+                  <p className="mt-2 text-sm text-muted">
+                    Downloading the generated clip so it can play inside the
+                    workspace.
+                  </p>
                 </div>
               </div>
             ) : (
               <div className="space-y-4">
-                <div className={`overflow-hidden rounded-[28px] border border-white/10 bg-black/30 ${getVideoAspectRatioClass(selectedJob.aspectRatio)}`}>
+                <div
+                  className={`overflow-hidden rounded-[28px] border border-white/10 bg-black/30 ${getVideoAspectRatioClass(selectedJob.aspectRatio)}`}
+                >
                   <video
                     key={selectedJob.operationName}
                     controls
@@ -1585,27 +2119,43 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
 
                 <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
                   <div className="flex flex-wrap items-center gap-2">
-                    {selectedJob.workflowMode === 'storyboard' && selectedJob.sceneIndex && (
-                      <span className="rounded-full bg-primary/10 px-3 py-1 text-xs text-primary">
-                        Scene {selectedJob.sceneIndex}/{selectedJob.sceneCount}
-                      </span>
-                    )}
-                    <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white">{selectedJob.aspectRatio}</span>
-                    <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white">{selectedJob.durationSeconds}s</span>
+                    {selectedJob.workflowMode === "storyboard" &&
+                      selectedJob.sceneIndex && (
+                        <span className="rounded-full bg-primary/10 px-3 py-1 text-xs text-primary">
+                          Scene {selectedJob.sceneIndex}/
+                          {selectedJob.sceneCount}
+                        </span>
+                      )}
                     <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white">
-                      {selectedJob.modelPreset === 'fast' ? 'Fast render' : 'Quality render'}
+                      {selectedJob.aspectRatio}
                     </span>
                     <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white">
-                      {selectedJob.provider === 'openrouter' ? 'OpenRouter' : 'Gemini'}
+                      {selectedJob.durationSeconds}s
                     </span>
                     <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white">
-                      {selectedJob.sourceMode === 'text' ? 'Text-to-video' : 'Image-to-video'}
+                      {selectedJob.modelPreset === "fast"
+                        ? "Fast render"
+                        : "Quality render"}
+                    </span>
+                    <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white">
+                      {selectedJob.provider === "openrouter"
+                        ? "OpenRouter"
+                        : "Gemini"}
+                    </span>
+                    <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white">
+                      {selectedJob.sourceMode === "text"
+                        ? "Text-to-video"
+                        : "Image-to-video"}
                     </span>
                     {selectedJob.includeAudio && (
-                      <span className="rounded-full bg-primary/10 px-3 py-1 text-xs text-primary">Audio enabled</span>
+                      <span className="rounded-full bg-primary/10 px-3 py-1 text-xs text-primary">
+                        Audio enabled
+                      </span>
                     )}
                   </div>
-                  <p className="mt-3 text-sm leading-6 text-white/85">{selectedJob.prompt}</p>
+                  <p className="mt-3 text-sm leading-6 text-white/85">
+                    {selectedJob.prompt}
+                  </p>
                 </div>
               </div>
             )}
@@ -1616,7 +2166,9 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
           <div className="flex items-center justify-between border-b border-white/8 pb-5">
             <div>
               <h3 className="text-xl font-semibold text-white">Recent Jobs</h3>
-              <p className="mt-1 text-sm text-muted">Stored in this browser for preview and download.</p>
+              <p className="mt-1 text-sm text-muted">
+                Stored in this browser for preview and download.
+              </p>
             </div>
             <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-muted">
               {jobs.length} saved
@@ -1636,29 +2188,44 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
                   onClick={() => setSelectedOperationName(job.operationName)}
                   className={`w-full rounded-[24px] border p-4 text-left transition-all ${
                     selectedJob?.operationName === job.operationName
-                      ? 'border-primary/25 bg-primary/10'
-                      : 'border-white/10 bg-black/20 hover:border-white/20 hover:bg-white/5'
+                      ? "border-primary/25 bg-primary/10"
+                      : "border-white/10 bg-black/20 hover:border-white/20 hover:bg-white/5"
                   }`}
                 >
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${getStatusTone(job.status)}`}>
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${getStatusTone(job.status)}`}
+                        >
                           {job.status}
                         </span>
-                        {job.workflowMode === 'storyboard' && job.sceneIndex && (
-                          <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[11px] text-primary">Scene {job.sceneIndex}</span>
-                        )}
-                        <span className="rounded-full bg-white/5 px-2.5 py-1 text-[11px] text-muted">{job.aspectRatio}</span>
-                        <span className="rounded-full bg-white/5 px-2.5 py-1 text-[11px] text-muted">{job.durationSeconds}s</span>
+                        {job.workflowMode === "storyboard" &&
+                          job.sceneIndex && (
+                            <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[11px] text-primary">
+                              Scene {job.sceneIndex}
+                            </span>
+                          )}
                         <span className="rounded-full bg-white/5 px-2.5 py-1 text-[11px] text-muted">
-                          {job.provider === 'openrouter' ? 'OpenRouter' : 'Gemini'}
+                          {job.aspectRatio}
                         </span>
                         <span className="rounded-full bg-white/5 px-2.5 py-1 text-[11px] text-muted">
-                          {job.sourceMode === 'text' ? 'Text' : 'Image'}
+                          {job.durationSeconds}s
+                        </span>
+                        <span className="rounded-full bg-white/5 px-2.5 py-1 text-[11px] text-muted">
+                          {job.provider === "openrouter"
+                            ? "OpenRouter"
+                            : "Gemini"}
+                        </span>
+                        <span className="rounded-full bg-white/5 px-2.5 py-1 text-[11px] text-muted">
+                          {job.sourceMode === "text" ? "Text" : "Image"}
                         </span>
                       </div>
-                      <p className="mt-3 line-clamp-2 text-sm leading-6 text-white/90">{job.sceneTitle ? `${job.sceneTitle}: ${job.prompt}` : job.prompt}</p>
+                      <p className="mt-3 line-clamp-2 text-sm leading-6 text-white/90">
+                        {job.sceneTitle
+                          ? `${job.sceneTitle}: ${job.prompt}`
+                          : job.prompt}
+                      </p>
                     </div>
 
                     <div className="flex items-center gap-2 text-xs text-muted lg:shrink-0">

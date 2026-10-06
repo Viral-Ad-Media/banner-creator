@@ -1,5 +1,11 @@
-import React, { Suspense, lazy, useEffect, useState } from 'react';
-import { Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom';
+import React, { Suspense, lazy, useEffect, useState } from "react";
+import {
+  Navigate,
+  NavLink,
+  Route,
+  Routes,
+  useLocation,
+} from "react-router-dom";
 import {
   Activity,
   Image as ImageIcon,
@@ -12,51 +18,62 @@ import {
   Video,
   X,
   type LucideIcon,
-} from 'lucide-react';
-import type { AuthUser } from '../services/authService';
-import { getOnboardingState, markTourCompleted, markWelcomeSeen, resetTour } from '../services/onboardingState';
-import { Button } from './ui/Button';
-import { ProductTour } from './onboarding/ProductTour';
-import { WelcomeModal } from './onboarding/WelcomeModal';
+} from "lucide-react";
+import type { AuthUser } from "../services/authService";
+import {
+  getOnboardingState,
+  markTourCompleted,
+  markWelcomeSeen,
+  resetTour,
+} from "../services/onboardingState";
+import { Button } from "./ui/Button";
+import { ProductTour } from "./onboarding/ProductTour";
+import { WelcomeModal } from "./onboarding/WelcomeModal";
 
 const CopyGenerator = lazy(() =>
-  import('./CopyGenerator').then((module) => ({
+  import("./CopyGenerator").then((module) => ({
     default: module.CopyGenerator,
-  }))
+  })),
 );
 
 const ImageStudio = lazy(() =>
-  import('./ImageStudio').then((module) => ({
+  import("./ImageStudio").then((module) => ({
     default: module.ImageStudio,
-  }))
+  })),
 );
 
 const AvatarStudioPanel = lazy(() =>
-  import('./workspace/AvatarStudioPanel').then((module) => ({
+  import("./workspace/AvatarStudioPanel").then((module) => ({
     default: module.AvatarStudioPanel,
-  }))
+  })),
 );
 
 const ActivitiesPanel = lazy(() =>
-  import('./workspace/ActivitiesPanel').then((module) => ({
+  import("./workspace/ActivitiesPanel").then((module) => ({
     default: module.ActivitiesPanel,
-  }))
+  })),
 );
 
 const SettingsPanel = lazy(() =>
-  import('./workspace/SettingsPanel').then((module) => ({
+  import("./workspace/SettingsPanel").then((module) => ({
     default: module.SettingsPanel,
-  }))
+  })),
 );
 
 const VideoGeneratorPanel = lazy(() =>
-  import('./workspace/VideoGeneratorPanel').then((module) => ({
+  import("./workspace/VideoGeneratorPanel").then((module) => ({
     default: module.VideoGeneratorPanel,
-  }))
+  })),
 );
 
 type WorkspaceNavItem = {
-  id: 'banner-generator' | 'avatar-studio' | 'image-studio' | 'video-generator' | 'activities' | 'settings';
+  id:
+    | "banner-generator"
+    | "avatar-studio"
+    | "image-studio"
+    | "video-generator"
+    | "activities"
+    | "settings";
   label: string;
   description: string;
   to: string;
@@ -66,46 +83,46 @@ type WorkspaceNavItem = {
 
 const workspaceNav: WorkspaceNavItem[] = [
   {
-    id: 'banner-generator',
-    label: 'Banner Generator',
-    description: 'Create campaign copy and visuals',
-    to: '/app/banner-generator',
+    id: "banner-generator",
+    label: "Banner Generator",
+    description: "Create campaign copy and visuals",
+    to: "/app/banner-generator",
     icon: LayoutTemplate,
   },
   {
-    id: 'avatar-studio',
-    label: 'Avatar Studio',
-    description: 'Create and manage reusable characters',
-    to: '/app/avatar-studio',
+    id: "avatar-studio",
+    label: "Avatar Studio",
+    description: "Create and manage reusable characters",
+    to: "/app/avatar-studio",
     icon: UserRound,
   },
   {
-    id: 'image-studio',
-    label: 'Image Studio',
-    description: 'Edit uploaded images with AI',
-    to: '/app/image-studio',
+    id: "image-studio",
+    label: "Image Studio",
+    description: "Edit uploaded images with AI",
+    to: "/app/image-studio",
     icon: ImageIcon,
   },
   {
-    id: 'video-generator',
-    label: 'Video Generator',
-    description: 'Create motion clips and image-to-video',
-    to: '/app/video-generator',
+    id: "video-generator",
+    label: "Video Generator",
+    description: "Create motion clips and image-to-video",
+    to: "/app/video-generator",
     icon: Video,
-    badge: 'Beta',
+    badge: "Beta",
   },
   {
-    id: 'activities',
-    label: 'Activities',
-    description: 'Review generation history',
-    to: '/app/activities',
+    id: "activities",
+    label: "Activities",
+    description: "Review generation history",
+    to: "/app/activities",
     icon: Activity,
   },
   {
-    id: 'settings',
-    label: 'Settings',
-    description: 'Profile, plan, and workspace setup',
-    to: '/app/settings',
+    id: "settings",
+    label: "Settings",
+    description: "Profile, plan, and workspace setup",
+    to: "/app/settings",
     icon: Settings,
   },
 ];
@@ -116,7 +133,11 @@ interface AppWorkspaceProps {
   onUserUpdated: (user: AuthUser) => void;
 }
 
-export const AppWorkspace: React.FC<AppWorkspaceProps> = ({ user, onLogout, onUserUpdated }) => {
+export const AppWorkspace: React.FC<AppWorkspaceProps> = ({
+  user,
+  onLogout,
+  onUserUpdated,
+}) => {
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isWelcomeOpen, setIsWelcomeOpen] = useState(false);
@@ -152,14 +173,21 @@ export const AppWorkspace: React.FC<AppWorkspaceProps> = ({ user, onLogout, onUs
     setIsTourRunning(true);
   };
 
-  const mobileNavItemIds: WorkspaceNavItem['id'][] = ['banner-generator', 'avatar-studio', 'image-studio', 'video-generator'];
+  const mobileNavItemIds: WorkspaceNavItem["id"][] = [
+    "banner-generator",
+    "avatar-studio",
+    "image-studio",
+    "video-generator",
+  ];
   const mobileNavItems = mobileNavItemIds
     .map((itemId) => workspaceNav.find((item) => item.id === itemId))
     .filter((item): item is WorkspaceNavItem => Boolean(item));
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(64,214,195,0.15),transparent_24%),radial-gradient(circle_at_top_right,rgba(255,177,102,0.12),transparent_22%),linear-gradient(180deg,#071219_0%,#0b1620_100%)] font-sans selection:bg-primary/30">
-      {isWelcomeOpen && <WelcomeModal userName={user.name} onComplete={handleWelcomeComplete} />}
+      {isWelcomeOpen && (
+        <WelcomeModal userName={user.name} onComplete={handleWelcomeComplete} />
+      )}
       <ProductTour run={isTourRunning} onFinish={handleTourFinish} />
 
       {isSidebarOpen && (
@@ -175,7 +203,7 @@ export const AppWorkspace: React.FC<AppWorkspaceProps> = ({ user, onLogout, onUs
         <div className="flex min-h-[calc(100vh-2rem)] gap-6">
           <aside
             className={`fixed bottom-3 left-3 top-3 z-50 flex w-[calc(100vw-1.5rem)] max-w-[340px] flex-col transition-transform duration-300 lg:sticky lg:top-4 lg:h-[calc(100vh-2rem)] lg:w-[298px] lg:max-w-none lg:translate-x-0 ${
-              isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+              isSidebarOpen ? "translate-x-0" : "-translate-x-full"
             }`}
           >
             <div className="surface-card-strong flex h-full flex-col overflow-hidden rounded-[34px] border border-white/10 p-4">
@@ -188,8 +216,12 @@ export const AppWorkspace: React.FC<AppWorkspaceProps> = ({ user, onLogout, onUs
                     </div>
                   </div>
                   <div>
-                    <p className="text-[11px] uppercase tracking-[0.32em] text-primary">Workspace</p>
-                    <h1 className="text-lg font-semibold text-white">Social Studio</h1>
+                    <p className="text-[11px] uppercase tracking-[0.32em] text-primary">
+                      Workspace
+                    </p>
+                    <h1 className="text-lg font-semibold text-white">
+                      Social Studio
+                    </h1>
                   </div>
                 </div>
 
@@ -214,8 +246,8 @@ export const AppWorkspace: React.FC<AppWorkspaceProps> = ({ user, onLogout, onUs
                       className={({ isActive }) =>
                         `group flex items-start gap-3 rounded-[26px] border px-4 py-4 transition-all ${
                           isActive
-                            ? 'border-primary/22 bg-[linear-gradient(180deg,rgba(64,214,195,0.12),rgba(64,214,195,0.06))] shadow-[0_18px_40px_-28px_rgba(64,214,195,0.85)]'
-                            : 'border-white/0 text-muted hover:border-white/10 hover:bg-white/6 hover:text-white'
+                            ? "border-primary/22 bg-[linear-gradient(180deg,rgba(64,214,195,0.12),rgba(64,214,195,0.06))] shadow-[0_18px_40px_-28px_rgba(64,214,195,0.85)]"
+                            : "border-white/0 text-muted hover:border-white/10 hover:bg-white/6 hover:text-white"
                         }`
                       }
                     >
@@ -223,21 +255,31 @@ export const AppWorkspace: React.FC<AppWorkspaceProps> = ({ user, onLogout, onUs
                         <>
                           <div
                             className={`mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] ${
-                              isActive ? 'bg-primary/18 text-primary' : 'bg-white/5 text-muted group-hover:text-white'
+                              isActive
+                                ? "bg-primary/18 text-primary"
+                                : "bg-white/5 text-muted group-hover:text-white"
                             }`}
                           >
                             <Icon className="h-4 w-4" />
                           </div>
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
-                              <span className={`text-sm font-semibold ${isActive ? 'text-white' : ''}`}>{item.label}</span>
+                              <span
+                                className={`text-sm font-semibold ${isActive ? "text-white" : ""}`}
+                              >
+                                {item.label}
+                              </span>
                               {item.badge && (
                                 <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-primary">
                                   {item.badge}
                                 </span>
                               )}
                             </div>
-                            <p className={`mt-1 text-xs leading-5 ${isActive ? 'text-white/72' : 'text-muted'}`}>{item.description}</p>
+                            <p
+                              className={`mt-1 text-xs leading-5 ${isActive ? "text-white/72" : "text-muted"}`}
+                            >
+                              {item.description}
+                            </p>
                           </div>
                         </>
                       )}
@@ -247,7 +289,11 @@ export const AppWorkspace: React.FC<AppWorkspaceProps> = ({ user, onLogout, onUs
               </nav>
 
               <div className="mt-5 rounded-[28px] border border-white/8 bg-black/20 p-4">
-                <Button variant="secondary" onClick={() => void onLogout()} className="w-full justify-center">
+                <Button
+                  variant="secondary"
+                  onClick={() => void onLogout()}
+                  className="w-full justify-center"
+                >
                   <LogOut className="h-4 w-4" />
                   Log Out
                 </Button>
@@ -262,31 +308,58 @@ export const AppWorkspace: React.FC<AppWorkspaceProps> = ({ user, onLogout, onUs
                   <div className="surface-card flex min-h-[360px] items-center justify-center rounded-[32px]">
                     <div className="text-center">
                       <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                      <p className="mt-3 text-sm text-muted">Loading workspace...</p>
+                      <p className="mt-3 text-sm text-muted">
+                        Loading workspace...
+                      </p>
                     </div>
                   </div>
                 }
               >
                 <Routes>
-                  <Route index element={<Navigate to="banner-generator" replace />} />
+                  <Route
+                    index
+                    element={<Navigate to="banner-generator" replace />}
+                  />
                   <Route
                     path="banner-generator"
                     element={
-                      <CopyGenerator draftStorageKey={`social-studio:banner-workspace-draft:${user.id}`} />
+                      <CopyGenerator
+                        draftStorageKey={`social-studio:banner-workspace-draft:${user.id}`}
+                      />
                     }
                   />
                   <Route path="avatar-studio" element={<AvatarStudioPanel />} />
-                  <Route path="image-studio" element={<ImageStudio />} />
+                  <Route
+                    path="image-studio"
+                    element={
+                      <ImageStudio
+                        draftStorageKey={`social-studio:image-studio:${user.id}`}
+                      />
+                    }
+                  />
                   <Route
                     path="video-generator"
-                    element={<VideoGeneratorPanel draftStorageKey={`social-studio:video-generator:${user.id}`} />}
+                    element={
+                      <VideoGeneratorPanel
+                        draftStorageKey={`social-studio:video-generator:${user.id}`}
+                      />
+                    }
                   />
                   <Route path="activities" element={<ActivitiesPanel />} />
                   <Route
                     path="settings"
-                    element={<SettingsPanel user={user} onUserUpdated={onUserUpdated} onReplayTour={handleReplayTour} />}
+                    element={
+                      <SettingsPanel
+                        user={user}
+                        onUserUpdated={onUserUpdated}
+                        onReplayTour={handleReplayTour}
+                      />
+                    }
                   />
-                  <Route path="*" element={<Navigate to="banner-generator" replace />} />
+                  <Route
+                    path="*"
+                    element={<Navigate to="banner-generator" replace />}
+                  />
                 </Routes>
               </Suspense>
             </main>
@@ -304,12 +377,16 @@ export const AppWorkspace: React.FC<AppWorkspaceProps> = ({ user, onLogout, onUs
                 to={item.to}
                 className={({ isActive }) =>
                   `flex min-w-0 flex-col items-center gap-1 rounded-[20px] px-2 py-2.5 text-[11px] font-semibold transition-all ${
-                    isActive ? 'bg-primary/14 text-primary' : 'text-muted hover:bg-white/6 hover:text-white'
+                    isActive
+                      ? "bg-primary/14 text-primary"
+                      : "text-muted hover:bg-white/6 hover:text-white"
                   }`
                 }
               >
                 <Icon className="h-4 w-4" />
-                <span className="truncate">{item.label.replace(' Generator', '').replace(' Studio', '')}</span>
+                <span className="truncate">
+                  {item.label.replace(" Generator", "").replace(" Studio", "")}
+                </span>
               </NavLink>
             );
           })}

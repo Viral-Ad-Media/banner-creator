@@ -1,14 +1,21 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ImagePlus, Sparkles, Trash2, Upload, UserRound, X } from 'lucide-react';
-import { generateImage } from '../../services/geminiService';
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import {
+  ImagePlus,
+  Sparkles,
+  Trash2,
+  Upload,
+  UserRound,
+  X,
+} from "lucide-react";
+import { generateImage } from "../../services/geminiService";
 import {
   AvatarAsset,
   createAvatar,
   deleteAvatar,
   listAvatarLibrary,
   optimizeAvatarImageDataUrl,
-} from '../../services/avatarLibrary';
-import { Button } from '../ui/Button';
+} from "../../services/avatarLibrary";
+import { Button } from "../ui/Button";
 
 const MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024;
 const MAX_AVATARS = 12;
@@ -18,7 +25,7 @@ interface AvatarLibraryPickerProps {
   onSelectedAvatarIdChange: (avatarId: string | null) => void;
   onSelectedAvatarChange: (avatar: AvatarAsset | null) => void;
   title?: string;
-  mode?: 'manage' | 'select';
+  mode?: "manage" | "select";
   emptyStateMessage?: string;
 }
 
@@ -26,22 +33,25 @@ export const AvatarLibraryPicker: React.FC<AvatarLibraryPickerProps> = ({
   selectedAvatarId,
   onSelectedAvatarIdChange,
   onSelectedAvatarChange,
-  title = 'Avatar Library',
-  mode = 'manage',
+  title = "Avatar Library",
+  mode = "manage",
   emptyStateMessage,
 }) => {
   const [avatars, setAvatars] = useState<AvatarAsset[]>([]);
-  const [avatarPrompt, setAvatarPrompt] = useState('');
+  const [avatarPrompt, setAvatarPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [isLoadingLibrary, setIsLoadingLibrary] = useState(true);
-  const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [statusMessage, setStatusMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const isManageMode = mode === 'manage';
+  const isManageMode = mode === "manage";
   const resolvedEmptyStateMessage =
     emptyStateMessage ??
     (isManageMode
-      ? 'Create or upload an avatar to start building reusable characters.'
-      : 'No saved avatars yet. You can keep going without one, or create one in Avatar Studio and come back later.');
+      ? "Create or upload an avatar to start building reusable characters."
+      : "No saved avatars yet. You can keep going without one, or create one in Avatar Studio and come back later.");
 
   useEffect(() => {
     let isCancelled = false;
@@ -58,8 +68,11 @@ export const AvatarLibraryPicker: React.FC<AvatarLibraryPickerProps> = ({
       } catch (error) {
         if (!isCancelled) {
           setStatusMessage({
-            type: 'error',
-            text: error instanceof Error ? error.message : 'Could not load saved avatars right now.',
+            type: "error",
+            text:
+              error instanceof Error
+                ? error.message
+                : "Could not load saved avatars right now.",
           });
         }
       } finally {
@@ -78,7 +91,7 @@ export const AvatarLibraryPicker: React.FC<AvatarLibraryPickerProps> = ({
 
   const selectedAvatar = useMemo(
     () => avatars.find((avatar) => avatar.id === selectedAvatarId) ?? null,
-    [avatars, selectedAvatarId]
+    [avatars, selectedAvatarId],
   );
 
   useEffect(() => {
@@ -93,50 +106,68 @@ export const AvatarLibraryPicker: React.FC<AvatarLibraryPickerProps> = ({
     }
 
     onSelectedAvatarChange(selectedAvatar);
-  }, [isLoadingLibrary, onSelectedAvatarChange, onSelectedAvatarIdChange, selectedAvatar, selectedAvatarId]);
+  }, [
+    isLoadingLibrary,
+    onSelectedAvatarChange,
+    onSelectedAvatarIdChange,
+    selectedAvatar,
+    selectedAvatarId,
+  ]);
 
   const readFileAsDataUrl = (file: File) =>
     new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
       reader.onloadend = () => resolve(reader.result as string);
-      reader.onerror = () => reject(new Error('Could not read the selected image.'));
+      reader.onerror = () =>
+        reject(new Error("Could not read the selected image."));
       reader.readAsDataURL(file);
     });
 
   const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    event.target.value = '';
+    event.target.value = "";
 
     if (!file) {
       return;
     }
 
-    if (!file.type.startsWith('image/')) {
-      setStatusMessage({ type: 'error', text: 'Please choose an image file for the avatar.' });
+    if (!file.type.startsWith("image/")) {
+      setStatusMessage({
+        type: "error",
+        text: "Please choose an image file for the avatar.",
+      });
       return;
     }
 
     if (file.size > MAX_UPLOAD_SIZE_BYTES) {
-      setStatusMessage({ type: 'error', text: 'Avatar image is too large. Use a file under 10MB.' });
+      setStatusMessage({
+        type: "error",
+        text: "Avatar image is too large. Use a file under 10MB.",
+      });
       return;
     }
 
     try {
       const imageDataUrl = await readFileAsDataUrl(file);
-      const optimizedImageDataUrl = await optimizeAvatarImageDataUrl(imageDataUrl);
+      const optimizedImageDataUrl =
+        await optimizeAvatarImageDataUrl(imageDataUrl);
       const avatar = await createAvatar({
-        name: file.name.replace(/\.[^.]+$/, '') || 'Uploaded Avatar',
+        name: file.name.replace(/\.[^.]+$/, "") || "Uploaded Avatar",
         imageDataUrl: optimizedImageDataUrl,
-        source: 'upload',
+        source: "upload",
       });
 
       setAvatars((prev) => [avatar, ...prev].slice(0, MAX_AVATARS));
       onSelectedAvatarIdChange(avatar.id);
-      setStatusMessage({ type: 'success', text: 'Avatar uploaded and selected.' });
+      setStatusMessage({
+        type: "success",
+        text: "Avatar uploaded and selected.",
+      });
     } catch (error) {
       setStatusMessage({
-        type: 'error',
-        text: error instanceof Error ? error.message : 'Could not upload avatar.',
+        type: "error",
+        text:
+          error instanceof Error ? error.message : "Could not upload avatar.",
       });
     }
   };
@@ -144,35 +175,52 @@ export const AvatarLibraryPicker: React.FC<AvatarLibraryPickerProps> = ({
   const handleGenerateAvatar = async () => {
     const trimmedPrompt = avatarPrompt.trim();
     if (trimmedPrompt.length < 3) {
-      setStatusMessage({ type: 'error', text: 'Add a short avatar prompt first.' });
+      setStatusMessage({
+        type: "error",
+        text: "Add a short avatar prompt first.",
+      });
       return;
     }
 
+    if (avatars.length >= MAX_AVATARS) {
+      setStatusMessage({
+        type: "error",
+        text: "Remove an avatar before generating another.",
+      });
+      return;
+    }
     setIsGenerating(true);
     setStatusMessage(null);
 
     try {
       const imageDataUrl = await generateImage(
         `Studio avatar portrait of ${trimmedPrompt}. One clear character, centered composition, clean background, premium lighting, expressive face, no text.`,
-        '1:1'
+        "1:1",
       );
 
-      const optimizedImageDataUrl = await optimizeAvatarImageDataUrl(imageDataUrl);
+      const optimizedImageDataUrl =
+        await optimizeAvatarImageDataUrl(imageDataUrl);
       const avatar = await createAvatar({
         name: trimmedPrompt.slice(0, 40),
         imageDataUrl: optimizedImageDataUrl,
-        source: 'generated',
+        source: "generated",
         prompt: trimmedPrompt,
       });
 
       setAvatars((prev) => [avatar, ...prev].slice(0, MAX_AVATARS));
       onSelectedAvatarIdChange(avatar.id);
-      setAvatarPrompt('');
-      setStatusMessage({ type: 'success', text: 'Avatar created and selected.' });
+      setAvatarPrompt("");
+      setStatusMessage({
+        type: "success",
+        text: "Avatar created and selected.",
+      });
     } catch (error) {
       setStatusMessage({
-        type: 'error',
-        text: error instanceof Error ? error.message : 'Could not create avatar right now.',
+        type: "error",
+        text:
+          error instanceof Error
+            ? error.message
+            : "Could not create avatar right now.",
       });
     } finally {
       setIsGenerating(false);
@@ -189,8 +237,11 @@ export const AvatarLibraryPicker: React.FC<AvatarLibraryPickerProps> = ({
       }
     } catch (error) {
       setStatusMessage({
-        type: 'error',
-        text: error instanceof Error ? error.message : 'Could not remove the avatar right now.',
+        type: "error",
+        text:
+          error instanceof Error
+            ? error.message
+            : "Could not remove the avatar right now.",
       });
     }
   };
@@ -212,23 +263,45 @@ export const AvatarLibraryPicker: React.FC<AvatarLibraryPickerProps> = ({
       {isManageMode && (
         <div className="grid grid-cols-1 gap-3">
           <div className="space-y-2">
-            <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted">Generate avatar</label>
+            <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted">
+              Generate avatar
+            </label>
             <textarea
               value={avatarPrompt}
               onChange={(event) => setAvatarPrompt(event.target.value)}
               placeholder="Stylish female presenter, afro hair, modern streetwear..."
               className="h-24 w-full rounded-2xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none placeholder:text-muted focus:border-primary/40 focus:ring-1 focus:ring-primary"
             />
-            <Button type="button" variant="secondary" onClick={() => void handleGenerateAvatar()} isLoading={isGenerating} className="w-full">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => void handleGenerateAvatar()}
+              isLoading={isGenerating}
+              disabled={avatars.length >= MAX_AVATARS || isLoadingLibrary}
+              className="w-full"
+            >
               <Sparkles className="h-4 w-4" />
               Create Avatar
             </Button>
           </div>
 
           <div className="space-y-2">
-            <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted">Upload avatar</label>
-            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleUpload} className="hidden" />
-            <Button type="button" variant="secondary" onClick={() => fileInputRef.current?.click()} className="w-full">
+            <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted">
+              Upload avatar
+            </label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleUpload}
+              className="hidden"
+            />
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full"
+            >
               <Upload className="h-4 w-4" />
               Upload Image
             </Button>
@@ -238,8 +311,12 @@ export const AvatarLibraryPicker: React.FC<AvatarLibraryPickerProps> = ({
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted">Select avatar</label>
-          <span className="text-[10px] text-muted">{avatars.length}/{MAX_AVATARS} saved</span>
+          <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted">
+            Select avatar
+          </label>
+          <span className="text-[10px] text-muted">
+            {avatars.length}/{MAX_AVATARS} saved
+          </span>
         </div>
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -248,8 +325,8 @@ export const AvatarLibraryPicker: React.FC<AvatarLibraryPickerProps> = ({
             onClick={() => onSelectedAvatarIdChange(null)}
             className={`rounded-2xl border p-3 text-left transition-all ${
               !selectedAvatarId
-                ? 'border-primary bg-primary/10'
-                : 'border-white/10 bg-black/20 hover:border-white/20 hover:bg-white/5'
+                ? "border-primary bg-primary/10"
+                : "border-white/10 bg-black/20 hover:border-white/20 hover:bg-white/5"
             }`}
           >
             <div className="flex aspect-square items-center justify-center rounded-xl bg-white/5">
@@ -263,18 +340,28 @@ export const AvatarLibraryPicker: React.FC<AvatarLibraryPickerProps> = ({
               key={avatar.id}
               className={`group rounded-2xl border p-3 transition-all ${
                 selectedAvatarId === avatar.id
-                  ? 'border-primary bg-primary/10'
-                  : 'border-white/10 bg-black/20 hover:border-white/20 hover:bg-white/5'
+                  ? "border-primary bg-primary/10"
+                  : "border-white/10 bg-black/20 hover:border-white/20 hover:bg-white/5"
               }`}
             >
-              <button type="button" onClick={() => onSelectedAvatarIdChange(avatar.id)} className="w-full text-left">
+              <button
+                type="button"
+                onClick={() => onSelectedAvatarIdChange(avatar.id)}
+                className="w-full text-left"
+              >
                 <div className="relative aspect-square overflow-hidden rounded-xl bg-white/5">
-                  <img src={avatar.imageDataUrl} alt={avatar.name} className="h-full w-full object-cover" />
+                  <img
+                    src={avatar.imageDataUrl}
+                    alt={avatar.name}
+                    className="h-full w-full object-cover"
+                  />
                   <div className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-white">
-                    {avatar.source === 'generated' ? 'AI' : 'Upload'}
+                    {avatar.source === "generated" ? "AI" : "Upload"}
                   </div>
                 </div>
-                <p className="mt-2 line-clamp-1 text-xs font-medium text-white">{avatar.name}</p>
+                <p className="mt-2 line-clamp-1 text-xs font-medium text-white">
+                  {avatar.name}
+                </p>
               </button>
 
               {isManageMode && (
@@ -293,7 +380,9 @@ export const AvatarLibraryPicker: React.FC<AvatarLibraryPickerProps> = ({
           {!isLoadingLibrary && avatars.length === 0 && (
             <div className="col-span-full rounded-2xl border border-dashed border-white/10 bg-black/20 p-4 text-center">
               <ImagePlus className="mx-auto h-5 w-5 text-muted" />
-              <p className="mt-2 text-xs text-muted">{resolvedEmptyStateMessage}</p>
+              <p className="mt-2 text-xs text-muted">
+                {resolvedEmptyStateMessage}
+              </p>
             </div>
           )}
 
@@ -307,12 +396,15 @@ export const AvatarLibraryPicker: React.FC<AvatarLibraryPickerProps> = ({
 
       {selectedAvatar && (
         <div className="rounded-2xl border border-primary/15 bg-primary/5 p-3 text-xs text-white/80">
-          Selected avatar: <span className="font-medium text-white">{selectedAvatar.name}</span>
+          Selected avatar:{" "}
+          <span className="font-medium text-white">{selectedAvatar.name}</span>
         </div>
       )}
 
       {statusMessage && (
-        <p className={`text-xs ${statusMessage.type === 'error' ? 'text-red-300' : 'text-emerald-300'}`}>
+        <p
+          className={`text-xs ${statusMessage.type === "error" ? "text-red-300" : "text-emerald-300"}`}
+        >
           {statusMessage.text}
         </p>
       )}

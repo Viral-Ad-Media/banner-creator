@@ -7,12 +7,14 @@
     "dev": "vite",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "build": "vite build",
-    "check": "npm run typecheck && npm run build && npm run backend:build",
+    "check": "npm run typecheck && npm run test && npm run build",
     "preview": "vite preview",
-    "backend:dev": "npm --prefix ../banner-creator-backend run dev",
-    "backend:typecheck": "npm --prefix ../banner-creator-backend run typecheck",
-    "backend:build": "npm --prefix ../banner-creator-backend run build",
-    "backend:start": "npm --prefix ../banner-creator-backend run start"
+    "backend:dev": "npm --prefix ../banner-creator-api run dev",
+    "backend:typecheck": "npm --prefix ../banner-creator-api run typecheck",
+    "backend:build": "npm --prefix ../banner-creator-api run build",
+    "backend:start": "npm --prefix ../banner-creator-api run start",
+    "check:all": "npm run check && npm --prefix ../banner-creator-api run check",
+    "test": "node --import tsx --test test/*.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.0",
@@ -23,8 +25,13 @@
     "react-router-dom": "^7.9.5"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
+    "fake-indexeddb": "^6.2.5",
+    "postcss": "^8.5.29",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.15",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"
   }
