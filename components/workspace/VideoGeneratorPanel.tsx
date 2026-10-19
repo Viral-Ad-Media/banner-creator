@@ -562,6 +562,8 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
     text: string;
   } | null>(null);
   const [isDraftReady, setIsDraftReady] = useState(false);
+  const [draftRetry, setDraftRetry] = useState(0);
+  const [draftRestoreFailed, setDraftRestoreFailed] = useState(false);
   const pendingDraftSave = useRef<(() => void) | null>(null);
   useEffect(
     () => () => {
@@ -669,6 +671,7 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
 
     let cancelled = false;
     setIsDraftReady(false);
+    setDraftRestoreFailed(false);
     const restore = async () => {
       try {
         const rawDraft = await getDraft(draftStorageKey);
@@ -677,9 +680,7 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
 
         const draft = (rawDraft ?? { version: 2 }) as RestoredVideoWorkspace;
         if (draft.version !== 1 && draft.version !== 2) {
-          await removeDraft(draftStorageKey);
-          setIsDraftReady(true);
-          return;
+          throw new Error("Unsupported saved draft version.");
         }
 
         setWorkflowMode(draft.workflowMode ?? "single");
@@ -766,6 +767,7 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
           /* Local draft still restores when account history is offline. */
         }
 
+        if (cancelled) return;
         setSelectedOperationName(
           draft.selectedOperationName ?? restoredJobs[0]?.operationName ?? null,
         );
@@ -778,16 +780,22 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
         }
       } catch (error) {
         console.error("Failed to restore video workspace", error);
-        await removeDraft(draftStorageKey);
-      } finally {
-        if (!cancelled) setIsDraftReady(true);
+        if (!cancelled) {
+          setDraftRestoreFailed(true);
+          setStatusMessage({
+            type: "error",
+            text: "Draft recovery failed. Stored data was preserved; new edits will not autosave until recovery succeeds.",
+          });
+        }
+        return;
       }
+      if (!cancelled) setIsDraftReady(true);
     };
     void restore();
     return () => {
       cancelled = true;
     };
-  }, [draftStorageKey]);
+  }, [draftStorageKey, draftRetry]);
 
   useEffect(() => {
     if (!isDraftReady || typeof window === "undefined") {
@@ -1906,6 +1914,15 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
               : "Generate Video"}
           </Button>
 
+          {draftRestoreFailed && (
+            <button
+              type="button"
+              className="text-sm text-primary underline"
+              onClick={() => setDraftRetry((n) => n + 1)}
+            >
+              Retry draft recovery
+            </button>
+          )}
           {statusMessage && (
             <p
               className={`text-sm ${statusMessage.type === "error" ? "text-red-300" : "text-emerald-300"}`}

@@ -1,3 +1,4 @@
+import { createAuthSync } from "./services/authSync";
 import React, { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { SiteLayout } from "./components/SiteLayout";
@@ -37,36 +38,26 @@ const App: React.FC = () => {
 
   useEffect(() => {
     let isMounted = true;
-    let syncing = false;
     setAuthError(null);
     setIsAuthLoading(true);
-
-    const syncCurrentUser = async () => {
-      if (syncing) return;
-      syncing = true;
-      try {
-        const currentUser = await getCurrentUser();
-        if (isMounted) {
-          setUser(currentUser);
-        }
-      } catch (error) {
-        if (isMounted)
-          setAuthError(
-            error instanceof Error
-              ? error.message
-              : "Could not load your profile.",
-          );
-      } finally {
-        syncing = false;
-        if (isMounted) {
-          setIsAuthLoading(false);
-        }
-      }
-    };
-
+    const sync = createAuthSync({
+      load: getCurrentUser,
+      success: (currentUser) => {
+        setUser(currentUser);
+        setAuthError(null);
+      },
+      failure: (error) =>
+        setAuthError(
+          error instanceof Error
+            ? error.message
+            : "Could not load your profile.",
+        ),
+      settled: () => setIsAuthLoading(false),
+    });
     const queueUserSync = () => {
+      sync.invalidate();
       window.setTimeout(() => {
-        void syncCurrentUser();
+        void sync.refresh();
       }, 0);
     };
 
@@ -74,6 +65,8 @@ const App: React.FC = () => {
       if (!isMounted) return;
 
       if (event === "SIGNED_OUT") {
+        sync.invalidate();
+        setAuthError(null);
         setUser(null);
         setIsPasswordRecovery(false);
         setIsAuthLoading(false);
@@ -98,6 +91,7 @@ const App: React.FC = () => {
 
     return () => {
       isMounted = false;
+      sync.dispose();
       authListener.subscription.unsubscribe();
     };
   }, [authRetry]);

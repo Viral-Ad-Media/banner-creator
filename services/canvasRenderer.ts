@@ -11,7 +11,7 @@ export const deleteLayers = (elements: CanvasElement[], ids: string[]) =>
   elements.filter((e) => !ids.includes(e.id));
 export const isEditableTarget = (target: EventTarget | null) =>
   target instanceof HTMLElement &&
-  !!target.closest('input,textarea,select,[contenteditable="true"]');
+  (!!target.closest("input,textarea,select") || target.isContentEditable);
 const loadImage = (url: string) =>
   new Promise<HTMLImageElement>((resolve, reject) => {
     const image = new Image();
@@ -89,7 +89,7 @@ export const renderCanvasDocument = async (
       .filter((e) => e.type === "text" || e.type === "cta")
       .map((e) =>
         document.fonts.load(
-          `${e.style.fontWeight ?? "normal"} ${e.style.fontSize ?? 16}px "${e.style.fontFamily ?? "Inter"}"`,
+          `${e.style.fontStyle ?? "normal"} ${e.style.fontWeight ?? "normal"} ${e.style.fontSize ?? 16}px "${e.style.fontFamily ?? "Inter"}"`,
         ),
       ),
   );
@@ -112,11 +112,14 @@ export const renderCanvasDocument = async (
     );
     ctx.restore();
   } else {
+    ctx.save();
+    ctx.globalAlpha = bg.opacity ?? 1;
     ctx.fillStyle =
       bg.type === "gradient"
         ? gradient(ctx, bg.value, 0, 0, dims.width, dims.height)
         : bg.value;
     ctx.fillRect(0, 0, dims.width, dims.height);
+    ctx.restore();
   }
   for (const el of [...elements].sort(
     (a, b) => a.style.zIndex - b.style.zIndex,

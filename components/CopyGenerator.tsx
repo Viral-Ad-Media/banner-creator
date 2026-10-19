@@ -166,6 +166,8 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({
     text: string;
   } | null>(null);
   const [isDraftReady, setIsDraftReady] = useState(false);
+  const [draftRetry, setDraftRetry] = useState(0);
+  const [draftRestoreFailed, setDraftRestoreFailed] = useState(false);
   const pendingDraftSave = useRef<(() => void) | null>(null);
   useEffect(
     () => () => {
@@ -193,6 +195,7 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({
 
     let cancelled = false;
     setIsDraftReady(false);
+    setDraftRestoreFailed(false);
     const restore = async () => {
       try {
         const rawDraft = await getDraft(draftStorageKey);
@@ -204,9 +207,7 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({
 
         const draft = rawDraft as PersistedWorkspaceDraft;
         if (draft.version !== 1) {
-          await removeDraft(draftStorageKey);
-          setIsDraftReady(true);
-          return;
+          throw new Error("Unsupported saved draft version.");
         }
 
         setUserPrompt(draft.userPrompt ?? "");
@@ -239,16 +240,22 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({
         }
       } catch (error) {
         console.error("Failed to restore banner workspace draft", error);
-        await removeDraft(draftStorageKey);
-      } finally {
-        if (!cancelled) setIsDraftReady(true);
+        if (!cancelled) {
+          setDraftRestoreFailed(true);
+          setStatusMessage({
+            type: "error",
+            text: "Draft recovery failed. Stored data was preserved; new edits will not autosave until recovery succeeds.",
+          });
+        }
+        return;
       }
+      if (!cancelled) setIsDraftReady(true);
     };
     void restore();
     return () => {
       cancelled = true;
     };
-  }, [draftStorageKey]);
+  }, [draftStorageKey, draftRetry]);
 
   useEffect(() => {
     if (!isDraftReady || typeof window === "undefined") {
@@ -1025,6 +1032,15 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({
               </Button>
             </div>
 
+            {draftRestoreFailed && (
+              <button
+                type="button"
+                className="text-sm text-primary underline"
+                onClick={() => setDraftRetry((n) => n + 1)}
+              >
+                Retry draft recovery
+              </button>
+            )}
             {statusMessage && (
               <p
                 className={`text-xs ${statusMessage.type === "error" ? "text-red-400" : "text-green-400"}`}

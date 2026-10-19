@@ -106,7 +106,9 @@ export const getCurrentUser = async (): Promise<AuthUser | null> => {
     return await fetchCurrentProfile();
   } catch (error) {
     if (error instanceof HttpError && error.status === 401) {
-      await supabase.auth.signOut();
+      const latest = await supabase.auth.getSession();
+      if (latest.data.session?.access_token === data.session.access_token)
+        await supabase.auth.signOut();
       return null;
     }
     throw error;

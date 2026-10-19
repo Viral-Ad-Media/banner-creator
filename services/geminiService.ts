@@ -1,5 +1,5 @@
 import { generationPost } from "./generationRequest";
-import { apiFetch } from "./apiClient";
+import { optimizeAvatarImageDataUrl } from "./avatarLibrary";
 
 export type AspectRatio = "1:1" | "16:9" | "9:16" | "3:4" | "4:5";
 export type TextGenerationProvider = "gemini" | "openrouter";
@@ -64,7 +64,9 @@ export const generateImage = async (
   const response = await generationPost<ImageResponse>("/generations/image", {
     prompt,
     aspectRatio,
-    referenceImages,
+    referenceImages: await Promise.all(
+      referenceImages.slice(0, 2).map(optimizeAvatarImageDataUrl),
+    ),
     projectId,
   });
 
@@ -76,7 +78,7 @@ export const editImageWithGemini = async (
   prompt: string,
 ): Promise<string> => {
   const response = await generationPost<ImageResponse>("/generations/edit", {
-    base64Image,
+    base64Image: await optimizeAvatarImageDataUrl(base64Image),
     prompt,
   });
 

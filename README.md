@@ -50,7 +50,7 @@ CI runs `npm ci`, checks, and a dependency audit. Regression tests cover shared 
 - **Projects:** use Save/Load in the banner workspace to persist an editable project to your account. Saving is explicit; load restores campaign settings, backgrounds, and layers. New generations can reference the selected project. The API enforces owner access and project quotas.
 - **Activity:** browse paginated generation history and open stored plan/image results or recover a video. Account output recovery survives clearing local drafts; provider video retention still applies. A recovered background is not a replacement for explicitly saving an editable project.
 - **Drafts:** banner, image, and video workspaces save account-scoped drafts asynchronously in IndexedDB. Images are deduplicated within each draft. Existing localStorage drafts migrate only after a successful save. Storage failures display an error. Browser drafts stay on that device; project saves and generation history are server-backed. Closing the browser before a debounce/transaction completes can lose the latest edit.
-- **Images/avatars:** uploads are resized/compressed before dispatch. PNG/JPEG/WebP inputs must fit the API's 1,000,000-character data URL limit; the optimized upload target is approximately 700 KB. The avatar library supports up to 12 entries per account.
+- **Images/avatars:** uploads are resized/compressed before dispatch. PNG/JPEG/WebP inputs must fit the API's 1,000,000-character data URL limit; the optimized upload target is 350 KB. The avatar library supports up to 12 entries per account.
 - **Video:** generate clips and poll by server-issued `generationId`. Recent account video jobs recover when reopening the workspace. Legacy browser jobs with only a provider operation name are not trusted; recover through Activity. Gemini image-to-video uses 8 seconds. Pending video work reserves credits until the provider confirms success/failure.
 - **Reels:** export one completed render per current scene, in storyboard order. Audio is mixed through Web Audio into the recorded output. All scenes must be complete and at least two are required. Export is recorded in real time and requires `MediaRecorder`, canvas capture, and Web Audio support. Output is WebM or MP4 according to browser support; silent provider clips remain silent. Keep the tab active during export.
 
@@ -114,3 +114,13 @@ For request schemas, credit lifecycle, shared limits, and operator procedures, u
 - **429/503:** wait and retry; shared rate limiting fails closed if its database is unavailable.
 - **Draft storage error:** free browser storage and retry; use explicit project saves for account recovery.
 - **Reel export error:** use a browser supporting the required recording APIs and verify every current scene has a completed render.
+
+## Follow-up review fixes (October 6, 2026)
+
+Session refreshes now ignore stale profile responses after sign-out/account changes and process the latest queued refresh. Temporary authentication-service failures retain the browser session. A failed request-key cleanup cannot discard a successful paid output; late completion clears only its own key, never a newer attempt's key.
+
+Draft restoration failures preserve the saved record and pause autosaving. Use **Retry draft recovery** before continuing edits that need local persistence. Unsupported draft versions are preserved for recovery rather than deleted. Image Studio uses the same debounced/unmount save behavior as the other workspaces. Image edits and reference inputs are compressed before dispatch; generation uses at most two reference images in their supplied order. The optimizer targets 350 KB, within the API's encoded limit.
+
+Canvas exports load the selected italic font and apply color/gradient background opacity; form shortcuts also recognize inherited contenteditable fields. Regression tests now cover session races, request cleanup failures, late request keys, and export opacity/font handling. Browser media encoding and actual provider/database rollout checks remain the staging requirements described above.
+
+See [AUDIT.md](AUDIT.md) for the original 25 findings, their resolutions, follow-up defects, and validation boundaries.
