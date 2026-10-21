@@ -1,31 +1,35 @@
 import React from 'react';
 
+const contacts = [
+  { team: 'Sales', note: 'Plans, credits and team seats.', email: 'sales@socialstudio.app' },
+  { team: 'Support', note: 'Account, billing and anything that broke.', email: 'support@socialstudio.app' },
+  { team: 'Enterprise', note: 'High-volume production and onboarding.', email: 'enterprise@socialstudio.app' },
+];
+
 export const ContactPage: React.FC = () => {
   return (
-    <div className="mx-auto max-w-5xl px-4 pb-20 pt-12 sm:px-6 lg:px-8 lg:pb-24 lg:pt-16">
-      <div className="surface-card rounded-[34px] p-8 sm:p-10">
-        <span className="section-kicker">Contact</span>
-        <h1 className="mt-6 text-5xl font-semibold text-white">Questions, onboarding, or enterprise planning?</h1>
-        <p className="mt-4 text-lg leading-8 text-[#c2d2df]">
-          Reach out for workspace onboarding, plan guidance, implementation questions, or help setting up campaign, avatar,
-          and video workflows.
-        </p>
+    <div className="mx-auto max-w-3xl px-4 pt-16 sm:px-6 sm:pt-24 lg:px-8">
+      <h1 className="text-4xl font-semibold tracking-[-0.03em] text-foreground sm:text-5xl">Talk to the team</h1>
+      <p className="mt-4 text-lg leading-relaxed text-foreground">
+        Write to the address that fits and a person replies, usually within one working day.
+      </p>
 
-        <div className="mt-10 grid gap-5 sm:grid-cols-3">
-          <div className="rounded-[28px] border border-white/10 bg-black/20 p-6">
-            <h2 className="text-lg font-semibold text-white">Sales</h2>
-            <p className="mt-2 text-sm text-muted">sales@socialstudio.app</p>
+      <dl className="mt-12 divide-y divide-border border-y border-border">
+        {contacts.map((contact) => (
+          <div key={contact.team} className="grid gap-1 py-6 sm:grid-cols-[180px_1fr_auto] sm:items-baseline sm:gap-6">
+            <dt className="text-lg font-semibold text-foreground">{contact.team}</dt>
+            <dd className="text-base text-muted-foreground">{contact.note}</dd>
+            <dd>
+              <a
+                href={`mailto:${contact.email}`}
+                className="text-base text-foreground underline decoration-border underline-offset-4 transition-colors duration-150 hover:decoration-foreground"
+              >
+                {contact.email}
+              </a>
+            </dd>
           </div>
-          <div className="rounded-[28px] border border-white/10 bg-black/20 p-6">
-            <h2 className="text-lg font-semibold text-white">Support</h2>
-            <p className="mt-2 text-sm text-muted">support@socialstudio.app</p>
-          </div>
-          <div className="rounded-[28px] border border-white/10 bg-black/20 p-6">
-            <h2 className="text-lg font-semibold text-white">Enterprise</h2>
-            <p className="mt-2 text-sm text-muted">enterprise@socialstudio.app</p>
-          </div>
-        </div>
-      </div>
+        ))}
+      </dl>
     </div>
   );
 };

@@ -3,6 +3,7 @@ import { apiFetch } from "./apiClient";
 
 export interface UsageSummary {
   usedCredits: number;
+  reservedCredits?: number;
   remainingCredits: number;
   limit: number;
 }

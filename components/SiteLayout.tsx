@@ -1,7 +1,17 @@
-import React from 'react';
-import { Link, NavLink } from 'react-router-dom';
-import { ArrowUpRight, Sparkles } from 'lucide-react';
-import type { AuthUser } from '../services/authService';
+import React, { useEffect, useState } from "react";
+import { Link, NavLink, useLocation } from "react-router-dom";
+import { ArrowRight, Menu } from "lucide-react";
+import type { AuthUser } from "../services/authService";
+import { cn } from "@/lib/utils";
+import { Button } from "./ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetTitle,
+  SheetTrigger,
+} from "./ui/sheet";
+import { Wordmark } from "./BrandMark";
 
 interface SiteLayoutProps {
   user: AuthUser | null;
@@ -9,105 +19,156 @@ interface SiteLayoutProps {
 }
 
 const navItems = [
-  { label: 'Features', to: '/features' },
-  { label: 'Pricing', to: '/pricing' },
-  { label: 'About', to: '/about' },
-  { label: 'Contact', to: '/contact' },
+  { label: "Features", to: "/features" },
+  { label: "Pricing", to: "/pricing" },
+  { label: "About", to: "/about" },
+  { label: "Contact", to: "/contact" },
 ];
 
+const navLinkClass = ({ isActive }: { isActive: boolean }) =>
+  cn(
+    "text-sm transition-colors duration-150",
+    isActive ? "text-foreground" : "text-muted-foreground hover:text-foreground",
+  );
+
 export const SiteLayout: React.FC<SiteLayoutProps> = ({ user, children }) => {
+  const location = useLocation();
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => setMenuOpen(false), [location.pathname]);
+
   return (
-    <div className="min-h-screen font-sans">
-      <header className="sticky top-0 z-50 px-4 pb-2 pt-4 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-7xl">
-          <div className="surface-card-strong flex items-center justify-between rounded-[30px] px-4 py-3 sm:px-5">
-            <Link to="/" className="inline-flex items-center gap-3">
-              <span className="relative flex h-11 w-11 items-center justify-center rounded-[18px] bg-[linear-gradient(135deg,#83efe0_0%,#48d9c8_42%,#168d87_100%)] text-[#04161a] shadow-[0_16px_32px_-18px_rgba(64,214,195,0.9)]">
-                <Sparkles className="h-5 w-5" />
-              </span>
-              <span className="min-w-0">
-                <span className="block text-[11px] font-semibold uppercase tracking-[0.34em] text-primary/90">Creative OS</span>
-                <span className="block text-lg font-semibold tracking-tight text-white">
-                  Social <span className="font-serif italic text-[#ffd8ad]">Studio</span>
-                </span>
-              </span>
-            </Link>
+    <div className="flex min-h-screen flex-col">
+      <header className="sticky top-0 z-40 border-b border-border/60 bg-background">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-6 px-4 sm:px-6 lg:px-8">
+          <Link to="/" aria-label="Social Studio home">
+            <Wordmark />
+          </Link>
 
-            <nav className="hidden items-center gap-2 lg:flex">
-              {navItems.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  className={({ isActive }) =>
-                    `rounded-full px-4 py-2 text-sm transition-all ${
-                      isActive
-                        ? 'bg-white/10 text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]'
-                        : 'text-muted hover:bg-white/6 hover:text-white'
-                    }`
-                  }
-                >
-                  {item.label}
-                </NavLink>
-              ))}
-            </nav>
+          <nav aria-label="Main" className="hidden items-center gap-8 md:flex">
+            {navItems.map((item) => (
+              <NavLink key={item.to} to={item.to} className={navLinkClass}>
+                {item.label}
+              </NavLink>
+            ))}
+          </nav>
 
-            <div className="flex items-center gap-2">
-              {user ? (
-                <Link
-                  to="/app"
-                  className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary transition-all hover:bg-primary/16 hover:text-white"
+          <div className="flex items-center gap-2">
+            {user ? (
+              <Button asChild size="sm">
+                <Link to="/app">Open workspace</Link>
+              </Button>
+            ) : (
+              <>
+                <Button
+                  asChild
+                  variant="ghost"
+                  size="sm"
+                  className="hidden sm:inline-flex"
                 >
-                  Open App
-                  <ArrowUpRight className="h-4 w-4" />
-                </Link>
-              ) : (
-                <>
-                  <Link
-                    to="/auth"
-                    className="hidden rounded-full border border-white/12 px-4 py-2 text-sm text-muted transition-all hover:border-white/20 hover:bg-white/6 hover:text-white sm:inline-flex"
-                  >
-                    Login
-                  </Link>
-                  <Link
-                    to="/auth?mode=register"
-                    className="inline-flex items-center gap-2 rounded-full bg-[linear-gradient(135deg,#83efe0_0%,#48d9c8_42%,#168d87_100%)] px-4 py-2 text-sm font-semibold text-[#04161a] shadow-[0_18px_32px_-18px_rgba(64,214,195,0.85)] transition-transform hover:-translate-y-0.5"
-                  >
-                    Start Free
-                    <ArrowUpRight className="h-4 w-4" />
-                  </Link>
-                </>
-              )}
-            </div>
+                  <Link to="/auth">Log in</Link>
+                </Button>
+                <Button asChild size="sm">
+                  <Link to="/auth?mode=register">Start free</Link>
+                </Button>
+              </>
+            )}
+
+            <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+              <SheetTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="md:hidden"
+                  aria-label="Open menu"
+                >
+                  <Menu />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-full max-w-xs p-6">
+                <SheetTitle className="sr-only">Menu</SheetTitle>
+                <SheetDescription className="sr-only">
+                  Site navigation
+                </SheetDescription>
+                <Wordmark />
+                <nav aria-label="Mobile" className="mt-8 flex flex-col">
+                  {navItems.map((item) => (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      className={({ isActive }) =>
+                        cn(
+                          "flex h-12 items-center text-lg",
+                          isActive ? "text-foreground" : "text-muted-foreground",
+                        )
+                      }
+                    >
+                      {item.label}
+                    </NavLink>
+                  ))}
+                </nav>
+                <div className="mt-auto flex flex-col gap-2">
+                  {user ? (
+                    <Button asChild size="lg">
+                      <Link to="/app">Open workspace</Link>
+                    </Button>
+                  ) : (
+                    <>
+                      <Button asChild size="lg">
+                        <Link to="/auth?mode=register">Start free</Link>
+                      </Button>
+                      <Button asChild size="lg" variant="outline">
+                        <Link to="/auth">Log in</Link>
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </SheetContent>
+            </Sheet>
           </div>
         </div>
       </header>
 
-      <main className="relative">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-[420px] bg-[radial-gradient(circle_at_top,rgba(64,214,195,0.16),transparent_58%)]" />
-        {children}
-      </main>
+      <main className="flex-1">{children}</main>
 
-      <footer className="mt-24 px-4 pb-8 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-7xl">
-          <div className="surface-card rounded-[32px] px-6 py-8 sm:px-8">
-            <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-primary/90">Social Studio</p>
-                <p className="mt-2 max-w-xl text-sm leading-6 text-muted">
-                  Campaign planning, image generation, editing, and motion workflows in one focused creative workspace.
-                </p>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-4 text-sm">
-                <Link to="/privacy" className="text-muted transition-colors hover:text-white">
-                  Privacy
+      <footer className="mt-32 border-t border-border/60">
+        <div className="mx-auto max-w-7xl px-4 pt-16 pb-10 sm:px-6 lg:px-8">
+          <div className="flex flex-col gap-10 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-xl">
+              <p className="text-3xl font-semibold leading-tight text-foreground sm:text-4xl">
+                Write the brief once.
+              </p>
+              <p className="mt-3 text-base text-muted-foreground">
+                Copy, banners in every format, edits and short video from the
+                same workspace.
+              </p>
+              <Button asChild size="lg" className="mt-6">
+                <Link to={user ? "/app" : "/auth?mode=register"}>
+                  {user ? "Open workspace" : "Start free"}
+                  <ArrowRight />
                 </Link>
-                <Link to="/terms" className="text-muted transition-colors hover:text-white">
-                  Terms
-                </Link>
-                <span className="text-muted/80">© {new Date().getFullYear()} Social Studio</span>
-              </div>
+              </Button>
             </div>
+            <nav
+              aria-label="Footer"
+              className="flex flex-wrap gap-x-6 gap-y-3 text-sm"
+            >
+              {[...navItems, { label: "Privacy", to: "/privacy" }, { label: "Terms", to: "/terms" }].map(
+                (item) => (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    className="text-muted-foreground transition-colors duration-150 hover:text-foreground"
+                  >
+                    {item.label}
+                  </Link>
+                ),
+              )}
+            </nav>
+          </div>
+          <div className="mt-16 flex flex-col gap-2 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+            <Wordmark />
+            <span>© {new Date().getFullYear()} Social Studio</span>
           </div>
         </div>
       </footer>

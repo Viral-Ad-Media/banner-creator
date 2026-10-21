@@ -1,7 +1,20 @@
 import React, { useEffect, useState } from "react";
 import { apiFetch } from "../../services/apiClient";
 import { packDraft, unpackDraft } from "../../services/draftStore";
-import { Button } from "../ui/Button";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Label } from "../ui/label";
+import { NativeSelect, NativeSelectOption } from "../ui/native-select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../ui/alert-dialog";
 export const ProjectToolbar: React.FC<{
   draft: unknown;
   onLoad: (draft: any) => void;
@@ -12,6 +25,7 @@ export const ProjectToolbar: React.FC<{
   const [name, setName] = useState("My campaign");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const refresh = async () => {
     const all: any[] = [];
     for (let offset = 0; ; offset += 50) {
@@ -75,13 +89,7 @@ export const ProjectToolbar: React.FC<{
     }
   };
   const remove = async () => {
-    if (
-      !id ||
-      !window.confirm(
-        "Delete this saved project? Your current draft remains available.",
-      )
-    )
-      return;
+    if (!id) return;
     setBusy(true);
     try {
       await apiFetch(`/projects/${id}`, { method: "DELETE" });
@@ -96,56 +104,75 @@ export const ProjectToolbar: React.FC<{
     }
   };
   return (
-    <section className="surface-card rounded-2xl p-4 space-y-3">
-      <label className="block text-xs text-muted">
-        Saved projects
-        <select
-          className="block mt-2 w-full rounded bg-secondary p-2 text-white"
+    <section className="space-y-3 rounded-xl border border-border bg-card p-4">
+      <div className="grid gap-2">
+        <Label htmlFor="project-select">Project</Label>
+        <NativeSelect
+          id="project-select"
+          className="w-full"
           value={id}
           onChange={(e) => void load(e.target.value)}
           disabled={busy}
         >
-          <option value="">New project</option>
+          <NativeSelectOption value="">New project</NativeSelectOption>
           {projects.map((p) => (
-            <option key={p.id} value={p.id}>
+            <NativeSelectOption key={p.id} value={p.id}>
               {p.name}
-            </option>
+            </NativeSelectOption>
           ))}
-        </select>
-      </label>
-      <input
-        aria-label="Project name"
-        value={name}
-        maxLength={120}
-        onChange={(e) => setName(e.target.value)}
-        className="w-full bg-secondary rounded p-2 text-white"
-      />
+        </NativeSelect>
+      </div>
       <div className="flex gap-2">
+        <Input
+          aria-label="Project name"
+          value={name}
+          maxLength={120}
+          onChange={(e) => setName(e.target.value)}
+        />
         <Button
           type="button"
+          variant="secondary"
           onClick={() => void save()}
           disabled={busy || !name.trim()}
-          size="sm"
         >
-          Save project
+          Save
         </Button>
         {id && (
           <Button
             type="button"
             variant="ghost"
-            onClick={() => void remove()}
+            onClick={() => setConfirmDelete(true)}
             disabled={busy}
-            size="sm"
           >
             Delete
           </Button>
         )}
       </div>
       {message && (
-        <p role="status" className="text-xs text-muted">
+        <p role="status" className="text-xs text-muted-foreground">
           {message}
         </p>
       )}
+      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete "{name}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The saved copy in your account is removed. The draft open on this
+              screen stays.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep it</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-white hover:bg-destructive/90"
+              onClick={() => void remove()}
+            >
+              Delete project
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 };

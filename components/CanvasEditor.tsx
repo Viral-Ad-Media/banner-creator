@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import {
   getCanvasDimensions,
   renderCanvasDocument,
@@ -78,8 +79,9 @@ import {
   Eye,
   ArrowRight,
 } from "lucide-react";
-import { Button } from "./ui/Button";
-import { Tooltip } from "./ui/Tooltip";
+import { Button } from "./ui/button";
+import { Hint } from "./ui/hint";
+import { BrandMark } from "./BrandMark";
 import { generateImage, editImageWithGemini } from "../services/geminiService";
 
 // --- Types ---
@@ -703,7 +705,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
       setGenPrompt("");
     } catch (error) {
       console.error("Failed to generate bg", error);
-      alert("Failed to generate background. Please try a different prompt.");
+      toast.error("Failed to generate background. Please try a different prompt.");
     } finally {
       setIsGenerating(false);
     }
@@ -748,7 +750,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
       setEditPrompt("");
     } catch (e) {
       console.error(e);
-      alert("Magic Edit failed. Try again.");
+      toast.error("Magic Edit failed. Try again.");
     } finally {
       setIsGenerating(false);
     }
@@ -982,7 +984,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-[100] bg-[#0e0e0e] flex flex-row overflow-hidden font-sans text-white"
+      className="fixed inset-0 z-[100] bg-background flex flex-row overflow-hidden font-sans text-foreground"
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
@@ -992,14 +994,14 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
       }}
     >
       {/* 1. Left Sidebar (Navigation) */}
-      <div className="w-[72px] bg-[#18181b] border-r border-white/5 flex flex-col items-center py-4 gap-6 shrink-0 z-50">
+      <div className="w-[72px] bg-card border-r border-border flex flex-col items-center py-4 gap-6 shrink-0 z-50">
         <button
+          type="button"
           onClick={onClose}
-          className="p-2 mb-2 hover:bg-white/10 rounded-lg transition-colors"
+          aria-label="Close editor"
+          className="p-2 mb-2 hover:bg-accent rounded-lg transition-colors"
         >
-          <div className="w-8 h-8 rounded bg-[linear-gradient(135deg,#83efe0_0%,#48d9c8_42%,#168d87_100%)] flex items-center justify-center font-bold text-[#04161a]">
-            S
-          </div>
+          <BrandMark className="size-7" />
         </button>
 
         {[
@@ -1017,7 +1019,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                 activeSidebar === item.id ? null : (item.id as any),
               )
             }
-            className={`flex flex-col items-center gap-1.5 w-full py-2 transition-all border-l-2 ${activeSidebar === item.id ? "text-white border-primary bg-white/5" : "text-muted hover:text-white border-transparent"}`}
+            className={`flex flex-col items-center gap-1.5 w-full py-2 transition-colors border-l-2 ${activeSidebar === item.id ? "text-foreground border-brand bg-secondary" : "text-muted-foreground hover:text-foreground border-transparent"}`}
           >
             <item.icon className="w-5 h-5" />
             <span className="text-[10px] font-medium">{item.label}</span>
@@ -1027,9 +1029,9 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
 
       {/* 2. Slide-out Drawer */}
       <div
-        className={`bg-[#18181b] border-r border-white/5 w-[320px] shrink-0 transition-all duration-300 ease-in-out flex flex-col overflow-hidden relative z-40 ${activeSidebar ? "translate-x-0" : "-translate-x-[320px] -mr-[320px]"}`}
+        className={`bg-card border-r border-border w-[320px] shrink-0 transition-colors duration-300 ease-in-out flex flex-col overflow-hidden relative z-40 ${activeSidebar ? "translate-x-0" : "-translate-x-[320px] -mr-[320px]"}`}
       >
-        <div className="p-4 border-b border-white/5">
+        <div className="p-4 border-b border-border">
           <h3 className="font-bold text-lg capitalize">
             {activeSidebar === "layers" ? "Position" : activeSidebar}
           </h3>
@@ -1039,8 +1041,8 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
           {/* Text Panel */}
           {activeSidebar === "text" && (
             <div className="space-y-4">
-              <div className="bg-[#27272a] rounded-lg p-2 flex items-center gap-2 border border-white/5">
-                <Search className="w-4 h-4 text-muted" />
+              <div className="bg-secondary rounded-lg p-2 flex items-center gap-2 border border-border">
+                <Search className="w-4 h-4 text-muted-foreground" />
                 <input
                   type="text"
                   placeholder="Search fonts"
@@ -1049,49 +1051,49 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
               </div>
               <button
                 onClick={() => addElement("text", "heading")}
-                className="w-full h-14 bg-[#27272a] hover:bg-[#3f3f46] rounded-lg border border-white/5 flex items-center px-4 font-bold text-2xl transition-colors text-left"
+                className="w-full h-14 bg-secondary hover:bg-accent rounded-lg border border-border flex items-center px-4 font-bold text-2xl transition-colors text-left"
               >
                 Add a heading
               </button>
               <button
                 onClick={() => addElement("text", "subheading")}
-                className="w-full h-12 bg-[#27272a] hover:bg-[#3f3f46] rounded-lg border border-white/5 flex items-center px-4 font-medium text-lg transition-colors text-left"
+                className="w-full h-12 bg-secondary hover:bg-accent rounded-lg border border-border flex items-center px-4 font-medium text-lg transition-colors text-left"
               >
                 Add a subheading
               </button>
               <button
                 onClick={() => addElement("text", "body")}
-                className="w-full h-10 bg-[#27272a] hover:bg-[#3f3f46] rounded-lg border border-white/5 flex items-center px-4 text-sm transition-colors text-left"
+                className="w-full h-10 bg-secondary hover:bg-accent rounded-lg border border-border flex items-center px-4 text-sm transition-colors text-left"
               >
                 Add a little bit of body text
               </button>
 
-              <div className="pt-4 border-t border-white/5 mt-4">
-                <h4 className="text-xs font-bold text-muted uppercase tracking-wider mb-3">
+              <div className="pt-4 border-t border-border mt-4">
+                <h4 className="text-xs font-bold text-muted-foreground mb-3">
                   Call to Action Buttons
                 </h4>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => addElement("cta", "Shop Now")}
-                    className="h-10 bg-primary/20 hover:bg-primary/30 border border-primary/50 rounded-lg font-bold text-white text-xs transition-colors"
+                    className="pressable h-10 bg-secondary hover:bg-accent border border-border rounded-lg font-semibold text-foreground text-xs"
                   >
                     Shop Now
                   </button>
                   <button
                     onClick={() => addElement("cta", "Learn More")}
-                    className="h-10 bg-primary/20 hover:bg-primary/30 border border-primary/50 rounded-lg font-bold text-white text-xs transition-colors"
+                    className="pressable h-10 bg-secondary hover:bg-accent border border-border rounded-lg font-semibold text-foreground text-xs"
                   >
                     Learn More
                   </button>
                   <button
                     onClick={() => addElement("cta", "Sign Up")}
-                    className="h-10 bg-primary/20 hover:bg-primary/30 border border-primary/50 rounded-lg font-bold text-white text-xs transition-colors"
+                    className="pressable h-10 bg-secondary hover:bg-accent border border-border rounded-lg font-semibold text-foreground text-xs"
                   >
                     Sign Up
                   </button>
                   <button
                     onClick={() => addElement("cta", "Click Here")}
-                    className="h-10 bg-primary/20 hover:bg-primary/30 border border-primary/50 rounded-lg font-bold text-white text-xs transition-colors"
+                    className="pressable h-10 bg-secondary hover:bg-accent border border-border rounded-lg font-semibold text-foreground text-xs"
                   >
                     Click Here
                   </button>
@@ -1104,31 +1106,31 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
           {activeSidebar === "elements" && (
             <div className="space-y-6">
               <div>
-                <h4 className="text-sm font-semibold mb-3 text-muted">
+                <h4 className="text-sm font-semibold mb-3 text-muted-foreground">
                   Shapes
                 </h4>
                 <div className="grid grid-cols-4 gap-3">
                   <button
                     onClick={() => addElement("shape", "square")}
-                    className="aspect-square bg-[#27272a] rounded hover:bg-[#3f3f46] flex items-center justify-center"
+                    className="aspect-square bg-secondary rounded hover:bg-accent flex items-center justify-center"
                   >
                     <div className="w-8 h-8 bg-zinc-400"></div>
                   </button>
                   <button
                     onClick={() => addElement("shape", "circle")}
-                    className="aspect-square bg-[#27272a] rounded hover:bg-[#3f3f46] flex items-center justify-center"
+                    className="aspect-square bg-secondary rounded hover:bg-accent flex items-center justify-center"
                   >
                     <div className="w-8 h-8 bg-zinc-400 rounded-full"></div>
                   </button>
                   <button
                     onClick={() => addElement("shape", "rounded")}
-                    className="aspect-square bg-[#27272a] rounded hover:bg-[#3f3f46] flex items-center justify-center"
+                    className="aspect-square bg-secondary rounded hover:bg-accent flex items-center justify-center"
                   >
                     <div className="w-8 h-8 bg-zinc-400 rounded-lg"></div>
                   </button>
                   <button
                     onClick={() => addElement("shape", "square")}
-                    className="aspect-square bg-[#27272a] rounded hover:bg-[#3f3f46] flex items-center justify-center"
+                    className="aspect-square bg-secondary rounded hover:bg-accent flex items-center justify-center"
                   >
                     <div className="w-8 h-8 border-2 border-zinc-400"></div>
                   </button>
@@ -1142,7 +1144,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
             <div className="space-y-4">
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full py-3 bg-[#27272a] hover:bg-[#3f3f46] rounded-lg border border-white/5 font-medium transition-colors"
+                className="w-full py-3 bg-secondary hover:bg-accent rounded-lg border border-border font-medium transition-colors"
               >
                 Upload files
               </button>
@@ -1153,7 +1155,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                 className="hidden"
                 accept="image/*"
               />
-              <div className="text-center text-muted text-xs mt-4">
+              <div className="text-center text-muted-foreground text-xs mt-4">
                 Images you upload will appear here.
               </div>
             </div>
@@ -1163,16 +1165,16 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
           {activeSidebar === "layers" && (
             <div className="flex flex-col h-full">
               {/* Tabs */}
-              <div className="flex p-1 bg-[#27272a] rounded-lg mb-6">
+              <div className="flex p-1 bg-secondary rounded-lg mb-6">
                 <button
                   onClick={() => setActiveLayerTab("arrange")}
-                  className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${activeLayerTab === "arrange" ? "bg-surface text-white shadow-sm" : "text-muted hover:text-white"}`}
+                  className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors ${activeLayerTab === "arrange" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
                 >
                   Arrange
                 </button>
                 <button
                   onClick={() => setActiveLayerTab("layers")}
-                  className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${activeLayerTab === "layers" ? "bg-surface text-white shadow-sm" : "text-muted hover:text-white"}`}
+                  className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors ${activeLayerTab === "layers" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
                 >
                   Layers
                 </button>
@@ -1183,14 +1185,14 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                 <div className="space-y-6">
                   {/* Layer Order */}
                   <div className="space-y-2">
-                    <label className="text-xs text-muted uppercase font-bold tracking-wider">
+                    <label className="text-xs text-muted-foreground font-bold">
                       Layer Order
                     </label>
                     <div className="grid grid-cols-4 gap-2">
                       <button
                         onClick={() => changeZIndex("forward")}
                         disabled={!activeElement}
-                        className="flex flex-col items-center justify-center p-2 rounded bg-[#27272a] hover:bg-[#3f3f46] disabled:opacity-50"
+                        className="flex flex-col items-center justify-center p-2 rounded bg-secondary hover:bg-accent disabled:opacity-50"
                       >
                         <ChevronsUp className="w-4 h-4 mb-1" />
                         <span className="text-[10px]">Forward</span>
@@ -1198,7 +1200,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                       <button
                         onClick={() => changeZIndex("backward")}
                         disabled={!activeElement}
-                        className="flex flex-col items-center justify-center p-2 rounded bg-[#27272a] hover:bg-[#3f3f46] disabled:opacity-50"
+                        className="flex flex-col items-center justify-center p-2 rounded bg-secondary hover:bg-accent disabled:opacity-50"
                       >
                         <ChevronsDown className="w-4 h-4 mb-1" />
                         <span className="text-[10px]">Back</span>
@@ -1206,7 +1208,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                       <button
                         onClick={() => changeZIndex("front")}
                         disabled={!activeElement}
-                        className="flex flex-col items-center justify-center p-2 rounded bg-[#27272a] hover:bg-[#3f3f46] disabled:opacity-50"
+                        className="flex flex-col items-center justify-center p-2 rounded bg-secondary hover:bg-accent disabled:opacity-50"
                       >
                         <BringToFront className="w-4 h-4 mb-1" />
                         <span className="text-[10px]">Front</span>
@@ -1214,7 +1216,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                       <button
                         onClick={() => changeZIndex("back")}
                         disabled={!activeElement}
-                        className="flex flex-col items-center justify-center p-2 rounded bg-[#27272a] hover:bg-[#3f3f46] disabled:opacity-50"
+                        className="flex flex-col items-center justify-center p-2 rounded bg-secondary hover:bg-accent disabled:opacity-50"
                       >
                         <SendToBack className="w-4 h-4 mb-1" />
                         <span className="text-[10px]">Back</span>
@@ -1224,49 +1226,49 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
 
                   {/* Align Page */}
                   <div className="space-y-2">
-                    <label className="text-xs text-muted uppercase font-bold tracking-wider">
+                    <label className="text-xs text-muted-foreground font-bold">
                       Align to page
                     </label>
                     <div className="grid grid-cols-3 gap-2">
                       <button
                         onClick={() => alignToPage("left")}
                         disabled={!activeElement}
-                        className="p-2 rounded bg-[#27272a] hover:bg-[#3f3f46] disabled:opacity-50 flex justify-center"
+                        className="p-2 rounded bg-secondary hover:bg-accent disabled:opacity-50 flex justify-center"
                       >
                         <AlignHorizontalJustifyStart className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => alignToPage("center")}
                         disabled={!activeElement}
-                        className="p-2 rounded bg-[#27272a] hover:bg-[#3f3f46] disabled:opacity-50 flex justify-center"
+                        className="p-2 rounded bg-secondary hover:bg-accent disabled:opacity-50 flex justify-center"
                       >
                         <AlignHorizontalJustifyCenter className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => alignToPage("right")}
                         disabled={!activeElement}
-                        className="p-2 rounded bg-[#27272a] hover:bg-[#3f3f46] disabled:opacity-50 flex justify-center"
+                        className="p-2 rounded bg-secondary hover:bg-accent disabled:opacity-50 flex justify-center"
                       >
                         <AlignHorizontalJustifyEnd className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => alignToPage("top")}
                         disabled={!activeElement}
-                        className="p-2 rounded bg-[#27272a] hover:bg-[#3f3f46] disabled:opacity-50 flex justify-center"
+                        className="p-2 rounded bg-secondary hover:bg-accent disabled:opacity-50 flex justify-center"
                       >
                         <AlignVerticalJustifyStart className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => alignToPage("middle")}
                         disabled={!activeElement}
-                        className="p-2 rounded bg-[#27272a] hover:bg-[#3f3f46] disabled:opacity-50 flex justify-center"
+                        className="p-2 rounded bg-secondary hover:bg-accent disabled:opacity-50 flex justify-center"
                       >
                         <AlignVerticalJustifyCenter className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => alignToPage("bottom")}
                         disabled={!activeElement}
-                        className="p-2 rounded bg-[#27272a] hover:bg-[#3f3f46] disabled:opacity-50 flex justify-center"
+                        className="p-2 rounded bg-secondary hover:bg-accent disabled:opacity-50 flex justify-center"
                       >
                         <AlignVerticalJustifyEnd className="w-4 h-4" />
                       </button>
@@ -1275,13 +1277,13 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
 
                   {/* Advanced - Now Interactive! */}
                   {activeElement && (
-                    <div className="space-y-3 pt-4 border-t border-white/5">
-                      <label className="text-xs text-muted uppercase font-bold tracking-wider">
+                    <div className="space-y-3 pt-4 border-t border-border">
+                      <label className="text-xs text-muted-foreground font-bold">
                         Advanced
                       </label>
                       <div className="grid grid-cols-2 gap-3">
-                        <div className="flex items-center justify-between bg-[#27272a] p-2 rounded text-xs group focus-within:ring-1 focus-within:ring-primary/50">
-                          <span className="text-muted">Width</span>
+                        <div className="flex items-center justify-between bg-secondary p-2 rounded text-xs group focus-within:ring-1 focus-within:ring-brand/50">
+                          <span className="text-muted-foreground">Width</span>
                           <input
                             type="number"
                             value={Math.round(activeElement.width)}
@@ -1291,8 +1293,8 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                             className="w-16 bg-transparent text-right outline-none font-mono appearance-none"
                           />
                         </div>
-                        <div className="flex items-center justify-between bg-[#27272a] p-2 rounded text-xs group focus-within:ring-1 focus-within:ring-primary/50">
-                          <span className="text-muted">Height</span>
+                        <div className="flex items-center justify-between bg-secondary p-2 rounded text-xs group focus-within:ring-1 focus-within:ring-brand/50">
+                          <span className="text-muted-foreground">Height</span>
                           <input
                             type="number"
                             value={Math.round(activeElement.height)}
@@ -1302,8 +1304,8 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                             className="w-16 bg-transparent text-right outline-none font-mono appearance-none"
                           />
                         </div>
-                        <div className="flex items-center justify-between bg-[#27272a] p-2 rounded text-xs group focus-within:ring-1 focus-within:ring-primary/50">
-                          <span className="text-muted">X</span>
+                        <div className="flex items-center justify-between bg-secondary p-2 rounded text-xs group focus-within:ring-1 focus-within:ring-brand/50">
+                          <span className="text-muted-foreground">X</span>
                           <input
                             type="number"
                             value={Math.round(activeElement.x)}
@@ -1313,8 +1315,8 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                             className="w-16 bg-transparent text-right outline-none font-mono appearance-none"
                           />
                         </div>
-                        <div className="flex items-center justify-between bg-[#27272a] p-2 rounded text-xs group focus-within:ring-1 focus-within:ring-primary/50">
-                          <span className="text-muted">Y</span>
+                        <div className="flex items-center justify-between bg-secondary p-2 rounded text-xs group focus-within:ring-1 focus-within:ring-brand/50">
+                          <span className="text-muted-foreground">Y</span>
                           <input
                             type="number"
                             value={Math.round(activeElement.y)}
@@ -1324,8 +1326,8 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                             className="w-16 bg-transparent text-right outline-none font-mono appearance-none"
                           />
                         </div>
-                        <div className="flex items-center justify-between bg-[#27272a] p-2 rounded text-xs col-span-2 group focus-within:ring-1 focus-within:ring-primary/50">
-                          <span className="text-muted">Rotation (deg)</span>
+                        <div className="flex items-center justify-between bg-secondary p-2 rounded text-xs col-span-2 group focus-within:ring-1 focus-within:ring-brand/50">
+                          <span className="text-muted-foreground">Rotation (deg)</span>
                           <input
                             type="number"
                             value={Math.round(activeElement.rotation)}
@@ -1350,9 +1352,9 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                       <div
                         key={el.id}
                         onClick={() => setSelectedIds([el.id])}
-                        className={`group flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${selectedIds.includes(el.id) ? "bg-primary/20 border-primary" : "bg-[#27272a] border-transparent hover:border-white/10"}`}
+                        className={`group flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${selectedIds.includes(el.id) ? "bg-secondary border-brand" : "bg-secondary border-transparent hover:border-border"}`}
                       >
-                        <div className="w-8 h-8 rounded bg-black/20 flex items-center justify-center text-xs text-muted overflow-hidden">
+                        <div className="w-8 h-8 rounded bg-background flex items-center justify-center text-xs text-muted-foreground overflow-hidden">
                           {el.type === "text" || el.type === "cta" ? (
                             "T"
                           ) : el.type === "image" ? (
@@ -1368,25 +1370,25 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="text-xs font-medium truncate text-white">
+                          <div className="text-xs font-medium truncate text-foreground">
                             {el.type === "text" || el.type === "cta"
                               ? el.content
                               : el.type}
                           </div>
-                          <div className="text-[10px] text-muted">
+                          <div className="text-[10px] text-muted-foreground">
                             {Math.round(el.width)} x {Math.round(el.height)}
                           </div>
                         </div>
                         <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
                           {el.locked && (
-                            <Lock className="w-3 h-3 text-muted mr-2" />
+                            <Lock className="w-3 h-3 text-muted-foreground mr-2" />
                           )}
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               deleteSelected([el.id]);
                             }}
-                            className="hover:text-red-400 text-muted p-1"
+                            className="hover:text-red-400 text-muted-foreground p-1"
                           >
                             <Trash2 className="w-3 h-3" />
                           </button>
@@ -1397,10 +1399,10 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                   {/* Background Layer (Pinned at bottom) */}
                   <div
                     onClick={() => setSelectedIds([])}
-                    className={`flex flex-col p-3 rounded-lg border cursor-pointer transition-all gap-2 ${selectedIds.length === 0 ? "bg-primary/20 border-primary" : "bg-[#27272a] border-transparent hover:border-white/10"}`}
+                    className={`flex flex-col p-3 rounded-lg border cursor-pointer transition-colors gap-2 ${selectedIds.length === 0 ? "bg-secondary border-brand" : "bg-secondary border-transparent hover:border-border"}`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded bg-black/20 flex items-center justify-center overflow-hidden">
+                      <div className="w-8 h-8 rounded bg-background flex items-center justify-center overflow-hidden">
                         {bgType === "image" ? (
                           <img
                             src={bgValue}
@@ -1414,10 +1416,10 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                         )}
                       </div>
                       <div className="flex-1">
-                        <div className="text-xs font-medium text-white">
+                        <div className="text-xs font-medium text-foreground">
                           Background
                         </div>
-                        <div className="text-[10px] text-muted">
+                        <div className="text-[10px] text-muted-foreground">
                           Canvas Base
                         </div>
                       </div>
@@ -1425,7 +1427,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
 
                     {/* Quick Actions for Background */}
                     {selectedIds.length === 0 && (
-                      <div className="pt-2 mt-1 border-t border-white/10 flex gap-2">
+                      <div className="pt-2 mt-1 border-t border-border flex gap-2">
                         <Button
                           size="sm"
                           onClick={(e) => {
@@ -1444,7 +1446,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                             setBgType("color");
                             setBgValue("#ffffff");
                           }}
-                          className="h-7 w-7 flex items-center justify-center rounded bg-white/5 hover:bg-white/10 text-muted"
+                          className="h-7 w-7 flex items-center justify-center rounded bg-secondary hover:bg-accent text-muted-foreground"
                           title="Reset to Color"
                         >
                           <Palette className="w-3 h-3" />
@@ -1460,18 +1462,18 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
           {/* AI Panel */}
           {activeSidebar === "ai" && (
             <div className="space-y-6">
-              <div className="bg-[linear-gradient(180deg,rgba(64,214,195,0.12),rgba(12,22,31,0.78))] p-4 rounded-xl border border-white/10">
-                <h4 className="font-bold flex items-center gap-2 mb-2 text-white">
-                  <Wand2 className="w-4 h-4 text-primary" /> Magic Edit
+              <div className="bg-background p-4 rounded-lg border border-border">
+                <h4 className="font-bold flex items-center gap-2 mb-2 text-foreground">
+                  <Wand2 className="w-4 h-4 text-muted-foreground" /> Magic Edit
                 </h4>
-                <p className="text-xs text-muted mb-3">
+                <p className="text-xs text-muted-foreground mb-3">
                   Select an image and describe what to change.
                 </p>
                 <textarea
                   value={editPrompt}
                   onChange={(e) => setEditPrompt(e.target.value)}
                   placeholder="Make it snowy, add fireworks..."
-                  className="w-full bg-black/20 rounded-lg p-2 text-xs border border-white/10 mb-2 h-20 resize-none"
+                  className="w-full bg-background rounded-lg p-2 text-xs border border-border mb-2 h-20 resize-none"
                 />
                 <Button
                   size="sm"
@@ -1484,19 +1486,19 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                 </Button>
               </div>
 
-              <div className="bg-[linear-gradient(180deg,rgba(255,177,102,0.12),rgba(12,22,31,0.78))] p-4 rounded-xl border border-white/10">
-                <h4 className="font-bold flex items-center gap-2 mb-2 text-white">
-                  <Sparkles className="w-4 h-4 text-primary" /> Create
+              <div className="bg-warning/8 p-4 rounded-lg border border-border">
+                <h4 className="font-bold flex items-center gap-2 mb-2 text-foreground">
+                  <Sparkles className="w-4 h-4 text-muted-foreground" /> Create
                   Background
                 </h4>
-                <p className="text-xs text-muted mb-3">
+                <p className="text-xs text-muted-foreground mb-3">
                   Generate a unique background from text.
                 </p>
                 <textarea
                   value={genPrompt}
                   onChange={(e) => setGenPrompt(e.target.value)}
                   placeholder="Abstract neon city..."
-                  className="w-full bg-black/20 rounded-lg p-2 text-xs border border-white/10 mb-2 h-20 resize-none"
+                  className="w-full bg-background rounded-lg p-2 text-xs border border-border mb-2 h-20 resize-none"
                 />
                 <Button
                   size="sm"
@@ -1510,7 +1512,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
 
                 {/* Suggestions */}
                 <div className="mt-3">
-                  <p className="text-[10px] text-muted mb-2 font-bold uppercase tracking-wider">
+                  <p className="text-[10px] text-muted-foreground mb-2 font-bold">
                     Try these:
                   </p>
                   <div className="flex flex-wrap gap-2">
@@ -1518,7 +1520,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                       <button
                         key={i}
                         onClick={() => setGenPrompt(p)}
-                        className="text-[10px] px-2 py-1 bg-white/5 hover:bg-white/10 rounded-md text-gray-300 transition-colors text-left"
+                        className="text-[10px] px-2 py-1 bg-secondary hover:bg-accent rounded-md text-gray-300 transition-colors text-left"
                       >
                         {p}
                       </button>
@@ -1532,43 +1534,43 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
 
         <button
           onClick={() => setActiveSidebar(null)}
-          className="absolute top-1/2 -right-3 w-6 h-12 bg-[#27272a] rounded-l-full flex items-center justify-center cursor-pointer border-l border-t border-b border-white/10 hover:bg-[#3f3f46]"
+          className="absolute top-1/2 -right-3 w-6 h-12 bg-secondary rounded-l-full flex items-center justify-center cursor-pointer border-l border-t border-b border-border hover:bg-accent"
         >
-          <ChevronDown className="w-4 h-4 rotate-90 text-muted" />
+          <ChevronDown className="w-4 h-4 rotate-90 text-muted-foreground" />
         </button>
       </div>
 
       {/* 3. Main Content (Workspace) */}
-      <div className="flex-1 flex flex-col min-w-0 bg-[#0e0e0e]">
+      <div className="flex-1 flex flex-col min-w-0 bg-background">
         {/* Top Header */}
-        <div className="h-14 border-b border-white/5 bg-[#0e0e0e] flex items-center justify-between px-4 shrink-0 z-30">
+        <div className="h-14 border-b border-border bg-background flex items-center justify-between px-4 shrink-0 z-30">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-1">
-              <Tooltip label="Undo" placement="bottom">
+              <Hint label="Undo" placement="bottom">
                 <button
                   onClick={undo}
                   disabled={historyIndex <= 0}
-                  className="p-2 hover:bg-white/5 rounded-lg text-muted disabled:opacity-30"
+                  className="p-2 hover:bg-accent rounded-lg text-muted-foreground disabled:opacity-30"
                 >
                   <Undo2 className="w-4 h-4" />
                 </button>
-              </Tooltip>
-              <Tooltip label="Redo" placement="bottom">
+              </Hint>
+              <Hint label="Redo" placement="bottom">
                 <button
                   onClick={redo}
                   disabled={historyIndex >= history.length - 1}
-                  className="p-2 hover:bg-white/5 rounded-lg text-muted disabled:opacity-30"
+                  className="p-2 hover:bg-accent rounded-lg text-muted-foreground disabled:opacity-30"
                 >
                   <Redo2 className="w-4 h-4" />
                 </button>
-              </Tooltip>
+              </Hint>
             </div>
-            <div className="h-6 w-px bg-white/10"></div>
-            <div className="text-sm font-medium text-muted">
+            <div className="h-6 w-px bg-secondary"></div>
+            <div className="text-sm font-medium text-muted-foreground">
               Untitled Design - {aspectRatio}
             </div>
             {isSaving && (
-              <div className="text-xs text-muted flex items-center gap-1">
+              <div className="text-xs text-muted-foreground flex items-center gap-1">
                 <Loader2 className="w-3 h-3 animate-spin" /> Saving...
               </div>
             )}
@@ -1597,21 +1599,21 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
         </div>
 
         {/* Context Toolbar Ribbon */}
-        <div className="h-12 border-b border-white/5 bg-[#18181b] flex items-center px-4 gap-4 shrink-0 z-20 overflow-visible relative">
+        <div className="h-12 border-b border-border bg-card flex items-center px-4 gap-4 shrink-0 z-20 overflow-visible relative">
           {/* Position Button (Always Visible if something is selected or we want to access layers) */}
           <button
             onClick={() => setActiveSidebar("layers")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${activeSidebar === "layers" ? "bg-white/10 text-white" : "hover:bg-white/5 text-muted hover:text-white"}`}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${activeSidebar === "layers" ? "bg-secondary text-foreground" : "hover:bg-accent text-muted-foreground hover:text-foreground"}`}
           >
             <Layers className="w-3.5 h-3.5" /> Position
           </button>
-          <div className="h-6 w-px bg-white/10"></div>
+          <div className="h-6 w-px bg-secondary"></div>
 
           {/* DEFAULT: BG Tools */}
           {selectedIds.length === 0 && (
             <div className="flex items-center gap-3 overflow-x-auto no-scrollbar">
               <button
-                className="w-6 h-6 rounded border border-white/20 shadow-sm shrink-0"
+                className="w-6 h-6 rounded border border-border shadow-sm shrink-0"
                 style={{
                   backgroundColor: bgType === "color" ? bgValue : "#ffffff",
                 }}
@@ -1621,20 +1623,20 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                 }}
                 title="Set Background Color"
               />
-              <div className="h-6 w-px bg-white/10"></div>
+              <div className="h-6 w-px bg-secondary"></div>
               <button
                 onClick={() => setIsGenModalOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-md text-xs font-medium transition-colors whitespace-nowrap"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-secondary hover:bg-accent rounded-md text-xs font-medium transition-colors whitespace-nowrap"
               >
-                <Sparkles className="w-3.5 h-3.5 text-primary" /> Generate BG
+                <Sparkles className="w-3.5 h-3.5 text-muted-foreground" /> Generate BG
               </button>
-              <div className="h-6 w-px bg-white/10"></div>
+              <div className="h-6 w-px bg-secondary"></div>
 
               {/* Background Resize Controls */}
               {bgType === "image" && (
                 <>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted">Scale</span>
+                    <span className="text-xs text-muted-foreground">Scale</span>
                     <input
                       type="range"
                       min="1"
@@ -1642,11 +1644,11 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                       step="0.1"
                       value={bgScale}
                       onChange={(e) => setBgScale(parseFloat(e.target.value))}
-                      className="w-20 h-1 bg-white/20 rounded-lg appearance-none cursor-pointer"
+                      className="w-20 h-1 bg-secondary rounded-lg appearance-none cursor-pointer"
                     />
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted">Pan X</span>
+                    <span className="text-xs text-muted-foreground">Pan X</span>
                     <input
                       type="range"
                       min="-300"
@@ -1654,11 +1656,11 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                       step="10"
                       value={bgX}
                       onChange={(e) => setBgX(parseInt(e.target.value))}
-                      className="w-20 h-1 bg-white/20 rounded-lg appearance-none cursor-pointer"
+                      className="w-20 h-1 bg-secondary rounded-lg appearance-none cursor-pointer"
                     />
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted">Pan Y</span>
+                    <span className="text-xs text-muted-foreground">Pan Y</span>
                     <input
                       type="range"
                       min="-300"
@@ -1666,15 +1668,15 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                       step="10"
                       value={bgY}
                       onChange={(e) => setBgY(parseInt(e.target.value))}
-                      className="w-20 h-1 bg-white/20 rounded-lg appearance-none cursor-pointer"
+                      className="w-20 h-1 bg-secondary rounded-lg appearance-none cursor-pointer"
                     />
                   </div>
-                  <div className="h-6 w-px bg-white/10"></div>
+                  <div className="h-6 w-px bg-secondary"></div>
                 </>
               )}
 
               <div className="flex items-center gap-2 ml-2">
-                <span className="text-xs text-muted">Opacity</span>
+                <span className="text-xs text-muted-foreground">Opacity</span>
                 <input
                   type="range"
                   min="0"
@@ -1682,7 +1684,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                   step="0.1"
                   value={bgOpacity}
                   onChange={(e) => setBgOpacity(parseFloat(e.target.value))}
-                  className="w-20 h-1 bg-white/20 rounded-lg appearance-none cursor-pointer"
+                  className="w-20 h-1 bg-secondary rounded-lg appearance-none cursor-pointer"
                 />
               </div>
             </div>
@@ -1697,7 +1699,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                   onChange={(e) =>
                     updateSelected({ fontFamily: e.target.value })
                   }
-                  className="bg-transparent text-sm w-32 outline-none cursor-pointer hover:bg-white/5 p-1 rounded"
+                  className="bg-transparent text-sm w-32 outline-none cursor-pointer hover:bg-accent p-1 rounded"
                 >
                   {FONTS.map((f) => (
                     <option key={f} value={f} className="bg-zinc-800">
@@ -1705,8 +1707,8 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                     </option>
                   ))}
                 </select>
-                <div className="h-6 w-px bg-white/10"></div>
-                <div className="flex items-center border border-white/10 rounded-md">
+                <div className="h-6 w-px bg-secondary"></div>
+                <div className="flex items-center border border-border rounded-md">
                   <button
                     onClick={() =>
                       updateSelected({
@@ -1716,7 +1718,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                         ),
                       })
                     }
-                    className="p-1 hover:bg-white/5"
+                    className="p-1 hover:bg-accent"
                   >
                     <Minus className="w-3 h-3" />
                   </button>
@@ -1735,12 +1737,12 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                         fontSize: (activeElement.style.fontSize || 16) + 2,
                       })
                     }
-                    className="p-1 hover:bg-white/5"
+                    className="p-1 hover:bg-accent"
                   >
                     <Plus className="w-3 h-3" />
                   </button>
                 </div>
-                <div className="h-6 w-px bg-white/10"></div>
+                <div className="h-6 w-px bg-secondary"></div>
 
                 {/* New Color & Gradient Picker (TEXT COLOR) */}
                 <div className="relative">
@@ -1750,7 +1752,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                       setIsColorPickerOpen(!isColorPickerOpen);
                       setIsBgColorPickerOpen(false);
                     }}
-                    className="w-6 h-6 rounded border border-white/20 overflow-hidden flex items-center justify-center bg-white/5"
+                    className="w-6 h-6 rounded border border-border overflow-hidden flex items-center justify-center bg-secondary"
                     title="Text Color"
                   >
                     <span
@@ -1764,14 +1766,14 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                   {isColorPickerOpen && (
                     <div
                       onClick={(e) => e.stopPropagation()}
-                      className="absolute top-full mt-2 left-0 bg-[#18181b] border border-white/10 p-3 rounded-lg shadow-xl z-50 w-48"
+                      className="absolute top-full mt-2 left-0 bg-card border border-border p-3 rounded-lg shadow-xl z-50 w-48"
                     >
-                      <div className="text-[10px] font-bold text-muted mb-2 uppercase tracking-wide">
+                      <div className="text-[10px] font-bold text-muted-foreground mb-2">
                         Text Color
                       </div>
                       <div className="flex gap-2 flex-wrap mb-4">
                         <div
-                          className="w-6 h-6 rounded-full overflow-hidden border border-white/20 relative cursor-pointer"
+                          className="w-6 h-6 rounded-full overflow-hidden border border-border relative cursor-pointer"
                           title="Custom Color"
                         >
                           <div className="absolute inset-0 bg-gradient-to-br from-white to-black"></div>
@@ -1793,13 +1795,13 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                             onClick={() =>
                               updateSelected({ color: c, gradient: undefined })
                             }
-                            className={`w-6 h-6 rounded-full border ${activeElement.style.color === c ? "border-white" : "border-white/10"}`}
+                            className={`w-6 h-6 rounded-full border ${activeElement.style.color === c ? "border-white" : "border-border"}`}
                             style={{ background: c }}
                           />
                         ))}
                       </div>
 
-                      <div className="text-[10px] font-bold text-muted mb-2 uppercase tracking-wide">
+                      <div className="text-[10px] font-bold text-muted-foreground mb-2">
                         Gradients
                       </div>
                       <div className="flex gap-2 flex-wrap">
@@ -1807,7 +1809,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                           <button
                             key={i}
                             onClick={() => updateSelected({ gradient: g })}
-                            className={`w-6 h-6 rounded-full border ${activeElement.style.gradient === g ? "border-white" : "border-white/10"}`}
+                            className={`w-6 h-6 rounded-full border ${activeElement.style.gradient === g ? "border-white" : "border-border"}`}
                             style={{ background: g }}
                           />
                         ))}
@@ -1824,11 +1826,11 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                       setIsBgColorPickerOpen(!isBgColorPickerOpen);
                       setIsColorPickerOpen(false);
                     }}
-                    className="w-6 h-6 rounded border border-white/20 overflow-hidden flex items-center justify-center bg-white/5"
+                    className="w-6 h-6 rounded border border-border overflow-hidden flex items-center justify-center bg-secondary"
                     title="Background Color"
                   >
                     <div
-                      className="w-3 h-3 rounded-sm border border-white/20"
+                      className="w-3 h-3 rounded-sm border border-border"
                       style={{
                         backgroundColor:
                           activeElement.style.backgroundColor || "transparent",
@@ -1839,9 +1841,9 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                   {isBgColorPickerOpen && (
                     <div
                       onClick={(e) => e.stopPropagation()}
-                      className="absolute top-full mt-2 left-0 bg-[#18181b] border border-white/10 p-3 rounded-lg shadow-xl z-50 w-48"
+                      className="absolute top-full mt-2 left-0 bg-card border border-border p-3 rounded-lg shadow-xl z-50 w-48"
                     >
-                      <div className="text-[10px] font-bold text-muted mb-2 uppercase tracking-wide">
+                      <div className="text-[10px] font-bold text-muted-foreground mb-2">
                         Background Color
                       </div>
                       <div className="flex gap-2 flex-wrap mb-4">
@@ -1849,13 +1851,13 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                           onClick={() =>
                             updateSelected({ backgroundColor: undefined })
                           }
-                          className={`w-6 h-6 rounded-full border border-white/10 flex items-center justify-center overflow-hidden bg-transparent`}
+                          className={`w-6 h-6 rounded-full border border-border flex items-center justify-center overflow-hidden bg-transparent`}
                           title="No Background"
                         >
                           <div className="w-full h-px bg-red-500 rotate-45"></div>
                         </button>
                         <div
-                          className="w-6 h-6 rounded-full overflow-hidden border border-white/20 relative cursor-pointer"
+                          className="w-6 h-6 rounded-full overflow-hidden border border-border relative cursor-pointer"
                           title="Custom Color"
                         >
                           <div className="absolute inset-0 bg-gradient-to-br from-white to-black"></div>
@@ -1878,7 +1880,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                             onClick={() =>
                               updateSelected({ backgroundColor: c })
                             }
-                            className={`w-6 h-6 rounded-full border ${activeElement.style.backgroundColor === c ? "border-white" : "border-white/10"}`}
+                            className={`w-6 h-6 rounded-full border ${activeElement.style.backgroundColor === c ? "border-white" : "border-border"}`}
                             style={{ background: c }}
                           />
                         ))}
@@ -1888,7 +1890,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                 </div>
 
                 <div className="flex items-center gap-1 ml-2">
-                  <Tooltip label="Bold" placement="bottom">
+                  <Hint label="Bold" placement="bottom">
                     <button
                       onClick={() =>
                         updateSelected({
@@ -1898,12 +1900,12 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                               : "bold",
                         })
                       }
-                      className={`p-1.5 rounded ${activeElement.style.fontWeight === "bold" ? "bg-white/10" : "hover:bg-white/5"}`}
+                      className={`p-1.5 rounded ${activeElement.style.fontWeight === "bold" ? "bg-secondary" : "hover:bg-accent"}`}
                     >
                       <Bold className="w-4 h-4" />
                     </button>
-                  </Tooltip>
-                  <Tooltip label="Italic" placement="bottom">
+                  </Hint>
+                  <Hint label="Italic" placement="bottom">
                     <button
                       onClick={() =>
                         updateSelected({
@@ -1913,12 +1915,12 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                               : "italic",
                         })
                       }
-                      className={`p-1.5 rounded ${activeElement.style.fontStyle === "italic" ? "bg-white/10" : "hover:bg-white/5"}`}
+                      className={`p-1.5 rounded ${activeElement.style.fontStyle === "italic" ? "bg-secondary" : "hover:bg-accent"}`}
                     >
                       <Italic className="w-4 h-4" />
                     </button>
-                  </Tooltip>
-                  <Tooltip label="Underline" placement="bottom">
+                  </Hint>
+                  <Hint label="Underline" placement="bottom">
                     <button
                       onClick={() =>
                         updateSelected({
@@ -1928,38 +1930,38 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                               : "underline",
                         })
                       }
-                      className={`p-1.5 rounded ${activeElement.style.textDecoration === "underline" ? "bg-white/10" : "hover:bg-white/5"}`}
+                      className={`p-1.5 rounded ${activeElement.style.textDecoration === "underline" ? "bg-secondary" : "hover:bg-accent"}`}
                     >
                       <Underline className="w-4 h-4" />
                     </button>
-                  </Tooltip>
+                  </Hint>
                 </div>
-                <div className="h-6 w-px bg-white/10"></div>
+                <div className="h-6 w-px bg-secondary"></div>
                 <div className="flex items-center gap-1">
-                  <Tooltip label="Align left" placement="bottom">
+                  <Hint label="Align left" placement="bottom">
                     <button
                       onClick={() => updateSelected({ textAlign: "left" })}
-                      className={`p-1.5 rounded ${activeElement.style.textAlign === "left" ? "bg-white/10" : "hover:bg-white/5"}`}
+                      className={`p-1.5 rounded ${activeElement.style.textAlign === "left" ? "bg-secondary" : "hover:bg-accent"}`}
                     >
                       <AlignLeft className="w-4 h-4" />
                     </button>
-                  </Tooltip>
-                  <Tooltip label="Align center" placement="bottom">
+                  </Hint>
+                  <Hint label="Align center" placement="bottom">
                     <button
                       onClick={() => updateSelected({ textAlign: "center" })}
-                      className={`p-1.5 rounded ${activeElement.style.textAlign === "center" ? "bg-white/10" : "hover:bg-white/5"}`}
+                      className={`p-1.5 rounded ${activeElement.style.textAlign === "center" ? "bg-secondary" : "hover:bg-accent"}`}
                     >
                       <AlignCenter className="w-4 h-4" />
                     </button>
-                  </Tooltip>
-                  <Tooltip label="Align right" placement="bottom">
+                  </Hint>
+                  <Hint label="Align right" placement="bottom">
                     <button
                       onClick={() => updateSelected({ textAlign: "right" })}
-                      className={`p-1.5 rounded ${activeElement.style.textAlign === "right" ? "bg-white/10" : "hover:bg-white/5"}`}
+                      className={`p-1.5 rounded ${activeElement.style.textAlign === "right" ? "bg-secondary" : "hover:bg-accent"}`}
                     >
                       <AlignRight className="w-4 h-4" />
                     </button>
-                  </Tooltip>
+                  </Hint>
                 </div>
               </>
             )}
@@ -1974,24 +1976,24 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                     setActiveSidebar("ai");
                     setEditPrompt("");
                   }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-md text-xs font-medium transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-secondary hover:bg-accent rounded-md text-xs font-medium transition-colors"
                 >
-                  <Wand2 className="w-3.5 h-3.5 text-primary" /> Edit Image
+                  <Wand2 className="w-3.5 h-3.5 text-muted-foreground" /> Edit Image
                 </button>
-                <div className="h-6 w-px bg-white/10"></div>
+                <div className="h-6 w-px bg-secondary"></div>
                 <button
                   onClick={() => flip("h")}
-                  className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-white/5 rounded-md text-xs font-medium transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-accent rounded-md text-xs font-medium transition-colors"
                 >
                   <FlipHorizontal className="w-3.5 h-3.5" /> Flip
                 </button>
-                <div className="h-6 w-px bg-white/10"></div>
+                <div className="h-6 w-px bg-secondary"></div>
                 <button
                   onClick={() => {
                     setBgValue(activeElement.content);
                     setBgType("image");
                   }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-white/5 rounded-md text-xs font-medium transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-accent rounded-md text-xs font-medium transition-colors"
                 >
                   <Wallpaper className="w-3.5 h-3.5" /> Set as BG
                 </button>
@@ -2001,9 +2003,9 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
           {/* Common Tools */}
           {selectedIds.length > 0 && (
             <>
-              <div className="h-6 w-px bg-white/10 ml-auto"></div>
+              <div className="h-6 w-px bg-secondary ml-auto"></div>
               <div className="flex items-center gap-2 ml-2">
-                <span className="text-xs text-muted">Transparency</span>
+                <span className="text-xs text-muted-foreground">Transparency</span>
                 <input
                   type="range"
                   min="0"
@@ -2013,7 +2015,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                   onChange={(e) =>
                     updateSelected({ opacity: parseFloat(e.target.value) })
                   }
-                  className="w-20 h-1 bg-white/20 rounded-lg appearance-none cursor-pointer"
+                  className="w-20 h-1 bg-secondary rounded-lg appearance-none cursor-pointer"
                 />
               </div>
             </>
@@ -2023,7 +2025,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
         {/* Canvas Wrapper */}
         <div
           ref={workspaceRef}
-          className="flex-1 overflow-auto flex items-center justify-center bg-[#0e0e0e] relative p-12 cursor-grab active:cursor-grabbing"
+          className="flex-1 overflow-auto flex items-center justify-center bg-background relative p-12 cursor-grab active:cursor-grabbing"
           onClick={(e) => {
             if (e.target === e.currentTarget) setSelectedIds([]);
           }}
@@ -2072,7 +2074,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
             {selectedIds.length === 0 && bgType === "image" && (
               <div className="absolute inset-0 z-0 pointer-events-none">
                 <div
-                  className="absolute border-2 border-primary/50"
+                  className="absolute border-2 border-brand/50"
                   style={{
                     left: "50%",
                     top: "50%",
@@ -2084,19 +2086,19 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                   {/* Resize Handles for Background */}
                   <div
                     onMouseDown={(e) => handleBgMouseDown(e, "resize")}
-                    className="absolute -top-1.5 -left-1.5 w-3 h-3 bg-white border border-primary rounded-full cursor-nw-resize pointer-events-auto z-10"
+                    className="absolute -top-1.5 -left-1.5 w-3 h-3 bg-white border border-brand rounded-full cursor-nw-resize pointer-events-auto z-10"
                   ></div>
                   <div
                     onMouseDown={(e) => handleBgMouseDown(e, "resize")}
-                    className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-white border border-primary rounded-full cursor-ne-resize pointer-events-auto z-10"
+                    className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-white border border-brand rounded-full cursor-ne-resize pointer-events-auto z-10"
                   ></div>
                   <div
                     onMouseDown={(e) => handleBgMouseDown(e, "resize")}
-                    className="absolute -bottom-1.5 -left-1.5 w-3 h-3 bg-white border border-primary rounded-full cursor-sw-resize pointer-events-auto z-10"
+                    className="absolute -bottom-1.5 -left-1.5 w-3 h-3 bg-white border border-brand rounded-full cursor-sw-resize pointer-events-auto z-10"
                   ></div>
                   <div
                     onMouseDown={(e) => handleBgMouseDown(e, "resize")}
-                    className="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-white border border-primary rounded-full cursor-se-resize pointer-events-auto z-10"
+                    className="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-white border border-brand rounded-full cursor-se-resize pointer-events-auto z-10"
                   ></div>
                 </div>
               </div>
@@ -2128,56 +2130,56 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                   {/* Floating Action Menu (Pill) */}
                   {isSelected && (
                     <div
-                      className="absolute -top-12 left-1/2 -translate-x-1/2 bg-[#18181b] rounded-lg shadow-xl border border-white/10 flex items-center p-1 gap-1 z-[99999] scale-invariant"
+                      className="absolute -top-12 left-1/2 -translate-x-1/2 bg-card rounded-lg shadow-xl border border-border flex items-center p-1 gap-1 z-[99999] scale-invariant"
                       style={{
                         transform: `translateX(-50%) scale(${1 / zoomLevel})`,
                       }}
                     >
-                      <Tooltip label="Duplicate">
+                      <Hint label="Duplicate">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             duplicateSelected();
                           }}
-                          className="p-1.5 hover:bg-white/10 rounded text-white"
+                          className="p-1.5 hover:bg-accent rounded text-foreground"
                         >
                           <Copy className="w-4 h-4" />
                         </button>
-                      </Tooltip>
-                      <Tooltip label="Delete">
+                      </Hint>
+                      <Hint label="Delete">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             deleteSelected();
                           }}
-                          className="p-1.5 hover:bg-white/10 rounded text-white"
+                          className="p-1.5 hover:bg-accent rounded text-foreground"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
-                      </Tooltip>
-                      <div className="w-px h-4 bg-white/10"></div>
-                      <Tooltip label={el.locked ? "Unlock" : "Lock"}>
+                      </Hint>
+                      <div className="w-px h-4 bg-secondary"></div>
+                      <Hint label={el.locked ? "Unlock" : "Lock"}>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             toggleLock();
                           }}
-                          className={`p-1.5 hover:bg-white/10 rounded ${el.locked ? "text-primary" : "text-white"}`}
+                          className={`p-1.5 hover:bg-accent rounded ${el.locked ? "text-brand" : "text-foreground"}`}
                         >
                           <Lock className="w-4 h-4" />
                         </button>
-                      </Tooltip>
-                      <Tooltip label="More options">
-                        <button className="p-1.5 hover:bg-white/10 rounded text-white">
+                      </Hint>
+                      <Hint label="More options">
+                        <button className="p-1.5 hover:bg-accent rounded text-foreground">
                           <MoreHorizontal className="w-4 h-4" />
                         </button>
-                      </Tooltip>
+                      </Hint>
                     </div>
                   )}
 
                   {/* Bounding Box */}
                   <div
-                    className={`relative w-full h-full ${isSelected ? "outline outline-2 outline-primary" : "hover:outline hover:outline-1 hover:outline-primary/50"}`}
+                    className={`relative w-full h-full ${isSelected ? "outline outline-2 outline-brand" : "hover:outline hover:outline-1 hover:outline-brand/50"}`}
                   >
                     {/* Content Render */}
                     {el.type === "image" || el.type === "logo" ? (
@@ -2257,25 +2259,25 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                           onMouseDown={(e) =>
                             handleMouseDown(e, el.id, "resize")
                           }
-                          className="absolute -bottom-1.5 -right-1.5 w-4 h-4 bg-white border border-primary rounded-full cursor-se-resize z-50"
+                          className="absolute -bottom-1.5 -right-1.5 w-4 h-4 bg-white border border-brand rounded-full cursor-se-resize z-50"
                         ></div>
                         <div
                           onMouseDown={(e) =>
                             handleMouseDown(e, el.id, "resize")
                           }
-                          className="absolute -top-1.5 -left-1.5 w-4 h-4 bg-white border border-primary rounded-full cursor-nw-resize z-50"
+                          className="absolute -top-1.5 -left-1.5 w-4 h-4 bg-white border border-brand rounded-full cursor-nw-resize z-50"
                         ></div>
                         <div
                           onMouseDown={(e) =>
                             handleMouseDown(e, el.id, "resize")
                           }
-                          className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-white border border-primary rounded-full cursor-ne-resize z-50"
+                          className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-white border border-brand rounded-full cursor-ne-resize z-50"
                         ></div>
                         <div
                           onMouseDown={(e) =>
                             handleMouseDown(e, el.id, "resize")
                           }
-                          className="absolute -bottom-1.5 -left-1.5 w-4 h-4 bg-white border border-primary rounded-full cursor-sw-resize z-50"
+                          className="absolute -bottom-1.5 -left-1.5 w-4 h-4 bg-white border border-brand rounded-full cursor-sw-resize z-50"
                         ></div>
 
                         {/* Rotate Handle */}
@@ -2283,9 +2285,9 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                           onMouseDown={(e) =>
                             handleMouseDown(e, el.id, "rotate")
                           }
-                          className="absolute -bottom-10 left-1/2 -translate-x-1/2 w-6 h-6 bg-white border border-primary rounded-full cursor-grab z-50 flex items-center justify-center hover:bg-gray-100"
+                          className="absolute -bottom-10 left-1/2 -translate-x-1/2 w-6 h-6 bg-white border border-brand rounded-full cursor-grab z-50 flex items-center justify-center hover:bg-gray-100"
                         >
-                          <RefreshCw className="w-3 h-3 text-primary" />
+                          <RefreshCw className="w-3 h-3 text-brand" />
                         </div>
                       </>
                     )}
@@ -2297,31 +2299,31 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
         </div>
 
         {/* Footer Zoom Controls */}
-        <div className="h-10 border-t border-white/5 bg-[#18181b] flex items-center justify-between px-4 shrink-0 z-30">
-          <div className="text-xs text-muted">Page 1 of 1</div>
+        <div className="h-10 border-t border-border bg-card flex items-center justify-between px-4 shrink-0 z-30">
+          <div className="text-xs text-muted-foreground">Page 1 of 1</div>
           <div className="flex items-center gap-4">
-            <Tooltip label="Zoom out" placement="top">
+            <Hint label="Zoom out" placement="top">
               <button
                 onClick={() => setZoomLevel(Math.max(0.1, zoomLevel - 0.1))}
-                className="text-muted hover:text-white"
+                className="text-muted-foreground hover:text-foreground"
               >
                 <ZoomOut className="w-4 h-4" />
               </button>
-            </Tooltip>
+            </Hint>
             <span className="text-xs font-mono w-12 text-center">
               {Math.round(zoomLevel * 100)}%
             </span>
-            <Tooltip label="Zoom in" placement="top">
+            <Hint label="Zoom in" placement="top">
               <button
                 onClick={() => setZoomLevel(Math.min(2, zoomLevel + 0.1))}
-                className="text-muted hover:text-white"
+                className="text-muted-foreground hover:text-foreground"
               >
                 <ZoomIn className="w-4 h-4" />
               </button>
-            </Tooltip>
+            </Hint>
             <button
               onClick={() => setZoomLevel(0.6)}
-              className="text-xs text-muted hover:text-white ml-2"
+              className="text-xs text-muted-foreground hover:text-foreground ml-2"
             >
               Fit
             </button>
