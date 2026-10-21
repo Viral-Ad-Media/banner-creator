@@ -12,23 +12,25 @@
   color-scheme: dark;
   --radius: 0.5rem;
 
-  --background: #0e0e0f;
-  --foreground: #f4f4f3;
-  --card: #151516;
-  --card-foreground: #f4f4f3;
-  --popover: #1b1b1d;
-  --popover-foreground: #f4f4f3;
-  --primary: #f4f4f3;
-  --primary-foreground: #111112;
-  --secondary: #1f1f21;
-  --secondary-foreground: #f4f4f3;
-  --muted: #1b1b1d;
-  --muted-foreground: #a3a3a8;
-  --accent: #232326;
-  --accent-foreground: #f4f4f3;
+  /* Neutrals carry a trace of the brand's teal so the ground reads as ours, not stock grey. */
+  --background: #0c0f0f;
+  --foreground: #f2f5f4;
+  --card: #131717;
+  --card-foreground: #f2f5f4;
+  --popover: #191e1e;
+  --popover-foreground: #f2f5f4;
+  --primary: #f2f5f4;
+  --primary-foreground: #0f1212;
+  --secondary: #1c2221;
+  --secondary-foreground: #f2f5f4;
+  --muted: #191e1e;
+  --muted-foreground: #a1abaa;
+  --accent: #212827;
+  --accent-foreground: #f2f5f4;
   --destructive: #e5566f;
-  --border: #262628;
-  --input: #333336;
+  --border: #242b2a;
+  --input: #313938;
+  --sidebar: #101414;
   --ring: #3fd5c2;
   --brand: #3fd5c2;
   --brand-foreground: #04201c;
@@ -68,6 +70,7 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
   --color-brand: var(--brand);
   --color-brand-foreground: var(--brand-foreground);
   --color-positive: var(--positive);
@@ -118,6 +121,29 @@
   textarea,
   select {
     -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Browser-drawn surfaces take the palette too. */
+  input,
+  textarea,
+  [contenteditable] {
+    caret-color: var(--brand);
+  }
+
+  :root {
+    accent-color: var(--brand);
+  }
+
+  p,
+  li,
+  dd {
+    text-wrap: pretty;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
   }
 
   ::selection {
@@ -195,13 +221,23 @@
 ::-webkit-scrollbar-thumb {
   border: 3px solid transparent;
   border-radius: 999px;
-  background: #3a3a3d;
+  background: #343c3b;
   background-clip: padding-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #4a4a4e;
+  background: #46504f;
   background-clip: padding-box;
+}
+
+/* Touch screens get 44px targets without changing the pointer layout. */
+@media (pointer: coarse) {
+  [data-slot="button"]:not([data-size="xs"]):not([data-size="icon-xs"]) {
+    min-height: 2.75rem;
+  }
+  [data-slot="button"][data-size^="icon"]:not([data-size="icon-xs"]) {
+    min-width: 2.75rem;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

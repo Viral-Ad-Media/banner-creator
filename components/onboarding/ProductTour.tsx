@@ -47,17 +47,17 @@ const TOUR_STEPS: Step[] = [
 
 const TOUR_STYLES = {
   buttonPrimary: { color: '#111112', borderRadius: 6, fontWeight: 600 },
-  buttonBack: { color: '#a3a3a8' },
-  buttonSkip: { color: '#a3a3a8' },
+  buttonBack: { color: '#a1abaa' },
+  buttonSkip: { color: '#a1abaa' },
   tooltip: { borderRadius: 8, border: '1px solid #262628' },
   tooltipTitle: { fontSize: 16, fontWeight: 600 },
 };
 
 const TOUR_OPTIONS = {
-  primaryColor: '#f4f4f3',
-  backgroundColor: '#1b1b1d',
-  textColor: '#f4f4f3',
-  arrowColor: '#1b1b1d',
+  primaryColor: '#f2f5f4',
+  backgroundColor: '#191e1e',
+  textColor: '#f2f5f4',
+  arrowColor: '#191e1e',
   overlayColor: 'rgba(0, 0, 0, 0.7)',
   spotlightPadding: 8,
   zIndex: 1000,

@@ -58,11 +58,10 @@ export const FeaturesPage: React.FC = () => {
       </div>
 
       <div className="mt-16 divide-y divide-border border-t border-border">
-        {features.map((feature, index) => (
+        {features.map((feature) => (
           <article
             key={feature.title}
-            className="enter grid gap-4 py-10 lg:grid-cols-12 lg:gap-10"
-            style={{ '--i': Math.min(index, 4) } as React.CSSProperties}
+            className="grid gap-4 py-10 lg:grid-cols-12 lg:gap-10"
           >
             <h2 className="text-2xl font-semibold leading-tight text-foreground lg:col-span-4">{feature.title}</h2>
             <p className="text-base leading-relaxed text-foreground lg:col-span-5">{feature.description}</p>

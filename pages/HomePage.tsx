@@ -53,13 +53,13 @@ const FormatFrame: React.FC<{
         </span>
         <div className="flex flex-col gap-2">
           {support && !wide && (
-            <span className="line-clamp-3 text-[clamp(9px,0.85vw,12px)] leading-snug opacity-75">
+            <span className="line-clamp-3 text-[clamp(12px,0.95vw,13px)] leading-snug opacity-80">
               {support}
             </span>
           )}
           <span
             className={cn(
-              "w-fit rounded-sm px-2 py-1 text-[clamp(8px,0.75vw,11px)] font-semibold",
+              "w-fit rounded-sm px-2 py-1 text-[clamp(11px,0.8vw,12px)] font-semibold",
               tone === "brand" ? "bg-brand-foreground text-brand" : "bg-brand text-brand-foreground",
             )}
           >
@@ -68,7 +68,7 @@ const FormatFrame: React.FC<{
         </div>
       </div>
       <figcaption className="text-xs text-muted-foreground">
-        {format.label} <span className="tabular text-muted-foreground/70">{format.ratio}</span>
+        {format.label} <span className="tabular text-muted-foreground">{format.ratio}</span>
       </figcaption>
     </figure>
   );
