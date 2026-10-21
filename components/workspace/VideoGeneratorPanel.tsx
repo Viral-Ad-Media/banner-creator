@@ -1793,7 +1793,7 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
             <div className="space-y-3 rounded-lg border border-border bg-background p-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <h3 className="text-sm font-semibold text-foreground">Scenes</h3>
+                  <h2 className="text-sm font-semibold text-foreground">Scenes</h2>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {validScenes.length}/{scenes.length} ready,{" "}
                     {validScenes.reduce(
@@ -1925,7 +1925,7 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
           <section className="rounded-lg border border-border bg-card p-5 sm:p-6">
             <div className="flex flex-col gap-4 border-b border-border pb-5 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <h3 className="text-xl font-semibold text-foreground">Scene Reel</h3>
+                <h2 className="text-base font-semibold text-foreground">Scene reel</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {completedSceneJobs.length}/
                   {Math.max(validScenes.length, currentSceneJobs.length)} scenes
@@ -1995,7 +1995,7 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
         <section className="rounded-lg border border-border bg-card p-5 sm:p-6">
           <div className="flex flex-col gap-4 border-b border-border pb-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h3 className="text-xl font-semibold text-foreground">Preview</h3>
+              <h2 className="text-base font-semibold text-foreground">Preview</h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 {selectedJob
                   ? `${selectedJob.sceneTitle ? `${selectedJob.sceneTitle} - ` : ""}${formatTimestamp(selectedJob.createdAt)}`
@@ -2036,7 +2036,7 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
 
           <div className="mt-6">
             {!selectedJob ? (
-              <div className="flex min-h-[420px] items-center justify-center rounded-lg border border-dashed border-border bg-background p-8 text-center">
+              <div className="flex min-h-[420px] items-center justify-center rounded-lg bg-background p-8 text-center">
                 <div className="max-w-sm">
                   <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-secondary">
                     <Video className="h-8 w-8 text-muted-foreground" />
@@ -2077,7 +2077,7 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
                 </div>
               </div>
             ) : selectedJob.status !== "SUCCEEDED" ? (
-              <div className="flex min-h-[420px] items-center justify-center rounded-lg border border-border bg-background p-8 text-center">
+              <div className="flex min-h-[420px] items-center justify-center rounded-lg bg-background p-8 text-center">
                 <div>
                   <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-secondary text-muted-foreground">
                     <Loader2 className="h-8 w-8 animate-spin" />
@@ -2093,7 +2093,7 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
               </div>
             ) : loadingPreviewFor === selectedJob.operationName ||
               !previewUrls[selectedJob.operationName] ? (
-              <div className="flex min-h-[420px] items-center justify-center rounded-lg border border-border bg-background p-8 text-center">
+              <div className="flex min-h-[420px] items-center justify-center rounded-lg bg-background p-8 text-center">
                 <div>
                   <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-secondary text-muted-foreground">
                     <Sparkles className="h-8 w-8" />
@@ -2121,7 +2121,7 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
                   />
                 </div>
 
-                <div className="rounded-lg border border-border bg-background p-4">
+                <div className="border-t border-border pt-4">
                   <div className="flex flex-wrap items-center gap-2">
                     {selectedJob.workflowMode === "storyboard" &&
                       selectedJob.sceneIndex && (
@@ -2169,7 +2169,7 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
         <section className="rounded-lg border border-border bg-card p-5 sm:p-6">
           <div className="flex items-center justify-between border-b border-border pb-5">
             <div>
-              <h3 className="text-xl font-semibold text-foreground">Recent Jobs</h3>
+              <h2 className="text-base font-semibold text-foreground">Recent jobs</h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 Stored in this browser for preview and download.
               </p>
@@ -2180,7 +2180,7 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
           </div>
 
           {jobs.length === 0 ? (
-            <div className="mt-6 rounded-lg border border-dashed border-border bg-background p-8 text-center">
+            <div className="mt-6 rounded-lg bg-background p-8 text-center">
               <p className="text-foreground">No saved video jobs yet.</p>
             </div>
           ) : (

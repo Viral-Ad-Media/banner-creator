@@ -183,14 +183,14 @@ const SidebarContents: React.FC<{
             data-tour={tourTargets ? `nav-${item.id}` : undefined}
             className={({ isActive }) =>
               cn(
-                "flex h-9 items-center gap-2.5 rounded-md px-3 text-sm transition-colors duration-150",
+                "group flex h-9 items-center gap-2.5 rounded-md px-3 text-sm transition-colors duration-150",
                 isActive
                   ? "bg-accent font-medium text-foreground"
                   : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
               )
             }
           >
-            <Icon className="size-4 shrink-0" />
+            <Icon className="size-4 shrink-0 group-aria-[current=page]:text-brand" />
             <span className="truncate">{item.label}</span>
             {item.badge && (
               <Badge variant="outline" className="ml-auto h-5 px-1.5 text-[11px] font-medium text-muted-foreground">
@@ -286,7 +286,7 @@ export const AppWorkspace: React.FC<AppWorkspaceProps> = ({
       <ProductTour run={isTourRunning} onFinish={handleTourFinish} />
 
       {isDesktop ? (
-        <aside className="fixed inset-y-0 left-0 z-30 w-60 border-r border-border bg-background px-3 py-3">
+        <aside className="fixed inset-y-0 left-0 z-30 w-60 border-r border-border bg-sidebar px-3 py-3">
           <SidebarContents user={user} onLogout={onLogout} tourTargets />
         </aside>
       ) : (
@@ -383,12 +383,12 @@ export const AppWorkspace: React.FC<AppWorkspaceProps> = ({
                 to={item.to}
                 className={({ isActive }) =>
                   cn(
-                    "pressable flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-md text-[11px] font-medium",
+                    "group pressable flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-md text-[11px] font-medium",
                     isActive ? "text-foreground" : "text-muted-foreground",
                   )
                 }
               >
-                <Icon className="size-[18px]" />
+                <Icon className="size-[18px] group-aria-[current=page]:text-brand" />
                 <span className="truncate">
                   {item.label.replace(" Generator", "").replace(" Studio", "")}
                 </span>
@@ -400,7 +400,7 @@ export const AppWorkspace: React.FC<AppWorkspaceProps> = ({
             type="button"
             onClick={() => setIsSidebarOpen(true)}
             aria-label="Open workspace menu"
-            className="pressable flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-md text-[11px] font-medium text-muted-foreground"
+            className="group pressable flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-md text-[11px] font-medium text-muted-foreground"
           >
             <Menu className="size-[18px]" />
             <span className="truncate">More</span>

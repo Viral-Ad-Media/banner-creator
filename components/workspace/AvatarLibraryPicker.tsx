@@ -269,12 +269,17 @@ export const AvatarLibraryPicker: React.FC<AvatarLibraryPickerProps> = ({
     );
 
   return (
-    <section className="space-y-4 rounded-xl border border-border bg-card p-4">
+    <section
+      className={cn(
+        "space-y-4",
+        isManageMode && "rounded-xl border border-border bg-card p-4",
+      )}
+    >
       <div className="flex items-baseline justify-between gap-3">
-        <h3 className="text-sm font-medium text-foreground">
+        <h2 className="text-sm font-medium text-foreground">
           {title}
           {!isManageMode && <span className="font-normal text-muted-foreground"> (optional)</span>}
-        </h3>
+        </h2>
         <span className="tabular text-xs text-muted-foreground">
           {avatars.length} of {MAX_AVATARS} saved
         </span>
