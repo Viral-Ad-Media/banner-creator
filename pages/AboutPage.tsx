@@ -2,23 +2,21 @@ import React from 'react';
 
 export const AboutPage: React.FC = () => {
   return (
-    <div className="mx-auto max-w-5xl px-4 pb-20 pt-12 sm:px-6 lg:px-8 lg:pb-24 lg:pt-16">
-      <div className="surface-card rounded-[34px] p-8 sm:p-10">
-        <span className="section-kicker">About</span>
-        <h1 className="mt-6 text-5xl font-semibold text-white">About Social Studio</h1>
-        <p className="mt-5 text-lg leading-8 text-[#c2d2df]">
-          Social Studio is a focused SaaS product for campaign teams that need to create and publish social visual content
-          quickly. It combines campaign planning, banner generation, avatar-driven image workflows, editing, and short-form
-          video creation in one interface so teams can move from idea to published creative without tool-hopping.
+    <div className="mx-auto max-w-3xl px-4 pt-16 sm:px-6 sm:pt-24 lg:px-8">
+      <h1 className="text-4xl font-semibold tracking-[-0.03em] text-foreground sm:text-5xl">Why we built it</h1>
+      <div className="mt-8 space-y-5 text-lg leading-relaxed text-foreground">
+        <p>
+          A single social post now ships in four sizes, with a caption, hashtags, often a short clip, and a version for
+          every channel. Most teams make that in five tools and lose an afternoon moving files between them.
         </p>
-        <p className="mt-4 text-lg leading-8 text-[#c2d2df]">
-          The platform is built with a React frontend, a Supabase-backed Express API, and server-side AI integrations.
-          This architecture keeps sensitive keys out of the browser while supporting a modern workspace that includes
-          activities, settings, reusable avatars, and image-to-video workflows.
+        <p>
+          Social Studio keeps it in one place. You write the brief once; the planner writes the copy, the image models
+          paint each format, and the editor, Image Studio and video tools pick up from there with the same avatars and the
+          same credits.
         </p>
-        <p className="mt-4 text-lg leading-8 text-[#c2d2df]">
-          The goal is straightforward: give fast-moving teams one creative operating surface for ideation, generation,
-          review, and iteration instead of spreading that work across disconnected tools.
+        <p className="text-muted-foreground">
+          The AI providers are called from our server, never from your browser, so no key ever reaches the page. Credits
+          are held when a run starts and settled only when it finishes.
         </p>
       </div>
     </div>

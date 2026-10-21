@@ -13,12 +13,11 @@ import {
   LogOut,
   Menu,
   Settings,
-  Sparkles,
   UserRound,
   Video,
-  X,
   type LucideIcon,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { AuthUser } from "../services/authService";
 import {
   getOnboardingState,
@@ -26,7 +25,16 @@ import {
   markWelcomeSeen,
   resetTour,
 } from "../services/onboardingState";
-import { Button } from "./ui/Button";
+import { Button } from "./ui/button";
+import { Badge } from "./ui/badge";
+import { Spinner } from "./ui/spinner";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetTitle,
+} from "./ui/sheet";
+import { Wordmark } from "./BrandMark";
 import { ProductTour } from "./onboarding/ProductTour";
 import { WelcomeModal } from "./onboarding/WelcomeModal";
 
@@ -85,28 +93,28 @@ const workspaceNav: WorkspaceNavItem[] = [
   {
     id: "banner-generator",
     label: "Banner Generator",
-    description: "Create campaign copy and visuals",
+    description: "Write a brief, get copy and banners in every format",
     to: "/app/banner-generator",
     icon: LayoutTemplate,
   },
   {
     id: "avatar-studio",
     label: "Avatar Studio",
-    description: "Create and manage reusable characters",
+    description: "Characters you can reuse in banners, edits and video",
     to: "/app/avatar-studio",
     icon: UserRound,
   },
   {
     id: "image-studio",
     label: "Image Studio",
-    description: "Edit uploaded images with AI",
+    description: "Change a picture by describing the change",
     to: "/app/image-studio",
     icon: ImageIcon,
   },
   {
     id: "video-generator",
     label: "Video Generator",
-    description: "Create motion clips and image-to-video",
+    description: "Clips from a prompt, a still or an avatar",
     to: "/app/video-generator",
     icon: Video,
     badge: "Beta",
@@ -114,14 +122,14 @@ const workspaceNav: WorkspaceNavItem[] = [
   {
     id: "activities",
     label: "Activities",
-    description: "Review generation history",
+    description: "Every run, its status and the credits it used",
     to: "/app/activities",
     icon: Activity,
   },
   {
     id: "settings",
     label: "Settings",
-    description: "Profile, plan, and workspace setup",
+    description: "Profile, plan and credits",
     to: "/app/settings",
     icon: Settings,
   },
@@ -133,12 +141,93 @@ interface AppWorkspaceProps {
   onUserUpdated: (user: AuthUser) => void;
 }
 
+const DESKTOP_QUERY = "(min-width: 1024px)";
+
+const useIsDesktop = () => {
+  const [isDesktop, setIsDesktop] = useState(() =>
+    typeof window === "undefined" ? true : window.matchMedia(DESKTOP_QUERY).matches,
+  );
+  useEffect(() => {
+    const query = window.matchMedia(DESKTOP_QUERY);
+    const update = () => setIsDesktop(query.matches);
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+  return isDesktop;
+};
+
+const PLAN_LABEL: Record<AuthUser["plan"], string> = {
+  FREE: "Free plan",
+  PRO: "Pro plan",
+  ENTERPRISE: "Enterprise plan",
+};
+
+const SidebarContents: React.FC<{
+  user: AuthUser;
+  onLogout: () => Promise<void>;
+  tourTargets: boolean;
+}> = ({ user, onLogout, tourTargets }) => (
+  <div className="flex h-full flex-col">
+    <div className="flex h-14 items-center px-3">
+      <Wordmark />
+    </div>
+
+    <nav aria-label="Workspace" className="mt-4 flex-1 space-y-0.5 overflow-y-auto">
+      {workspaceNav.map((item) => {
+        const Icon = item.icon;
+        return (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            title={item.description}
+            data-tour={tourTargets ? `nav-${item.id}` : undefined}
+            className={({ isActive }) =>
+              cn(
+                "flex h-9 items-center gap-2.5 rounded-md px-3 text-sm transition-colors duration-150",
+                isActive
+                  ? "bg-accent font-medium text-foreground"
+                  : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
+              )
+            }
+          >
+            <Icon className="size-4 shrink-0" />
+            <span className="truncate">{item.label}</span>
+            {item.badge && (
+              <Badge variant="outline" className="ml-auto h-5 px-1.5 text-[11px] font-medium text-muted-foreground">
+                {item.badge}
+              </Badge>
+            )}
+          </NavLink>
+        );
+      })}
+    </nav>
+
+    <div className="mt-4 border-t border-border pt-4">
+      <div className="px-3">
+        <p className="truncate text-sm font-medium text-foreground">{user.name}</p>
+        <p className="truncate text-xs text-muted-foreground">
+          {user.email} · {PLAN_LABEL[user.plan]}
+        </p>
+      </div>
+      <Button
+        variant="ghost"
+        onClick={() => void onLogout()}
+        className="mt-2 w-full justify-start px-3"
+      >
+        <LogOut />
+        Log out
+      </Button>
+    </div>
+  </div>
+);
+
 export const AppWorkspace: React.FC<AppWorkspaceProps> = ({
   user,
   onLogout,
   onUserUpdated,
 }) => {
   const location = useLocation();
+  const isDesktop = useIsDesktop();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isWelcomeOpen, setIsWelcomeOpen] = useState(false);
   const [isTourRunning, setIsTourRunning] = useState(false);
@@ -183,192 +272,109 @@ export const AppWorkspace: React.FC<AppWorkspaceProps> = ({
     .map((itemId) => workspaceNav.find((item) => item.id === itemId))
     .filter((item): item is WorkspaceNavItem => Boolean(item));
 
+  const current =
+    workspaceNav.find((item) => location.pathname.startsWith(item.to)) ??
+    workspaceNav[0];
+
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(64,214,195,0.15),transparent_24%),radial-gradient(circle_at_top_right,rgba(255,177,102,0.12),transparent_22%),linear-gradient(180deg,#071219_0%,#0b1620_100%)] font-sans selection:bg-primary/30">
-      {isWelcomeOpen && (
-        <WelcomeModal userName={user.name} onComplete={handleWelcomeComplete} />
-      )}
+    <div className="min-h-screen bg-background">
+      <WelcomeModal
+        open={isWelcomeOpen}
+        userName={user.name}
+        onComplete={handleWelcomeComplete}
+      />
       <ProductTour run={isTourRunning} onFinish={handleTourFinish} />
 
-      {isSidebarOpen && (
-        <button
-          type="button"
-          aria-label="Close sidebar"
-          onClick={() => setIsSidebarOpen(false)}
-          className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm lg:hidden"
-        />
+      {isDesktop ? (
+        <aside className="fixed inset-y-0 left-0 z-30 w-60 border-r border-border bg-background px-3 py-3">
+          <SidebarContents user={user} onLogout={onLogout} tourTargets />
+        </aside>
+      ) : (
+        // While the tour runs the sheet is non-modal, so the tour's own controls stay clickable.
+        <Sheet
+          open={isSidebarOpen}
+          onOpenChange={setIsSidebarOpen}
+          modal={!isTourRunning}
+        >
+          <SheetContent side="left" className="w-[280px] gap-0 px-3 py-3" showCloseButton={!isTourRunning}>
+            <SheetTitle className="sr-only">Workspace menu</SheetTitle>
+            <SheetDescription className="sr-only">
+              Move between the workspace tools
+            </SheetDescription>
+            <SidebarContents user={user} onLogout={onLogout} tourTargets />
+          </SheetContent>
+        </Sheet>
       )}
 
-      <div className="mx-auto max-w-[1720px] px-3 py-3 pb-24 sm:px-6 lg:px-8 lg:py-6 lg:pb-6">
-        <div className="flex min-h-[calc(100vh-2rem)] gap-6">
-          <aside
-            className={`fixed bottom-3 left-3 top-3 z-50 flex w-[calc(100vw-1.5rem)] max-w-[340px] flex-col transition-transform duration-300 lg:sticky lg:top-4 lg:h-[calc(100vh-2rem)] lg:w-[298px] lg:max-w-none lg:translate-x-0 ${
-              isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-            }`}
-          >
-            <div className="surface-card-strong flex h-full flex-col overflow-hidden rounded-[34px] border border-white/10 p-4">
-              <div className="flex items-center justify-between rounded-[26px] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] px-4 py-4">
-                <div className="flex items-center gap-3">
-                  <div className="relative">
-                    <div className="absolute -inset-1 rounded-[22px] bg-[linear-gradient(135deg,rgba(131,239,224,0.65),rgba(22,141,135,0.24))] blur-md" />
-                    <div className="relative flex h-12 w-12 items-center justify-center rounded-[20px] bg-[#0c161d] text-primary">
-                      <Sparkles className="h-5 w-5" />
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-[11px] uppercase tracking-[0.32em] text-primary">
-                      Workspace
-                    </p>
-                    <h1 className="text-lg font-semibold text-white">
-                      Social Studio
-                    </h1>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setIsSidebarOpen(false)}
-                  className="rounded-xl p-2 text-muted transition-colors hover:bg-white/10 hover:text-white lg:hidden"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-
-              <nav className="mt-5 flex-1 space-y-2 overflow-y-auto pr-1">
-                {workspaceNav.map((item) => {
-                  const Icon = item.icon;
-
-                  return (
-                    <NavLink
-                      key={item.to}
-                      to={item.to}
-                      data-tour={`nav-${item.id}`}
-                      className={({ isActive }) =>
-                        `group flex items-start gap-3 rounded-[26px] border px-4 py-4 transition-all ${
-                          isActive
-                            ? "border-primary/22 bg-[linear-gradient(180deg,rgba(64,214,195,0.12),rgba(64,214,195,0.06))] shadow-[0_18px_40px_-28px_rgba(64,214,195,0.85)]"
-                            : "border-white/0 text-muted hover:border-white/10 hover:bg-white/6 hover:text-white"
-                        }`
-                      }
-                    >
-                      {({ isActive }) => (
-                        <>
-                          <div
-                            className={`mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] ${
-                              isActive
-                                ? "bg-primary/18 text-primary"
-                                : "bg-white/5 text-muted group-hover:text-white"
-                            }`}
-                          >
-                            <Icon className="h-4 w-4" />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <span
-                                className={`text-sm font-semibold ${isActive ? "text-white" : ""}`}
-                              >
-                                {item.label}
-                              </span>
-                              {item.badge && (
-                                <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-primary">
-                                  {item.badge}
-                                </span>
-                              )}
-                            </div>
-                            <p
-                              className={`mt-1 text-xs leading-5 ${isActive ? "text-white/72" : "text-muted"}`}
-                            >
-                              {item.description}
-                            </p>
-                          </div>
-                        </>
-                      )}
-                    </NavLink>
-                  );
-                })}
-              </nav>
-
-              <div className="mt-5 rounded-[28px] border border-white/8 bg-black/20 p-4">
-                <Button
-                  variant="secondary"
-                  onClick={() => void onLogout()}
-                  className="w-full justify-center"
-                >
-                  <LogOut className="h-4 w-4" />
-                  Log Out
-                </Button>
-              </div>
-            </div>
-          </aside>
-
-          <div className="min-w-0 flex-1 lg:pl-0">
-            <main>
-              <Suspense
-                fallback={
-                  <div className="surface-card flex min-h-[360px] items-center justify-center rounded-[32px]">
-                    <div className="text-center">
-                      <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                      <p className="mt-3 text-sm text-muted">
-                        Loading workspace...
-                      </p>
-                    </div>
-                  </div>
-                }
-              >
-                <Routes>
-                  <Route
-                    index
-                    element={<Navigate to="banner-generator" replace />}
-                  />
-                  <Route
-                    path="banner-generator"
-                    element={
-                      <CopyGenerator
-                        draftStorageKey={`social-studio:banner-workspace-draft:${user.id}`}
-                      />
-                    }
-                  />
-                  <Route path="avatar-studio" element={<AvatarStudioPanel />} />
-                  <Route
-                    path="image-studio"
-                    element={
-                      <ImageStudio
-                        draftStorageKey={`social-studio:image-studio:${user.id}`}
-                      />
-                    }
-                  />
-                  <Route
-                    path="video-generator"
-                    element={
-                      <VideoGeneratorPanel
-                        draftStorageKey={`social-studio:video-generator:${user.id}`}
-                      />
-                    }
-                  />
-                  <Route path="activities" element={<ActivitiesPanel />} />
-                  <Route
-                    path="settings"
-                    element={
-                      <SettingsPanel
-                        user={user}
-                        onUserUpdated={onUserUpdated}
-                        onReplayTour={handleReplayTour}
-                      />
-                    }
-                  />
-                  <Route
-                    path="*"
-                    element={<Navigate to="banner-generator" replace />}
-                  />
-                </Routes>
-              </Suspense>
-            </main>
+      <div className="lg:pl-60">
+        <header className="flex items-end justify-between gap-4 px-4 pb-4 pt-5 sm:px-6 lg:px-8 lg:pt-7">
+          <div className="min-w-0">
+            <h1 className="truncate text-2xl font-semibold tracking-[-0.02em] text-foreground">
+              {current.label}
+            </h1>
+            <p className="mt-0.5 truncate text-sm text-muted-foreground">
+              {current.description}
+            </p>
           </div>
-        </div>
+        </header>
+
+        <main className="px-3 pb-28 sm:px-6 lg:px-8 lg:pb-10">
+          <Suspense
+            fallback={
+              <div className="flex min-h-[360px] items-center justify-center rounded-xl border border-border bg-card">
+                <Spinner className="size-5 text-muted-foreground" />
+              </div>
+            }
+          >
+            <Routes>
+              <Route index element={<Navigate to="banner-generator" replace />} />
+              <Route
+                path="banner-generator"
+                element={
+                  <CopyGenerator
+                    draftStorageKey={`social-studio:banner-workspace-draft:${user.id}`}
+                  />
+                }
+              />
+              <Route path="avatar-studio" element={<AvatarStudioPanel />} />
+              <Route
+                path="image-studio"
+                element={
+                  <ImageStudio
+                    draftStorageKey={`social-studio:image-studio:${user.id}`}
+                  />
+                }
+              />
+              <Route
+                path="video-generator"
+                element={
+                  <VideoGeneratorPanel
+                    draftStorageKey={`social-studio:video-generator:${user.id}`}
+                  />
+                }
+              />
+              <Route path="activities" element={<ActivitiesPanel />} />
+              <Route
+                path="settings"
+                element={
+                  <SettingsPanel
+                    user={user}
+                    onUserUpdated={onUserUpdated}
+                    onReplayTour={handleReplayTour}
+                  />
+                }
+              />
+              <Route path="*" element={<Navigate to="banner-generator" replace />} />
+            </Routes>
+          </Suspense>
+        </main>
       </div>
 
-      <div className="fixed inset-x-4 bottom-4 z-30 lg:hidden">
-        <div className="surface-card-strong grid grid-cols-5 rounded-[28px] p-2 shadow-[0_24px_60px_-30px_rgba(0,0,0,0.9)]">
+      {!isDesktop && (
+        <nav
+          aria-label="Workspace shortcuts"
+          className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-border bg-background px-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-1.5"
+        >
           {mobileNavItems.map((item) => {
             const Icon = item.icon;
             return (
@@ -376,14 +382,13 @@ export const AppWorkspace: React.FC<AppWorkspaceProps> = ({
                 key={item.to}
                 to={item.to}
                 className={({ isActive }) =>
-                  `flex min-w-0 flex-col items-center gap-1 rounded-[20px] px-2 py-2.5 text-[11px] font-semibold transition-all ${
-                    isActive
-                      ? "bg-primary/14 text-primary"
-                      : "text-muted hover:bg-white/6 hover:text-white"
-                  }`
+                  cn(
+                    "pressable flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-md text-[11px] font-medium",
+                    isActive ? "text-foreground" : "text-muted-foreground",
+                  )
                 }
               >
-                <Icon className="h-4 w-4" />
+                <Icon className="size-[18px]" />
                 <span className="truncate">
                   {item.label.replace(" Generator", "").replace(" Studio", "")}
                 </span>
@@ -394,13 +399,14 @@ export const AppWorkspace: React.FC<AppWorkspaceProps> = ({
           <button
             type="button"
             onClick={() => setIsSidebarOpen(true)}
-            className="flex min-w-0 flex-col items-center gap-1 rounded-[20px] px-2 py-2.5 text-[11px] font-semibold text-muted transition-all hover:bg-white/6 hover:text-white"
+            aria-label="Open workspace menu"
+            className="pressable flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-md text-[11px] font-medium text-muted-foreground"
           >
-            <Menu className="h-4 w-4" />
-            <span className="truncate">Menu</span>
+            <Menu className="size-[18px]" />
+            <span className="truncate">More</span>
           </button>
-        </div>
-      </div>
+        </nav>
+      )}
     </div>
   );
 };

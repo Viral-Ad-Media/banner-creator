@@ -1,91 +1,99 @@
-import React, { useState } from 'react';
-import { ArrowRight, Film, LayoutTemplate, Sparkles, UserRound, Wand2 } from 'lucide-react';
-import { Button } from '../ui/Button';
+import React, { useEffect, useState } from 'react';
+import { ArrowRight } from 'lucide-react';
+import { Button } from '../ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../ui/dialog';
+import { cn } from '@/lib/utils';
 
 interface WelcomeModalProps {
+  open: boolean;
   userName: string;
   onComplete: () => void;
 }
 
 const STEPS = [
   {
-    icon: Sparkles,
     title: 'Welcome to Social Studio',
-    body: "Plan campaigns, generate visuals, and edit them in one workspace. Let's take a 60-second look at what's here.",
+    body: 'Plan campaigns, generate visuals and edit them in one workspace. Here is a one-minute look around.',
   },
   {
-    icon: LayoutTemplate,
     title: 'Banner Generator',
-    body: 'Describe a campaign in plain language and get on-brand copy, hashtags, and multiple banner visuals you can edit right in the canvas.',
+    body: 'Describe a campaign in a sentence and get copy, hashtags and several banners you can edit as layers.',
   },
   {
-    icon: UserRound,
-    title: 'Avatar Studio, Image Studio, Video Generator',
-    body: 'Build reusable character avatars, refine any image with natural-language edits, and turn stills into motion clips or scene reels.',
+    title: 'Avatars, edits and video',
+    body: 'Save characters once and reuse them, change any picture by describing the change, and turn stills into clips or reels.',
   },
   {
-    icon: Film,
-    title: "You're ready",
-    body: 'Everything you generate is tracked in Activities, and your plan details live in Settings. Next, a quick tour of the workspace.',
+    title: 'Ready when you are',
+    body: 'Every run appears in Activities with the credits it used; your plan lives in Settings. Next, a short tour of the sidebar.',
   },
 ] as const;
 
-export const WelcomeModal: React.FC<WelcomeModalProps> = ({ userName, onComplete }) => {
+export const WelcomeModal: React.FC<WelcomeModalProps> = ({ open, userName, onComplete }) => {
   const [stepIndex, setStepIndex] = useState(0);
   const step = STEPS[stepIndex];
   const isLastStep = stepIndex === STEPS.length - 1;
-  const Icon = step.icon;
+
+  useEffect(() => {
+    if (open) setStepIndex(0);
+  }, [open]);
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
-      <div className="surface-card-strong relative w-full max-w-md overflow-hidden rounded-[30px] p-8">
-        <button
-          type="button"
-          onClick={onComplete}
-          className="absolute right-5 top-5 text-xs font-semibold uppercase tracking-[0.2em] text-muted transition-colors hover:text-white"
-        >
-          Skip
-        </button>
-
-        <div className="flex h-14 w-14 items-center justify-center rounded-[22px] bg-primary/12 text-primary shadow-[0_0_0_1px_rgba(64,214,195,0.16)]">
-          <Icon className="h-7 w-7" />
+    <Dialog open={open} onOpenChange={(next) => !next && onComplete()}>
+      <DialogContent className="max-w-md gap-0 p-0">
+        <div className="p-6 pb-0">
+          <p className="text-sm text-muted-foreground">
+            {stepIndex === 0 ? `Hi ${userName || 'there'}` : `${stepIndex + 1} of ${STEPS.length}`}
+          </p>
+          {/* Keyed so each step's text eases in; the dialog itself stays put. */}
+          <DialogHeader key={stepIndex} className="enter mt-2 text-left">
+            <DialogTitle className="text-xl font-semibold leading-tight">{step.title}</DialogTitle>
+            <DialogDescription className="text-base leading-relaxed text-muted-foreground">
+              {step.body}
+            </DialogDescription>
+          </DialogHeader>
         </div>
 
-        <p className="mt-6 text-xs font-semibold uppercase tracking-[0.3em] text-primary/90">
-          {stepIndex === 0 ? `Hi ${userName || 'there'}` : `Step ${stepIndex + 1} of ${STEPS.length}`}
-        </p>
-        <h2 className="mt-2 text-2xl font-semibold text-white">{step.title}</h2>
-        <p className="mt-3 text-sm leading-6 text-muted">{step.body}</p>
-
-        <div className="mt-8 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-1.5">
+        <DialogFooter className="mt-8 flex-row items-center justify-between border-t border-border p-4 sm:justify-between">
+          <div className="flex items-center gap-1.5" aria-hidden="true">
             {STEPS.map((_, index) => (
               <span
                 key={index}
-                className={`h-1.5 rounded-full transition-all ${
-                  index === stepIndex ? 'w-6 bg-primary' : 'w-1.5 bg-white/15'
-                }`}
+                className={cn(
+                  'size-1.5 rounded-full transition-colors duration-200',
+                  index === stepIndex ? 'bg-foreground' : 'bg-border',
+                )}
               />
             ))}
           </div>
 
           <div className="flex items-center gap-2">
-            {stepIndex > 0 && (
+            {stepIndex > 0 ? (
               <Button variant="ghost" size="sm" onClick={() => setStepIndex((current) => current - 1)}>
                 Back
+              </Button>
+            ) : (
+              <Button variant="ghost" size="sm" onClick={onComplete}>
+                Skip
               </Button>
             )}
             <Button
               size="sm"
               onClick={() => (isLastStep ? onComplete() : setStepIndex((current) => current + 1))}
             >
-              {isLastStep ? 'Start tour' : 'Next'}
-              {!isLastStep && <ArrowRight className="h-4 w-4" />}
-              {isLastStep && <Wand2 className="h-4 w-4" />}
+              {isLastStep ? 'Start the tour' : 'Next'}
+              {!isLastStep && <ArrowRight />}
             </Button>
           </div>
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };

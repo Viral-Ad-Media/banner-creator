@@ -1,86 +1,118 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import { Check } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 const plans = [
   {
-    name: "FREE",
+    name: "Free",
     price: "$0",
-    blurb: "For trying the product and light personal use.",
+    status: "Available now",
+    blurb: "Try every tool on your own account.",
+    credits: "120",
+    projects: "5",
     features: [
-      "120 monthly credits",
-      "Up to 5 projects",
-      "Banner, Image Studio, and credit-based video access",
-      "Shared avatar library synced to your account",
-      "Basic activity and settings access",
+      "Banner Generator, Image Studio and Video",
+      "Avatar library synced to your account",
+      "Activity history and credit usage",
     ],
+    action: { label: "Start free", to: "/auth?mode=register" },
+    available: true,
   },
   {
-    name: "PRO",
-    price: "Coming soon",
-    blurb: "For creators and small teams shipping weekly campaigns.",
+    name: "Pro",
+    price: "Not yet on sale",
+    status: "Coming soon",
+    blurb: "For creators and small teams shipping campaigns every week.",
+    credits: "3,000",
+    projects: "100",
     features: [
-      "3000 monthly credits",
-      "Up to 100 projects",
-      "Banner, avatar, and image workflows",
-      "Video generator access",
-      "Expanded credit allowance",
+      "Everything in Free",
+      "Up to 100 saved projects",
+      "A larger credit allowance for video",
     ],
+    action: { label: "Ask to be told", to: "/contact" },
+    available: false,
   },
   {
-    name: "ENTERPRISE",
-    price: "Contact us",
-    blurb: "For scale teams with heavy production needs.",
+    name: "Enterprise",
+    price: "By arrangement",
+    status: "Talk to sales",
+    blurb: "For teams producing at volume.",
+    credits: "50,000",
+    projects: "1,000",
     features: [
-      "50000 monthly credits",
-      "Up to 1000 projects",
-      "Large workspace allowance",
-      "High-volume campaign production",
-      "Operational visibility for bigger teams",
+      "Everything in Pro",
+      "Up to 1,000 saved projects",
+      "Onboarding with the team",
     ],
+    action: { label: "Contact sales", to: "/contact" },
+    available: false,
   },
 ];
 
 export const PricingPage: React.FC = () => {
   return (
-    <div className="mx-auto max-w-7xl px-4 pb-20 pt-12 sm:px-6 lg:px-8 lg:pb-24 lg:pt-16">
-      <div className="mx-auto max-w-3xl text-center">
-        <span className="section-kicker">Pricing</span>
-        <h1 className="mt-6 text-balance text-5xl font-semibold leading-tight text-white">
-          Simple pricing for teams that publish fast
+    <div className="mx-auto max-w-7xl px-4 pt-16 sm:px-6 sm:pt-24 lg:px-8">
+      <div className="max-w-3xl">
+        <h1 className="text-4xl font-semibold tracking-[-0.03em] text-foreground sm:text-6xl">
+          Pay in credits, start at zero
         </h1>
-        <p className="mt-4 text-lg leading-8 text-[#c2d2df]">
-          Start with the free workspace, then scale credits and production
-          capacity as campaigns, avatars, and video volume grow.
+        <p className="mt-5 max-w-2xl text-lg leading-relaxed text-foreground">
+          Every run costs credits. They are held while it works and only spent
+          when it succeeds. Paid plans are not on sale yet; the free plan has
+          every tool.
         </p>
       </div>
 
-      <div className="mt-12 grid gap-5 md:grid-cols-3">
-        {plans.map((plan, index) => (
-          <article
-            key={plan.name}
-            className={`surface-card rounded-[30px] p-6 ${index === 1 ? "ring-1 ring-primary/25" : ""}`}
-          >
-            {index === 1 && (
-              <span className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-primary">
-                Most Popular
+      <div className="mt-16 grid gap-px overflow-hidden rounded-xl border border-border bg-border md:grid-cols-3">
+        {plans.map((plan) => (
+          <article key={plan.name} className="flex flex-col bg-background p-6 sm:p-8">
+            <div className="flex items-baseline justify-between gap-4">
+              <h2 className="text-xl font-semibold text-foreground">{plan.name}</h2>
+              <span
+                className={cn(
+                  "text-sm",
+                  plan.available ? "text-brand" : "text-muted-foreground",
+                )}
+              >
+                {plan.status}
               </span>
-            )}
-            <h2 className="text-xl font-semibold text-white">{plan.name}</h2>
-            <p className="text-3xl font-bold text-white mt-4">{plan.price}</p>
-            <p className="text-sm text-muted mt-2 leading-7">{plan.blurb}</p>
-            <ul className="mt-5 space-y-2">
+            </div>
+            <p className="mt-6 text-3xl font-semibold tracking-[-0.02em] text-foreground">
+              {plan.price}
+            </p>
+            <p className="mt-2 text-base text-muted-foreground">{plan.blurb}</p>
+
+            <dl className="mt-8 grid grid-cols-2 gap-4 border-y border-border py-5">
+              <div>
+                <dt className="text-sm text-muted-foreground">Credits a month</dt>
+                <dd className="tabular mt-1 text-2xl font-semibold text-foreground">{plan.credits}</dd>
+              </div>
+              <div>
+                <dt className="text-sm text-muted-foreground">Projects</dt>
+                <dd className="tabular mt-1 text-2xl font-semibold text-foreground">{plan.projects}</dd>
+              </div>
+            </dl>
+
+            <ul className="mt-6 mb-8 space-y-3">
               {plan.features.map((feature) => (
-                <li key={feature} className="text-sm text-muted">
-                  • {feature}
+                <li key={feature} className="flex gap-3 text-sm text-foreground">
+                  <Check className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                  {feature}
                 </li>
               ))}
             </ul>
-            <Link
-              to={plan.name === "FREE" ? "/auth?mode=register" : "/contact"}
-              className="inline-flex mt-6 rounded-full bg-[linear-gradient(135deg,#83efe0_0%,#48d9c8_42%,#168d87_100%)] px-4 py-2.5 text-sm font-semibold text-[#04161a]"
+
+            <Button
+              asChild
+              size="lg"
+              variant={plan.available ? "default" : "outline"}
+              className="mt-auto w-full"
             >
-              {plan.name === "FREE" ? "Start free" : "Contact us"}
-            </Link>
+              <Link to={plan.action.to}>{plan.action.label}</Link>
+            </Button>
           </article>
         ))}
       </div>

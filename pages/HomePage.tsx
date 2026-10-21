@@ -1,125 +1,288 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowRight, CheckCircle2, Film, History, Layers, Sparkles, Wand2 } from 'lucide-react';
+import React, { useId, useState } from "react";
+import { Link } from "react-router-dom";
+import { ArrowRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+const SAMPLE_BRIEF =
+  "Cold brew is back. 20% off at the roastery this weekend only.";
+
+const FORMATS = [
+  { ratio: "1:1", label: "Feed post", w: 1, h: 1 },
+  { ratio: "4:5", label: "Portrait", w: 4, h: 5 },
+  { ratio: "9:16", label: "Story", w: 9, h: 16 },
+  { ratio: "16:9", label: "Banner", w: 16, h: 9 },
+] as const;
+
+const splitBrief = (brief: string) => {
+  const text = brief.trim() || SAMPLE_BRIEF;
+  const match = text.match(/^(.{4,60}?[.!?])\s+(.*)$/);
+  return match
+    ? { headline: match[1], support: match[2] }
+    : { headline: text.slice(0, 60), support: text.slice(60) };
+};
+
+/** One generated banner, drawn the way the editor composes it: field, headline, support, action. */
+const FormatFrame: React.FC<{
+  format: (typeof FORMATS)[number];
+  headline: string;
+  support: string;
+  tone: "paper" | "brand" | "ink";
+}> = ({ format, headline, support, tone }) => {
+  const tall = format.h > format.w;
+  const wide = format.w > format.h * 1.4;
+  return (
+    <figure className="flex min-w-0 flex-col gap-2">
+      <div
+        data-ui
+        className={cn(
+          "relative flex flex-col justify-between overflow-hidden rounded-md p-[7%]",
+          tone === "paper" && "bg-[#f1efe9] text-[#141414]",
+          tone === "brand" && "bg-brand text-brand-foreground",
+          tone === "ink" && "bg-[#1d1d1f] text-[#f4f4f3]",
+        )}
+        style={{ aspectRatio: `${format.w} / ${format.h}` }}
+      >
+        <span
+          className={cn(
+            "font-semibold leading-[1.02] tracking-[-0.02em] [overflow-wrap:anywhere]",
+            wide ? "max-w-[70%] text-[clamp(13px,1.6vw,22px)]" : tall ? "text-[clamp(13px,1.5vw,20px)]" : "text-[clamp(13px,1.7vw,24px)]",
+          )}
+        >
+          {headline}
+        </span>
+        <div className="flex flex-col gap-2">
+          {support && !wide && (
+            <span className="line-clamp-3 text-[clamp(9px,0.85vw,12px)] leading-snug opacity-75">
+              {support}
+            </span>
+          )}
+          <span
+            className={cn(
+              "w-fit rounded-sm px-2 py-1 text-[clamp(8px,0.75vw,11px)] font-semibold",
+              tone === "brand" ? "bg-brand-foreground text-brand" : "bg-brand text-brand-foreground",
+            )}
+          >
+            Shop now
+          </span>
+        </div>
+      </div>
+      <figcaption className="text-xs text-muted-foreground">
+        {format.label} <span className="tabular text-muted-foreground/70">{format.ratio}</span>
+      </figcaption>
+    </figure>
+  );
+};
+
+const PLAN_OUTPUT = {
+  headline: "Cold brew is back.",
+  sub: "20% off at the roastery, Saturday and Sunday.",
+  caption:
+    "Twelve hours in the steep, ready by nine. Bring a friend and a bottle; refills are on us this weekend.",
+  hashtags: ["#coldbrew", "#weekendroast", "#localcoffee", "#summerdrinks"],
+  variations: [
+    "Twelve hours in the making",
+    "Refills on us this weekend",
+    "Bring your own bottle",
+  ],
+};
+
+const TOOLS = [
+  {
+    name: "Banner Generator",
+    body: "A brief becomes copy, a caption, hashtags and up to six banners you can open in the layer editor.",
+  },
+  {
+    name: "Avatar Studio",
+    body: "Upload or generate a character once and reuse it across banners, edits and video.",
+  },
+  {
+    name: "Image Studio",
+    body: "Change a picture by describing the change. Every step keeps an undo.",
+  },
+  {
+    name: "Video Generator",
+    body: "Short clips from a prompt, a still or an avatar, or a reel of several scenes merged into one file.",
+  },
+  {
+    name: "Activities",
+    body: "Every run with its status and the credits it used, so nothing paid for goes missing.",
+  },
+];
 
 export const HomePage: React.FC = () => {
-  const highlights = [
-    ['Campaigns', 'Multi-asset planning'],
-    ['Avatars', 'Reusable visual subjects'],
-    ['Video', 'Prompt and image-to-video'],
-    ['Activity', 'History and credit visibility'],
-  ];
+  const [brief, setBrief] = useState(SAMPLE_BRIEF);
+  const briefId = useId();
+  const { headline, support } = splitBrief(brief);
+  const tones = ["paper", "brand", "ink", "paper"] as const;
 
   return (
-    <div className="mx-auto max-w-7xl px-4 pb-20 pt-12 sm:px-6 sm:pt-16 lg:px-8 lg:pb-28 lg:pt-20">
-      <section className="grid items-start gap-10 lg:grid-cols-[minmax(0,1.05fr)_480px]">
-        <div className="animate-fade-in space-y-7">
-          <span className="section-kicker">
-            <Sparkles className="h-4 w-4" />
-            AI Creative Workspace
-          </span>
-
-          <div className="space-y-5">
-            <h1 className="text-balance max-w-3xl text-5xl font-semibold leading-[1.02] text-white sm:text-6xl lg:text-[4.5rem]">
-              Build campaign-ready social creative with one sleek workspace.
+    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <section className="pt-16 sm:pt-24">
+        <div className="grid gap-10 lg:grid-cols-12 lg:items-end">
+          <div className="lg:col-span-7">
+            <h1
+              className="enter text-[clamp(2.75rem,7vw,6.5rem)] font-semibold leading-[0.95] tracking-[-0.035em] text-foreground"
+              style={{ "--i": 0 } as React.CSSProperties}
+            >
+              One brief.
+              <br />
+              Every format.
             </h1>
-            <p className="max-w-2xl text-lg leading-8 text-[#c2d2df]">
-              Social Studio blends banner planning, avatar-guided image generation, editing, video workflows, and activity
-              tracking into a focused operating system for fast-moving marketing teams.
+          </div>
+          <div className="lg:col-span-5 lg:pb-3">
+            <p
+              className="enter max-w-md text-lg leading-relaxed text-foreground"
+              style={{ "--i": 1 } as React.CSSProperties}
+            >
+              Social Studio turns a campaign brief into copy, banners for feed,
+              story and web, image edits and short video, in one workspace.
             </p>
-          </div>
-
-          <div className="flex flex-wrap gap-3">
-            <Link
-              to="/auth?mode=register"
-              className="inline-flex items-center gap-2 rounded-full bg-[linear-gradient(135deg,#83efe0_0%,#48d9c8_42%,#168d87_100%)] px-6 py-3.5 text-sm font-semibold text-[#04161a] shadow-[0_24px_45px_-24px_rgba(64,214,195,0.95)] transition-transform hover:-translate-y-0.5"
+            <div
+              className="enter mt-8 flex flex-wrap items-center gap-3"
+              style={{ "--i": 2 } as React.CSSProperties}
             >
-              Start Free
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link
-              to="/pricing"
-              className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/6 px-6 py-3.5 text-sm font-semibold text-white/90 transition-colors hover:border-white/20 hover:bg-white/10"
-            >
-              Explore Pricing
-            </Link>
+              <Button asChild size="lg">
+                <Link to="/auth?mode=register">
+                  Start free with 120 credits
+                  <ArrowRight />
+                </Link>
+              </Button>
+              <Button asChild size="lg" variant="ghost">
+                <Link to="/pricing">See pricing</Link>
+              </Button>
+            </div>
           </div>
+        </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            {highlights.map(([label, description]) => (
-              <div key={label} className="surface-card rounded-[24px] px-4 py-4">
-                <p className="text-sm font-semibold text-white">{label}</p>
-                <p className="mt-1 text-sm text-muted">{description}</p>
+        <div
+          className="enter mt-16 rounded-xl bg-card p-4 sm:p-6"
+          style={{ "--i": 3 } as React.CSSProperties}
+        >
+          <label
+            htmlFor={briefId}
+            className="block text-sm font-medium text-foreground"
+          >
+            Try a brief
+          </label>
+          <input
+            id={briefId}
+            value={brief}
+            maxLength={140}
+            onChange={(event) => setBrief(event.target.value)}
+            className="mt-2 h-12 w-full rounded-md border border-input bg-background px-4 text-base text-foreground outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/40"
+            placeholder={SAMPLE_BRIEF}
+          />
+          <p className="mt-2 text-sm text-muted-foreground">
+            Your words, set in the four sizes the generator makes. In the
+            workspace the planner writes the copy and paints the pictures.
+          </p>
+          <div className="mt-6 grid grid-cols-2 items-end gap-4 sm:grid-cols-[1fr_0.8fr_0.5625fr_1.6fr] sm:gap-5">
+            {FORMATS.map((format, index) => (
+              <div
+                key={format.ratio}
+                className={cn(index === 3 && "col-span-2 sm:col-span-1")}
+              >
+                <FormatFrame
+                  format={format}
+                  headline={headline}
+                  support={support}
+                  tone={tones[index]}
+                />
               </div>
             ))}
           </div>
         </div>
+      </section>
 
-        <div className="surface-card-strong relative overflow-hidden rounded-[34px] p-6 sm:p-7">
-          <div className="absolute inset-x-10 top-0 h-24 rounded-full bg-primary/18 blur-3xl" />
-          <div className="relative space-y-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-primary/90">Live Workspace</p>
-                <h2 className="mt-2 text-2xl font-semibold text-white">From brief to publish-ready creative</h2>
-              </div>
-              <div className="rounded-full border border-white/10 bg-white/6 px-3 py-1 text-xs text-[#d8e4ee]">
-                Modern stack
-              </div>
-            </div>
-
-            <div className="grid gap-4">
-              <div className="rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-5">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-sm font-semibold text-white">Campaign Board</p>
-                    <p className="mt-1 text-sm leading-6 text-muted">One brief becomes a headline set, caption, hashtags, and multiple banner variations.</p>
-                  </div>
-                  <div className="flex h-11 w-11 items-center justify-center rounded-[18px] bg-primary/12 text-primary">
-                    <Wand2 className="h-5 w-5" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="rounded-[24px] border border-white/10 bg-black/20 p-5">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-[16px] bg-primary/10 text-primary">
-                    <Layers className="h-5 w-5" />
-                  </div>
-                  <p className="mt-4 text-base font-semibold text-white">Visual Variations</p>
-                  <p className="mt-2 text-sm leading-6 text-muted">Generate multiple banner concepts in the same run and keep them editable.</p>
-                </div>
-                <div className="rounded-[24px] border border-white/10 bg-black/20 p-5">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-[16px] bg-[#ffb166]/12 text-[#ffd2a3]">
-                    <Film className="h-5 w-5" />
-                  </div>
-                  <p className="mt-4 text-base font-semibold text-white">Motion Ready</p>
-                  <p className="mt-2 text-sm leading-6 text-muted">Turn selected avatars and image frames into short branded video concepts.</p>
-                </div>
-              </div>
-
-              <div className="rounded-[24px] border border-white/10 bg-black/20 p-5">
-                <div className="flex items-center gap-3">
-                  <CheckCircle2 className="h-5 w-5 text-primary" />
-                  <p className="text-sm font-semibold text-white">Brand-safe finishing layer</p>
-                </div>
-                <p className="mt-2 text-sm leading-6 text-muted">
-                  Clean history, credit visibility, and in-app editing keep the workflow tight instead of spreading decisions across tools.
-                </p>
-              </div>
-
-              <div className="rounded-[24px] border border-white/10 bg-black/20 p-5">
-                <div className="flex items-center gap-3">
-                  <History className="h-5 w-5 text-primary" />
-                  <p className="text-sm font-semibold text-white">History and settings included</p>
-                </div>
-                <p className="mt-2 text-sm leading-6 text-muted">
-                  Keep an eye on recent runs, usage, and profile setup directly inside the workspace instead of juggling separate tools.
-                </p>
-              </div>
-            </div>
-          </div>
+      <section className="mt-32 grid gap-10 lg:mt-48 lg:grid-cols-12">
+        <div className="lg:col-span-5">
+          <h2 className="text-3xl font-semibold leading-tight tracking-[-0.02em] text-foreground sm:text-4xl">
+            What one brief returns
+          </h2>
+          <p className="mt-4 max-w-md text-base leading-relaxed text-foreground">
+            The planner answers with everything a post needs: a headline and
+            support line, a caption, hashtags and keywords, and the angles for
+            each extra banner. Each banner opens in the editor as layers you can
+            move, restyle and export.
+          </p>
+          <Button asChild variant="outline" className="mt-8">
+            <Link to="/features">How each tool works</Link>
+          </Button>
         </div>
+
+        <div
+          data-ui
+          className="overflow-hidden rounded-xl border border-border bg-card lg:col-span-7"
+        >
+          <div className="flex items-center justify-between border-b border-border px-5 py-3 text-sm">
+            <span className="font-medium text-foreground">Campaign plan</span>
+            <span className="text-muted-foreground">Gemini planner · 3 banners</span>
+          </div>
+          <dl className="divide-y divide-border">
+            <div className="grid gap-1 px-5 py-4 sm:grid-cols-[140px_1fr]">
+              <dt className="text-sm text-muted-foreground">Headline</dt>
+              <dd className="text-lg font-semibold text-foreground">
+                {PLAN_OUTPUT.headline}
+              </dd>
+            </div>
+            <div className="grid gap-1 px-5 py-4 sm:grid-cols-[140px_1fr]">
+              <dt className="text-sm text-muted-foreground">Support</dt>
+              <dd className="text-sm text-foreground">{PLAN_OUTPUT.sub}</dd>
+            </div>
+            <div className="grid gap-1 px-5 py-4 sm:grid-cols-[140px_1fr]">
+              <dt className="text-sm text-muted-foreground">Caption</dt>
+              <dd className="text-sm leading-relaxed text-foreground">
+                {PLAN_OUTPUT.caption}
+              </dd>
+            </div>
+            <div className="grid gap-1 px-5 py-4 sm:grid-cols-[140px_1fr]">
+              <dt className="text-sm text-muted-foreground">Hashtags</dt>
+              <dd className="flex flex-wrap gap-x-3 gap-y-1 text-sm text-brand">
+                {PLAN_OUTPUT.hashtags.map((tag) => (
+                  <span key={tag}>{tag}</span>
+                ))}
+              </dd>
+            </div>
+            <div className="grid gap-1 px-5 py-4 sm:grid-cols-[140px_1fr]">
+              <dt className="text-sm text-muted-foreground">Variations</dt>
+              <dd>
+                <ul className="space-y-1 text-sm text-foreground">
+                  {PLAN_OUTPUT.variations.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </dd>
+            </div>
+          </dl>
+        </div>
+      </section>
+
+      <section className="mt-32 grid gap-10 lg:mt-48 lg:grid-cols-12">
+        <h2 className="text-3xl font-semibold leading-tight tracking-[-0.02em] text-foreground sm:text-4xl lg:col-span-4">
+          Five tools on one account
+        </h2>
+        <dl className="grid gap-x-10 gap-y-8 sm:grid-cols-2 lg:col-span-8">
+          {TOOLS.map((tool) => (
+            <div key={tool.name}>
+              <dt className="text-lg font-semibold text-foreground">
+                {tool.name}
+              </dt>
+              <dd className="mt-2 text-base leading-relaxed text-muted-foreground">
+                {tool.body}
+              </dd>
+            </div>
+          ))}
+          <div>
+            <dt className="text-lg font-semibold text-foreground">
+              Credits you can see
+            </dt>
+            <dd className="mt-2 text-base leading-relaxed text-muted-foreground">
+              Credits are held when a run starts and only spent when it
+              succeeds. A failed run gives them back.
+            </dd>
+          </div>
+        </dl>
       </section>
     </div>
   );

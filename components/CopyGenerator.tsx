@@ -11,32 +11,27 @@ import {
   AspectRatio,
   TextGenerationProvider,
 } from "../services/geminiService";
-import { Button } from "./ui/Button";
+import { Button } from "./ui/button";
+import { Label } from "./ui/label";
+import { Textarea } from "./ui/textarea";
+import { NativeSelect, NativeSelectOption } from "./ui/native-select";
+import { ToggleGroup, ToggleGroupItem } from "./ui/toggle-group";
+import { Spinner } from "./ui/spinner";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import {
-  Wand2,
-  Layers,
   Download,
   Image as ImageIcon,
-  Sparkles,
   Upload,
   X,
-  Hash,
   Copy,
-  Share2,
-  Instagram,
-  Linkedin,
-  ChevronDown,
-  MousePointer2,
-  Facebook,
-  Video,
   RefreshCcw,
 } from "lucide-react";
 import { CanvasEditor, CanvasElement, BackgroundState } from "./CanvasEditor";
 import { AvatarLibraryPicker } from "./workspace/AvatarLibraryPicker";
-import { Tooltip } from "./ui/Tooltip";
+import { Hint } from "./ui/hint";
 import type { AvatarAsset } from "../services/avatarLibrary";
 
-type SocialPlatform = "instagram" | "facebook" | "tiktok" | "linkedin";
 const BANNER_COUNT_OPTIONS = [1, 2, 3, 4, 5, 6] as const;
 type BannerCount = (typeof BANNER_COUNT_OPTIONS)[number];
 const DEFAULT_BANNER_COUNT: BannerCount = 3;
@@ -46,7 +41,7 @@ const PLANNER_MODEL_OPTIONS: Array<{
   label: string;
 }> = [
   { id: "gemini", label: "Gemini (default planner model)" },
-  { id: "openrouter", label: "OpenRouter (openai/gpt-5.2)" },
+  { id: "openrouter", label: "OpenRouter (server-configured model)" },
 ];
 
 interface CopyGeneratorProps {
@@ -70,39 +65,90 @@ type PersistedWorkspaceDraft = {
   generationErrors: Record<string, string>;
 };
 
-const DEFAULT_DRAFT_STORAGE_KEY = "social-studio:banner-workspace-draft:v1";
+// Planner output may or may not include the leading "#"; never print "##tag".
+const formatHashtags = (tags: string[]) =>
+  tags
+    .map((tag) => tag.trim().replace(/^#+/, ""))
+    .filter(Boolean)
+    .map((tag) => `#${tag}`)
+    .join(" ");
 
-const SOCIAL_PLATFORMS: Array<{
-  id: SocialPlatform;
-  label: string;
-  icon: typeof Instagram;
-  activeClass: string;
-}> = [
-  {
-    id: "instagram",
-    label: "Instagram",
-    icon: Instagram,
-    activeClass: "bg-[#E1306C]/20 text-[#E1306C] border border-[#E1306C]/30",
-  },
-  {
-    id: "facebook",
-    label: "Facebook",
-    icon: Facebook,
-    activeClass: "bg-[#1877F2]/20 text-[#1877F2] border border-[#1877F2]/30",
-  },
-  {
-    id: "tiktok",
-    label: "TikTok",
-    icon: Video,
-    activeClass: "bg-black/40 text-white border border-white/20",
-  },
-  {
-    id: "linkedin",
-    label: "LinkedIn",
-    icon: Linkedin,
-    activeClass: "bg-[#0077B5]/20 text-[#0077B5] border border-[#0077B5]/30",
-  },
+const FORMAT_OPTIONS: Array<{ id: AspectRatio; label: string; w: number; h: number }> = [
+  { id: "1:1", label: "Square", w: 1, h: 1 },
+  { id: "4:5", label: "Portrait", w: 4, h: 5 },
+  { id: "9:16", label: "Story", w: 9, h: 16 },
+  { id: "16:9", label: "Landscape", w: 16, h: 9 },
 ];
+
+const aspectClass = (ratio: AspectRatio) =>
+  ratio === "9:16"
+    ? "aspect-[9/16]"
+    : ratio === "16:9"
+      ? "aspect-video"
+      : ratio === "4:5"
+        ? "aspect-[4/5]"
+        : ratio === "3:4"
+          ? "aspect-[3/4]"
+          : "aspect-square";
+
+/** A small outline drawn at the format's real proportions. */
+const RatioGlyph: React.FC<{ w: number; h: number }> = ({ w, h }) => {
+  const scale = 16 / Math.max(w, h);
+  return (
+    <span
+      aria-hidden="true"
+      className="block rounded-[2px] border-[1.5px] border-current"
+      style={{ width: w * scale, height: h * scale }}
+    />
+  );
+};
+
+const AssetSlot: React.FC<{
+  label: string;
+  image: string | null;
+  fit: "cover" | "contain";
+  icon: React.ReactNode;
+  onPick: () => void;
+  onClear: () => void;
+}> = ({ label, image, fit, icon, onPick, onClear }) => (
+  <div className="relative">
+    <button
+      type="button"
+      onClick={onPick}
+      aria-label={image ? `Change ${label.toLowerCase()}` : `Add ${label.toLowerCase()}`}
+      className={cn(
+        "pressable group flex aspect-video w-full flex-col items-center justify-center gap-1.5 overflow-hidden rounded-lg border text-xs text-muted-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
+        image ? "border-border" : "border-dashed border-input hover:bg-accent hover:text-foreground",
+      )}
+    >
+      {image ? (
+        <>
+          <img src={image} alt="" className={cn("size-full", fit === "cover" ? "object-cover" : "object-contain")} />
+          <span className="absolute inset-0 flex items-center justify-center bg-black/55 text-xs font-medium text-white opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100">
+            Change
+          </span>
+        </>
+      ) : (
+        <>
+          {icon}
+          {label}
+        </>
+      )}
+    </button>
+    {image && (
+      <button
+        type="button"
+        onClick={onClear}
+        aria-label={`Remove ${label.toLowerCase()}`}
+        className="pressable absolute right-1.5 top-1.5 flex size-7 items-center justify-center rounded-md bg-black/60 text-white hover:bg-destructive"
+      >
+        <X className="size-3.5" />
+      </button>
+    )}
+  </div>
+);
+
+const DEFAULT_DRAFT_STORAGE_KEY = "social-studio:banner-workspace-draft:v1";
 
 export const CopyGenerator: React.FC<CopyGeneratorProps> = ({
   draftStorageKey = DEFAULT_DRAFT_STORAGE_KEY,
@@ -719,26 +765,17 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({
   };
   const handleCopyCaption = async () => {
     if (!plan) return;
-    const copyText = `${plan.seo.caption} ${plan.seo.hashtags.map((t) => `#${t}`).join(" ")}`;
+    const copyText = `${plan.seo.caption}\n\n${formatHashtags(plan.seo.hashtags)}`;
     if (!navigator.clipboard?.writeText) {
-      setStatusMessage({
-        type: "error",
-        text: "Clipboard API unavailable. Please copy manually.",
-      });
+      toast.error("Clipboard is unavailable here. Select the caption and copy it.");
       return;
     }
     try {
       await navigator.clipboard.writeText(copyText);
-      setStatusMessage({
-        type: "success",
-        text: "Caption copied to clipboard.",
-      });
+      toast.success("Caption and hashtags copied");
     } catch (error) {
       console.error("Clipboard write failed", error);
-      setStatusMessage({
-        type: "error",
-        text: "Clipboard access failed. Please copy manually.",
-      });
+      toast.error("Clipboard access was blocked. Select the caption and copy it.");
     }
   };
 
@@ -758,7 +795,7 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({
   };
 
   return (
-    <div className="flex flex-col lg:flex-row gap-8">
+    <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
       {/* --- Full Screen Editor Overlay --- */}
       {isEditorOpen && editorData && (
         <CanvasEditor
@@ -775,7 +812,7 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({
       )}
 
       {/* --- Left Column: Creative Studio (Form) --- */}
-      <div className="w-full lg:w-[400px] flex-shrink-0 space-y-6">
+      <div className="w-full flex-shrink-0 space-y-4 lg:w-[380px]">
         <ProjectToolbar
           draft={{
             version: 1,
@@ -814,236 +851,158 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({
           }}
         />
 
-        <div className="bg-surface/50 backdrop-blur-xl border border-white/5 p-6 rounded-2xl shadow-xl sticky top-24">
-          <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-            <Layers className="w-5 h-5 text-primary" /> Create New
-          </h2>
-
+        <div className="rounded-xl border border-border bg-card p-5 lg:sticky lg:top-6">
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* User Prompt */}
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-muted uppercase tracking-wider">
-                  Describe your banner
-                </label>
-                <textarea
-                  value={userPrompt}
-                  onChange={(e) => setUserPrompt(e.target.value)}
-                  className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-muted focus:ring-1 focus:ring-primary focus:border-primary/50 outline-none transition-all h-32 resize-none"
-                  placeholder="e.g. A modern instagram post for a coffee shop sale, human feels, warm lighting... or Describe the scene, text and vibe you want."
+            <div className="grid gap-2">
+              <Label htmlFor="banner-brief">Brief</Label>
+              <Textarea
+                id="banner-brief"
+                value={userPrompt}
+                onChange={(e) => setUserPrompt(e.target.value)}
+                className="h-32 resize-none text-[15px] leading-relaxed"
+                placeholder="A weekend sale for a neighbourhood coffee roaster: 20% off cold brew, warm morning light, people at the counter."
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label id="format-label">Format</Label>
+              <ToggleGroup
+                type="single"
+                variant="outline"
+                aria-labelledby="format-label"
+                value={aspectRatio}
+                onValueChange={(value) => value && setAspectRatio(value as AspectRatio)}
+                className="grid w-full grid-cols-4"
+              >
+                {FORMAT_OPTIONS.map((ratio) => (
+                  <ToggleGroupItem
+                    key={ratio.id}
+                    value={ratio.id}
+                    aria-label={`${ratio.label} ${ratio.id}`}
+                    className="h-auto flex-col gap-1.5 py-2.5 text-xs"
+                  >
+                    <span className="flex h-4 items-center">
+                      <RatioGlyph w={ratio.w} h={ratio.h} />
+                    </span>
+                    <span className="tabular">{ratio.id}</span>
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+            </div>
+
+            <div className="grid gap-2">
+              <Label id="count-label">Banners</Label>
+              <ToggleGroup
+                type="single"
+                variant="outline"
+                aria-labelledby="count-label"
+                value={String(bannerCount)}
+                onValueChange={(value) => value && setBannerCount(Number(value) as BannerCount)}
+                className="grid w-full grid-cols-6"
+              >
+                {BANNER_COUNT_OPTIONS.map((count) => (
+                  <ToggleGroupItem key={count} value={String(count)} className="tabular">
+                    {count}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+              <p className="text-xs text-muted-foreground">
+                One main banner
+                {bannerCount > 1
+                  ? ` and ${bannerCount - 1} variation${bannerCount - 1 > 1 ? "s" : ""}.`
+                  : "."}
+              </p>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="planner-model">Planner</Label>
+              <NativeSelect
+                id="planner-model"
+                value={textProvider}
+                onChange={(e) =>
+                  setTextProvider(e.target.value as TextGenerationProvider)
+                }
+              >
+                {PLANNER_MODEL_OPTIONS.map((option) => (
+                  <NativeSelectOption key={option.id} value={option.id}>
+                    {option.label}
+                  </NativeSelectOption>
+                ))}
+              </NativeSelect>
+            </div>
+
+            <div className="grid gap-2">
+              <span className="text-sm font-medium text-foreground">
+                Your images <span className="font-normal text-muted-foreground">(optional)</span>
+              </span>
+              <input
+                type="file"
+                ref={bgInputRef}
+                onChange={(e) => handleFileUpload(e, setBackgroundImage)}
+                className="hidden"
+                accept="image/*"
+              />
+              <input
+                type="file"
+                ref={assetInputRef}
+                onChange={(e) => handleFileUpload(e, setAssetImage)}
+                className="hidden"
+                accept="image/*"
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <AssetSlot
+                  label="Background"
+                  image={backgroundImage}
+                  fit="cover"
+                  icon={<ImageIcon className="size-4" />}
+                  onPick={() => bgInputRef.current?.click()}
+                  onClear={() => setBackgroundImage(null)}
+                />
+                <AssetSlot
+                  label="Logo"
+                  image={assetImage}
+                  fit="contain"
+                  icon={<Upload className="size-4" />}
+                  onPick={() => assetInputRef.current?.click()}
+                  onClear={() => setAssetImage(null)}
                 />
               </div>
             </div>
 
-            {/* Configuration */}
-            <div className="pt-4 border-t border-white/5 space-y-4">
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-muted uppercase tracking-wider">
-                  Format
-                </label>
-                <div className="grid grid-cols-4 gap-2">
-                  {[
-                    { id: "1:1", label: "Square", icon: "□" },
-                    { id: "4:5", label: "Portrait", icon: "▯" },
-                    { id: "9:16", label: "Story", icon: "▯" },
-                    { id: "16:9", label: "Land", icon: "▭" },
-                  ].map((ratio) => (
-                    <button
-                      key={ratio.id}
-                      type="button"
-                      onClick={() => setAspectRatio(ratio.id as AspectRatio)}
-                      className={`flex flex-col items-center justify-center p-2 rounded-lg border transition-all ${
-                        aspectRatio === ratio.id
-                          ? "bg-primary/20 border-primary text-primary"
-                          : "bg-black/20 border-white/5 text-muted hover:bg-white/5"
-                      }`}
-                    >
-                      <span className="text-lg leading-none mb-1">
-                        {ratio.icon}
-                      </span>
-                      <span className="text-[10px]">{ratio.id}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
+            <AvatarLibraryPicker
+              selectedAvatarId={selectedAvatarId}
+              onSelectedAvatarIdChange={setSelectedAvatarId}
+              onSelectedAvatarChange={setSelectedAvatar}
+              title="Avatar in the pictures"
+              mode="select"
+            />
 
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-muted uppercase tracking-wider">
-                    Images to create
-                  </label>
-                  <span className="text-[10px] text-muted">
-                    {bannerCount} total
-                  </span>
-                </div>
-                <div className="grid grid-cols-3 gap-2">
-                  {BANNER_COUNT_OPTIONS.map((count) => (
-                    <button
-                      key={count}
-                      type="button"
-                      onClick={() => setBannerCount(count)}
-                      className={`rounded-lg border px-3 py-2 text-sm font-medium transition-all ${
-                        bannerCount === count
-                          ? "bg-primary/20 border-primary text-primary"
-                          : "bg-black/20 border-white/5 text-muted hover:bg-white/5 hover:text-white"
-                      }`}
-                    >
-                      {count}
-                    </button>
-                  ))}
-                </div>
-                <p className="text-[11px] text-muted">
-                  Creates 1 main banner
-                  {bannerCount > 1
-                    ? ` and ${bannerCount - 1} additional variation${bannerCount - 1 > 1 ? "s" : ""}.`
-                    : "."}
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-muted uppercase tracking-wider">
-                  Planner AI
-                </label>
-                <select
-                  value={textProvider}
-                  onChange={(e) =>
-                    setTextProvider(e.target.value as TextGenerationProvider)
-                  }
-                  className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white transition-all placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                >
-                  {PLANNER_MODEL_OPTIONS.map((option) => (
-                    <option
-                      key={option.id}
-                      value={option.id}
-                      className="bg-[#0b1620] text-white"
-                    >
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Assets */}
-            <div className="pt-4 border-t border-white/5 space-y-4">
-              <label className="text-xs font-semibold text-muted uppercase tracking-wider">
-                Assets (Optional)
-              </label>
-              <div className="grid grid-cols-2 gap-4">
-                <button
-                  type="button"
-                  onClick={() => bgInputRef.current?.click()}
-                  className={`flex flex-col items-center justify-center p-4 rounded-xl border border-dashed transition-all relative group overflow-hidden ${backgroundImage ? "border-primary bg-primary/10 p-0" : "border-white/10 hover:bg-white/5"}`}
-                >
-                  <input
-                    type="file"
-                    ref={bgInputRef}
-                    onChange={(e) => handleFileUpload(e, setBackgroundImage)}
-                    className="hidden"
-                    accept="image/*"
-                  />
-                  {backgroundImage ? (
-                    <div className="relative w-full aspect-video rounded-lg overflow-hidden">
-                      <img
-                        src={backgroundImage}
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <span className="text-xs text-white">Change</span>
-                      </div>
-                      <div
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setBackgroundImage(null);
-                        }}
-                        className="absolute top-1 right-1 bg-black/50 hover:bg-red-500/80 rounded-full p-1 text-white transition-colors"
-                        title="Remove Background"
-                      >
-                        <X className="w-3 h-3" />
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <ImageIcon className="w-5 h-5 text-muted mb-2" />
-                      <span className="text-xs text-muted">Background</span>
-                    </>
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => assetInputRef.current?.click()}
-                  className={`flex flex-col items-center justify-center p-4 rounded-xl border border-dashed transition-all relative group overflow-hidden ${assetImage ? "border-primary bg-primary/10 p-0" : "border-white/10 hover:bg-white/5"}`}
-                >
-                  <input
-                    type="file"
-                    ref={assetInputRef}
-                    onChange={(e) => handleFileUpload(e, setAssetImage)}
-                    className="hidden"
-                    accept="image/*"
-                  />
-                  {assetImage ? (
-                    <div className="relative w-full aspect-video rounded-lg overflow-hidden">
-                      <img
-                        src={assetImage}
-                        className="w-full h-full object-contain"
-                      />
-                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <span className="text-xs text-white">Change</span>
-                      </div>
-                      <div
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setAssetImage(null);
-                        }}
-                        className="absolute top-1 right-1 bg-black/50 hover:bg-red-500/80 rounded-full p-1 text-white transition-colors"
-                        title="Remove Asset"
-                      >
-                        <X className="w-3 h-3" />
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <Upload className="w-5 h-5 text-muted mb-2" />
-                      <span className="text-xs text-muted">Logo / Asset</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-
-            <div className="pt-4 border-t border-white/5">
-              <AvatarLibraryPicker
-                selectedAvatarId={selectedAvatarId}
-                onSelectedAvatarIdChange={setSelectedAvatarId}
-                onSelectedAvatarChange={setSelectedAvatar}
-                title="Avatar For Images"
-                mode="select"
-              />
-            </div>
-
-            <div className="pt-4">
-              <Button
-                type="submit"
-                isLoading={isPlanning}
-                className="w-full py-4 text-lg shadow-xl shadow-primary/25"
-              >
-                <Wand2 className="w-5 h-5" /> Generate Campaign
-              </Button>
-            </div>
+            <Button
+              type="submit"
+              size="lg"
+              isLoading={isPlanning}
+              className="w-full"
+            >
+              Generate {bannerCount} banner{bannerCount > 1 ? "s" : ""}
+            </Button>
 
             {draftRestoreFailed && (
-              <button
+              <Button
                 type="button"
-                className="text-sm text-primary underline"
+                variant="link"
+                className="h-auto px-0"
                 onClick={() => setDraftRetry((n) => n + 1)}
               >
                 Retry draft recovery
-              </button>
+              </Button>
             )}
             {statusMessage && (
               <p
-                className={`text-xs ${statusMessage.type === "error" ? "text-red-400" : "text-green-400"}`}
+                role={statusMessage.type === "error" ? "alert" : "status"}
+                className={cn(
+                  "text-sm",
+                  statusMessage.type === "error" ? "text-destructive" : "text-positive",
+                )}
               >
                 {statusMessage.text}
               </p>
@@ -1052,336 +1011,201 @@ export const CopyGenerator: React.FC<CopyGeneratorProps> = ({
         </div>
       </div>
 
-      {/* --- Right Column: Results Grid --- */}
-      <div className="flex-1 min-w-0">
+      {/* --- Right Column: Results --- */}
+      <div className="min-w-0 flex-1">
         {!plan && !isPlanning && (
-          <div className="h-full min-h-[500px] flex flex-col items-center justify-center text-center p-12 border border-dashed border-white/10 rounded-3xl bg-white/[0.02]">
-            <div className="w-24 h-24 rounded-full bg-white/5 flex items-center justify-center mb-6 animate-pulse-slow">
-              <Sparkles className="w-10 h-10 text-primary opacity-50" />
+          <div className="flex h-full min-h-[480px] flex-col justify-between rounded-xl border border-dashed border-border p-6 sm:p-8">
+            <div>
+              <h2 className="text-base font-semibold text-foreground">
+                Your banners appear here
+              </h2>
+              <p className="mt-1 max-w-md text-sm text-muted-foreground">
+                Write the brief on the left and generate. You get the copy, a
+                caption with hashtags, and {bannerCount} banner
+                {bannerCount > 1 ? "s" : ""} at {aspectRatio}, each one editable
+                as layers.
+              </p>
             </div>
-            <h3 className="text-2xl font-bold text-white mb-2">
-              Ready to Create?
-            </h3>
-            <p className="text-muted max-w-md">
-              Describe your banner (e.g., "Human feel, cozy coffee shop sale")
-              to generate a social media campaign with copy and visuals.
-            </p>
-            <ul className="mt-6 max-w-md space-y-2 text-left text-xs text-muted">
-              <li className="flex items-start gap-2">
-                <ImageIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-                Add a background or logo to keep every banner on-brand, or let
-                AI generate the visuals.
-              </li>
-              <li className="flex items-start gap-2">
-                <Layers className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-                Pick how many variations to generate, then fine-tune any result
-                in the canvas editor.
-              </li>
-            </ul>
+            <div
+              aria-hidden="true"
+              className="mt-8 grid grid-cols-3 items-end gap-4"
+            >
+              {Array.from({ length: Math.min(bannerCount, 3) }).map((_, index) => (
+                <div
+                  key={index}
+                  className={cn(
+                    "rounded-lg border border-dashed border-border",
+                    aspectClass(aspectRatio),
+                  )}
+                />
+              ))}
+            </div>
           </div>
         )}
 
         {isPlanning && (
-          <div className="h-full min-h-[500px] flex flex-col items-center justify-center">
-            <div className="w-16 h-16 border-t-2 border-b-2 border-primary rounded-full animate-spin mb-8"></div>
-            <h3 className="text-xl font-bold text-white animate-pulse">
-              Designing Campaign...
-            </h3>
-            <p className="text-muted mt-2">
-              Writing copy, planning layout, and creating backgrounds
-            </p>
+          <div className="flex h-full min-h-[480px] flex-col items-center justify-center gap-4 rounded-xl border border-border bg-card" role="status">
+            <Spinner className="size-6 text-muted-foreground" />
+            <div className="text-center">
+              <p className="text-base font-medium text-foreground">Writing the plan</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Copy first, then each picture is painted in turn.
+              </p>
+            </div>
           </div>
         )}
 
         {plan && (
-          <div className="space-y-12 animate-slide-up">
-            {/* 1. Preview Grid */}
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                  <ImageIcon className="w-5 h-5 text-primary" /> Visual Assets
-                </h3>
-                <span className="text-xs text-muted bg-white/5 px-3 py-1 rounded-full">
-                  Click any image to edit
+          <div className="space-y-10">
+            <section aria-labelledby="banners-heading" className="space-y-4">
+              <div className="flex items-baseline justify-between gap-4">
+                <h2 id="banners-heading" className="text-base font-semibold text-foreground">
+                  Banners
+                </h2>
+                <span className="text-sm text-muted-foreground">
+                  Open one to edit its layers
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {/* Main Banner Card */}
-                <div className="group bg-surface border border-white/5 rounded-2xl overflow-hidden hover:border-primary/50 transition-all relative">
-                  <div
-                    onClick={() =>
-                      generatedImages["main"] ? openEditor("main", true) : null
-                    }
-                    className={`w-full bg-black/20 flex items-center justify-center relative overflow-hidden cursor-pointer ${aspectRatio === "9:16" ? "aspect-[9/16]" : aspectRatio === "16:9" ? "aspect-video" : aspectRatio === "4:5" ? "aspect-[4/5]" : aspectRatio === "3:4" ? "aspect-[3/4]" : "aspect-square"}`}
-                  >
-                    {generatedImages["main"] ? (
-                      <div className="relative w-full h-full">
-                        <img
-                          src={generatedImages["main"]}
-                          alt="Main Banner"
-                          className="w-full h-full object-cover"
-                        />
-                        {/* Show Overlay TEXT only if we haven't edited it yet (raw mode). If it's edited, text is baked in so we hide overlay to avoid dupes */}
-                        {!savedLayers["main"] && (
-                          <div className="absolute inset-0 p-4 flex flex-col items-center justify-center text-center pointer-events-none bg-black/30">
-                            <h2 className="text-white font-bold text-2xl mb-2 drop-shadow-md">
-                              {plan.main_banner.headline}
-                            </h2>
-                            <p className="text-zinc-200 text-sm drop-shadow-md">
-                              {plan.main_banner.subheadline}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="text-center p-6 flex flex-col items-center justify-center h-full">
-                        {generatingStatus["main"] ? (
-                          <div className="animate-pulse text-primary text-sm font-medium">
-                            Rendering Art...
-                          </div>
-                        ) : generationErrors["main"] ? (
-                          <div className="flex flex-col items-center gap-2">
-                            <div className="text-red-400 text-xs">
-                              Generation Failed
-                            </div>
-                            <div className="text-red-300/80 text-[11px] max-w-[220px] text-center">
-                              {generationErrors["main"]}
-                            </div>
-                            <Button
-                              variant="secondary"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                getRetryProps(
-                                  "main",
-                                  plan.main_banner.image_prompt,
-                                )();
-                              }}
-                              className="h-8 px-3 text-xs"
-                            >
-                              <RefreshCcw className="w-3 h-3 mr-1" /> Retry
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="text-muted text-sm">
-                            Waiting for render...
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    {/* Overlay on Hover */}
-                    {generatedImages["main"] && (
-                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10 gap-2">
-                        <Button
-                          variant="secondary"
-                          className="scale-90 group-hover:scale-100 transition-transform"
-                        >
-                          <MousePointer2 className="w-4 h-4 mr-2" /> Edit
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-4 border-t border-white/5 flex items-center justify-between">
-                    <div>
-                      <div className="flex justify-between items-start mb-2">
-                        <span className="text-[10px] font-bold text-primary uppercase tracking-wider">
-                          Main Cover
-                        </span>
-                      </div>
-                      <h4 className="text-white font-medium text-sm line-clamp-1 leading-snug mb-1">
-                        {plan.main_banner.headline}
-                      </h4>
-                    </div>
-                    <Tooltip label="Download">
-                      <Button
-                        variant="ghost"
-                        onClick={() => void handleDownload("main", true)}
-                        disabled={!generatedImages["main"]}
-                        className="h-8 w-8 p-0"
-                      >
-                        <Download className="w-4 h-4" />
-                      </Button>
-                    </Tooltip>
-                  </div>
-                </div>
-
-                {/* Additional Slides / Banners */}
-                {plan.additional_banners.map((slide, idx) => (
-                  <div
-                    key={idx}
-                    className="group bg-surface border border-white/5 rounded-2xl overflow-hidden hover:border-primary/50 transition-all relative"
-                  >
-                    <div
-                      onClick={() =>
-                        generatedImages[`slide-${idx}`]
-                          ? openEditor(`slide-${idx}`, false)
-                          : null
-                      }
-                      className={`w-full bg-black/20 flex items-center justify-center relative overflow-hidden cursor-pointer ${aspectRatio === "9:16" ? "aspect-[9/16]" : aspectRatio === "16:9" ? "aspect-video" : aspectRatio === "4:5" ? "aspect-[4/5]" : aspectRatio === "3:4" ? "aspect-[3/4]" : "aspect-square"}`}
+              <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+                {[
+                  {
+                    id: "main",
+                    isMain: true,
+                    title: plan.main_banner.headline,
+                    subtitle: plan.main_banner.subheadline,
+                    tag: "Main",
+                    prompt: plan.main_banner.image_prompt,
+                  },
+                  ...plan.additional_banners.map((slide, idx) => ({
+                    id: `slide-${idx}`,
+                    isMain: false,
+                    title: slide.title,
+                    subtitle: slide.subtitle,
+                    tag: `Variation ${idx + 1}`,
+                    prompt: slide.image_prompt,
+                  })),
+                ].map((banner, index) => {
+                  const image = generatedImages[banner.id];
+                  const error = generationErrors[banner.id];
+                  const rendering = generatingStatus[banner.id];
+                  return (
+                    <article
+                      key={banner.id}
+                      className="enter overflow-hidden rounded-xl border border-border bg-card"
+                      style={{ "--i": Math.min(index, 5) } as React.CSSProperties}
                     >
-                      {generatedImages[`slide-${idx}`] ? (
-                        <div className="relative w-full h-full">
-                          <img
-                            src={generatedImages[`slide-${idx}`]}
-                            alt={slide.title}
-                            className="w-full h-full object-cover"
-                          />
-                          {!savedLayers[`slide-${idx}`] && (
-                            <div className="absolute inset-0 p-4 flex flex-col items-center justify-center text-center pointer-events-none bg-black/30">
-                              <h2 className="text-white font-bold text-xl mb-2 drop-shadow-md">
-                                {slide.title}
-                              </h2>
-                              <p className="text-zinc-200 text-xs drop-shadow-md">
-                                {slide.subtitle}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="text-center p-6 flex flex-col items-center justify-center h-full">
-                          {generatingStatus[`slide-${idx}`] ? (
-                            <div className="animate-pulse text-primary text-sm font-medium">
-                              Rendering Art...
-                            </div>
-                          ) : generationErrors[`slide-${idx}`] ? (
-                            <div className="flex flex-col items-center gap-2">
-                              <div className="text-red-400 text-xs">
-                                Generation Failed
-                              </div>
-                              <div className="text-red-300/80 text-[11px] max-w-[220px] text-center">
-                                {generationErrors[`slide-${idx}`]}
-                              </div>
-                              <Button
-                                variant="secondary"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  getRetryProps(
-                                    `slide-${idx}`,
-                                    slide.image_prompt,
-                                  )();
-                                }}
-                                className="h-8 px-3 text-xs"
-                              >
-                                <RefreshCcw className="w-3 h-3 mr-1" /> Retry
-                              </Button>
-                            </div>
-                          ) : (
-                            <div className="text-muted text-sm">
-                              Waiting for render...
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      {/* Overlay on Hover */}
-                      {generatedImages[`slide-${idx}`] && (
-                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10 gap-2">
-                          <Button
-                            variant="secondary"
-                            className="scale-90 group-hover:scale-100 transition-transform"
+                      <div className={cn("relative w-full bg-background", aspectClass(aspectRatio))}>
+                        {image ? (
+                          <button
+                            type="button"
+                            onClick={() => openEditor(banner.id, banner.isMain)}
+                            aria-label={`Edit ${banner.tag.toLowerCase()} banner`}
+                            className="group absolute inset-0 outline-none"
                           >
-                            <MousePointer2 className="w-4 h-4 mr-2" /> Edit
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                    <div className="p-4 border-t border-white/5 flex items-center justify-between">
-                      <div>
-                        <div className="flex justify-between items-start mb-2">
-                          <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">
-                            Slide {idx + 2}
-                          </span>
-                        </div>
-                        <h4 className="text-white font-medium text-sm line-clamp-1 mb-1">
-                          {slide.title}
-                        </h4>
+                            <img
+                              src={image}
+                              alt={banner.title}
+                              className="size-full object-cover"
+                            />
+                            {/* Until edited, the copy floats over the raw picture; after editing it is baked in. */}
+                            {!savedLayers[banner.id] && (
+                              <span className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center bg-black/30 p-4 text-center">
+                                <span className="text-xl font-bold text-white drop-shadow-md">
+                                  {banner.title}
+                                </span>
+                                <span className="mt-2 text-sm text-white/85 drop-shadow-md">
+                                  {banner.subtitle}
+                                </span>
+                              </span>
+                            )}
+                            <span className="absolute inset-0 flex items-center justify-center bg-black/55 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100">
+                              <span className="rounded-md bg-primary px-3 py-1.5 text-sm font-semibold text-primary-foreground">
+                                Edit layers
+                              </span>
+                            </span>
+                          </button>
+                        ) : (
+                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center">
+                            {rendering ? (
+                              <>
+                                <Spinner className="text-muted-foreground" />
+                                <span className="text-sm text-muted-foreground">Painting…</span>
+                              </>
+                            ) : error ? (
+                              <>
+                                <span className="text-sm font-medium text-destructive">
+                                  This picture failed
+                                </span>
+                                <span className="max-w-[240px] text-xs text-muted-foreground">
+                                  {error}
+                                </span>
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
+                                  onClick={() => getRetryProps(banner.id, banner.prompt)()}
+                                  className="mt-1"
+                                >
+                                  <RefreshCcw /> Try again
+                                </Button>
+                              </>
+                            ) : (
+                              <span className="text-sm text-muted-foreground">Queued</span>
+                            )}
+                          </div>
+                        )}
                       </div>
-                      <Tooltip label="Download">
-                        <Button
-                          variant="ghost"
-                          onClick={() =>
-                            void handleDownload(`slide-${idx}`, false)
-                          }
-                          disabled={!generatedImages[`slide-${idx}`]}
-                          className="h-8 w-8 p-0"
-                        >
-                          <Download className="w-4 h-4" />
-                        </Button>
-                      </Tooltip>
-                    </div>
-                  </div>
-                ))}
+                      <div className="flex items-center justify-between gap-3 border-t border-border px-4 py-3">
+                        <div className="min-w-0">
+                          <p className="text-xs text-muted-foreground">{banner.tag}</p>
+                          <h3 className="truncate text-sm font-medium text-foreground">
+                            {banner.title}
+                          </h3>
+                        </div>
+                        <Hint label="Download PNG">
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label={`Download ${banner.tag.toLowerCase()} banner`}
+                            onClick={() => void handleDownload(banner.id, banner.isMain)}
+                            disabled={!image}
+                          >
+                            <Download />
+                          </Button>
+                        </Hint>
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
-            </div>
+            </section>
 
-            {/* 2. SEO & Caption Output & SOCIALS */}
-            <div className="bg-surface border border-white/5 rounded-2xl p-6 space-y-4">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <Hash className="w-5 h-5 text-primary" /> Generated Caption &
-                SEO
-              </h3>
-
-              <div className="bg-black/20 rounded-xl p-4 border border-white/5 space-y-4">
-                <div className="flex gap-2 flex-wrap">
-                  {plan.seo.keywords.map((kw, i) => (
-                    <span
-                      key={i}
-                      className="text-[10px] bg-white/10 text-white px-2 py-1 rounded-md"
-                    >
-                      {kw}
-                    </span>
-                  ))}
-                </div>
-                <p className="text-sm text-gray-300 leading-relaxed font-mono whitespace-pre-wrap">
+            <section aria-labelledby="caption-heading" className="rounded-xl border border-border bg-card">
+              <div className="flex items-center justify-between gap-4 border-b border-border px-5 py-3">
+                <h2 id="caption-heading" className="text-base font-semibold text-foreground">
+                  Caption
+                </h2>
+                <Button variant="secondary" size="sm" onClick={handleCopyCaption}>
+                  <Copy /> Copy caption and hashtags
+                </Button>
+              </div>
+              <div className="space-y-4 p-5">
+                <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-foreground">
                   {plan.seo.caption}
                 </p>
-                <div className="pt-2 border-t border-white/10">
-                  <p className="text-primary text-sm font-medium">
-                    {plan.seo.hashtags.map((tag) => `#${tag}`).join(" ")}
-                  </p>
-                </div>
+                <p className="text-sm text-brand">{formatHashtags(plan.seo.hashtags)}</p>
+                {plan.seo.keywords.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border pt-4 text-xs text-muted-foreground">
+                    <span>Keywords</span>
+                    {plan.seo.keywords.map((kw, i) => (
+                      <span key={i} className="text-foreground/80">
+                        {kw}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
-
-              {/* Share / Export Toolbar */}
-              <div className="flex flex-col sm:flex-row items-center gap-4">
-                <Button
-                  variant="secondary"
-                  className="flex-1 w-full"
-                  onClick={handleCopyCaption}
-                >
-                  <Copy className="w-4 h-4" /> Copy Caption
-                </Button>
-
-                <div className="h-px w-full sm:h-8 sm:w-px bg-white/10"></div>
-
-                {/* Social Connect & Post Buttons (not yet available) */}
-                <div className="flex items-center gap-2 w-full sm:w-auto justify-center">
-                  {SOCIAL_PLATFORMS.map(({ id, label, icon: Icon }) => (
-                    <button
-                      key={id}
-                      type="button"
-                      disabled
-                      className="p-2.5 rounded-lg bg-white/5 text-muted/50 cursor-not-allowed"
-                      title={`${label}: coming soon`}
-                    >
-                      <Icon className="w-5 h-5" />
-                    </button>
-                  ))}
-
-                  {/* Generic Share */}
-                  <button
-                    type="button"
-                    disabled
-                    className="p-2.5 rounded-lg bg-white/5 text-muted/50 cursor-not-allowed ml-2"
-                    title="Share: coming soon"
-                  >
-                    <Share2 className="w-5 h-5" />
-                  </button>
-                </div>
-                <span className="w-full text-center text-[11px] uppercase tracking-[0.18em] text-muted sm:w-auto sm:text-left">
-                  Direct social posting is coming soon
-                </span>
-              </div>
-            </div>
+            </section>
           </div>
         )}
       </div>

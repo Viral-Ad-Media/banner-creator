@@ -12,6 +12,21 @@ import { TermsPage } from "./pages/TermsPage";
 import { getCurrentUser, logoutUser } from "./services/authService";
 import { supabase } from "./services/supabaseClient";
 import type { AuthUser } from "./services/authService";
+import { Button } from "./components/ui/button";
+import { Spinner } from "./components/ui/spinner";
+import { Wordmark } from "./components/BrandMark";
+
+// Plain, centred and quiet: the wordmark and one spinner, no copy to read while waiting.
+const FullScreenLoader: React.FC<{ label: string }> = ({ label }) => (
+  <div
+    role="status"
+    aria-label={label}
+    className="flex min-h-screen flex-col items-center justify-center gap-5"
+  >
+    <Wordmark />
+    <Spinner className="size-5 text-muted-foreground" />
+  </div>
+);
 
 const AppWorkspace = lazy(() =>
   import("./components/AppWorkspace").then((module) => ({
@@ -128,55 +143,23 @@ const App: React.FC = () => {
 
   if (authError)
     return (
-      <div className="min-h-screen flex items-center justify-center p-6">
-        <div role="alert" className="surface-card p-8 rounded-3xl max-w-lg">
-          <p className="text-white">{authError}</p>
-          <button
-            className="mt-4 text-primary"
-            onClick={() => setAuthRetry((n) => n + 1)}
-          >
-            Retry loading account
-          </button>
+      <div className="flex min-h-screen items-center justify-center p-6">
+        <div role="alert" className="w-full max-w-md rounded-xl border border-border bg-card p-6">
+          <Wordmark />
+          <h1 className="mt-6 text-lg font-semibold text-foreground">Couldn't load your account</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{authError}</p>
+          <Button className="mt-6" onClick={() => setAuthRetry((n) => n + 1)}>
+            Try again
+          </Button>
         </div>
       </div>
     );
   if (isAuthLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center px-4">
-        <div className="surface-card w-full max-w-sm rounded-[30px] p-8 text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-[22px] bg-primary/12 text-primary shadow-[0_0_0_1px_rgba(64,214,195,0.16)]">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          </div>
-          <p className="mt-6 text-xs font-semibold uppercase tracking-[0.3em] text-primary/90">
-            Workspace
-          </p>
-          <h2 className="mt-2 text-2xl font-semibold text-white">
-            Starting up
-          </h2>
-          <p className="mt-2 text-sm leading-6 text-muted">
-            Loading your creative environment and syncing account access.
-          </p>
-        </div>
-      </div>
-    );
+    return <FullScreenLoader label="Loading your account" />;
   }
 
   return (
-    <Suspense
-      fallback={
-        <div className="flex min-h-screen items-center justify-center px-4">
-          <div className="surface-card rounded-[28px] px-8 py-7 text-center">
-            <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-            <p className="mt-4 text-xs uppercase tracking-[0.24em] text-primary/90">
-              Loading
-            </p>
-            <p className="mt-2 text-sm text-muted">
-              Preparing the next screen.
-            </p>
-          </div>
-        </div>
-      }
-    >
+    <Suspense fallback={<FullScreenLoader label="Loading" />}>
       <Routes>
         <Route path="/" element={sitePage(<HomePage />)} />
         <Route path="/features" element={sitePage(<FeaturesPage />)} />

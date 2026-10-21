@@ -2,7 +2,7 @@ import { getDraft, setDraft } from "../services/draftStore";
 import { optimizeAvatarImageDataUrl } from "../services/avatarLibrary";
 import React, { useEffect, useRef, useState } from "react";
 import { editImageWithGemini } from "../services/geminiService";
-import { Button } from "./ui/Button";
+import { Button } from "./ui/button";
 import {
   Image as ImageIcon,
   Sparkles,
@@ -13,7 +13,11 @@ import {
   Wand2,
 } from "lucide-react";
 import { AvatarLibraryPicker } from "./workspace/AvatarLibraryPicker";
-import { Tooltip } from "./ui/Tooltip";
+import { Hint } from "./ui/hint";
+import { Label } from "./ui/label";
+import { Textarea } from "./ui/textarea";
+import { Spinner } from "./ui/spinner";
+import { cn } from "@/lib/utils";
 import type { AvatarAsset } from "../services/avatarLibrary";
 
 const IMAGE_EDITOR_MODEL_OPTIONS = [
@@ -117,45 +121,44 @@ export const ImageStudio: React.FC<{ draftStorageKey?: string }> = ({
     });
   }, [selectedAvatar]);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const input = e.target;
-    const file = e.target.files?.[0];
-    if (file) {
-      if (!file.type.startsWith("image/")) {
-        setStatusMessage({
-          type: "error",
-          text: "Please upload an image file.",
-        });
-        input.value = "";
-        return;
-      }
-
-      if (file.size > MAX_UPLOAD_SIZE_BYTES) {
-        setStatusMessage({
-          type: "error",
-          text: "Image too large. Use a file under 10MB.",
-        });
-        input.value = "";
-        return;
-      }
-
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        void optimizeAvatarImageDataUrl(reader.result as string)
-          .then((base64String) => {
-            setSelectedAvatarId(null);
-            setCurrentImage(base64String);
-            setHistory([base64String]);
-            setPrompt("");
-            setStatusMessage({ type: "success", text: "Image loaded." });
-          })
-          .catch((error) =>
-            setStatusMessage({ type: "error", text: String(error) }),
-          );
-      };
-      reader.readAsDataURL(file);
+  const loadFile = (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      setStatusMessage({ type: "error", text: "That file isn't an image. Use PNG, JPEG or WebP." });
+      return;
     }
-    input.value = "";
+    if (file.size > MAX_UPLOAD_SIZE_BYTES) {
+      setStatusMessage({ type: "error", text: "Image too large. Use a file under 10 MB." });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      void optimizeAvatarImageDataUrl(reader.result as string)
+        .then((base64String) => {
+          setSelectedAvatarId(null);
+          setCurrentImage(base64String);
+          setHistory([base64String]);
+          setPrompt("");
+          setStatusMessage({ type: "success", text: "Image loaded." });
+        })
+        .catch((error) =>
+          setStatusMessage({ type: "error", text: String(error) }),
+        );
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) loadFile(file);
+    e.target.value = "";
+  };
+
+  const [isDragging, setIsDragging] = useState(false);
+  const handleDrop = (event: React.DragEvent) => {
+    event.preventDefault();
+    setIsDragging(false);
+    const file = event.dataTransfer.files?.[0];
+    if (file) loadFile(file);
   };
 
   const handleEdit = async (e: React.FormEvent) => {
@@ -208,220 +211,148 @@ export const ImageStudio: React.FC<{ draftStorageKey?: string }> = ({
   };
 
   return (
-    <div className="max-w-[1600px] mx-auto pb-20">
-      <div className="mb-6 surface-card rounded-[32px] px-6 py-5">
-        <span className="section-kicker">Image Studio</span>
-        <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <h2 className="text-3xl font-semibold text-white">
-              Refine a source image with cleaner, more directed edits.
-            </h2>
-            <p className="mt-2 max-w-2xl text-sm leading-7 text-[#c0d1de]">
-              Start from an uploaded image or a saved avatar, then iterate with
-              natural-language instructions while keeping local undo history.
-            </p>
-          </div>
-          <div className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs text-muted">
-            Local history enabled
-          </div>
-        </div>
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start">
+      <div className="flex flex-col gap-4 lg:col-span-4">
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileUpload}
+          accept="image/png,image/jpeg,image/webp"
+          className="hidden"
+        />
+
+        {currentImage && (
+          <section aria-labelledby="edit-heading" className="rounded-xl border border-border bg-card">
+            <div className="flex items-center justify-between border-b border-border px-5 py-3">
+              <h2 id="edit-heading" className="text-base font-semibold text-foreground">
+                Describe the change
+              </h2>
+              <div className="flex gap-1">
+                <Hint label="Undo last edit">
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Undo last edit"
+                    onClick={handleUndo}
+                    disabled={history.length <= 1 || isProcessing}
+                  >
+                    <Undo2 />
+                  </Button>
+                </Hint>
+                <Hint label="Start over">
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Start over"
+                    onClick={() => {
+                      setSelectedAvatarId(null);
+                      setCurrentImage(null);
+                      setHistory([]);
+                      setPrompt("");
+                      setStatusMessage(null);
+                    }}
+                    className="hover:text-destructive"
+                  >
+                    <Eraser />
+                  </Button>
+                </Hint>
+              </div>
+            </div>
+
+            <form onSubmit={handleEdit} className="grid gap-4 p-5">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-prompt" className="sr-only">
+                  Edit instruction
+                </Label>
+                <Textarea
+                  id="edit-prompt"
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  placeholder="Swap the background for a sunny café terrace and warm up the light."
+                  className="min-h-36 resize-none text-[15px] leading-relaxed"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Each edit uses 5 credits. Step {Math.max(history.length, 1)} of up to {MAX_HISTORY_LENGTH} kept for undo.
+                </p>
+              </div>
+              <Button type="submit" size="lg" isLoading={isProcessing} disabled={!prompt.trim()} className="w-full">
+                <Wand2 /> Apply edit
+              </Button>
+            </form>
+          </section>
+        )}
+
+        <AvatarLibraryPicker
+          selectedAvatarId={selectedAvatarId}
+          onSelectedAvatarIdChange={setSelectedAvatarId}
+          onSelectedAvatarChange={setSelectedAvatar}
+          title="Start from an avatar"
+          mode="select"
+        />
+
+        {draftRestoreFailed && (
+          <Button variant="link" className="h-auto w-fit px-0" onClick={() => setDraftRetry((n) => n + 1)}>
+            Retry draft recovery
+          </Button>
+        )}
+        {statusMessage && (
+          <p
+            role={statusMessage.type === "error" ? "alert" : "status"}
+            className={cn("text-sm", statusMessage.type === "error" ? "text-destructive" : "text-positive")}
+          >
+            {statusMessage.text}
+          </p>
+        )}
       </div>
 
-      <div className="grid h-auto grid-cols-1 gap-8 lg:h-[700px] lg:grid-cols-12">
-        {/* Editor Controls */}
-        <div className="lg:col-span-4 flex flex-col h-full gap-6 overflow-y-auto pr-1">
-          <AvatarLibraryPicker
-            selectedAvatarId={selectedAvatarId}
-            onSelectedAvatarIdChange={setSelectedAvatarId}
-            onSelectedAvatarChange={setSelectedAvatar}
-            title="Avatar For Image Studio"
-            mode="select"
-          />
+      <div
+        onDragOver={(event) => {
+          event.preventDefault();
+          setIsDragging(true);
+        }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={handleDrop}
+        className={cn(
+          "relative flex min-h-[420px] items-center justify-center overflow-hidden rounded-xl border bg-card p-4 transition-colors duration-150 sm:p-8 lg:col-span-8 lg:h-[calc(100vh-11rem)]",
+          isDragging ? "border-brand" : "border-border",
+        )}
+      >
+        {currentImage ? (
+          <>
+            <img
+              src={currentImage}
+              alt="The image being edited"
+              className="max-h-full max-w-full rounded-md object-contain"
+            />
+            <Button variant="secondary" size="sm" onClick={handleDownload} className="absolute right-4 top-4">
+              <Download /> Download
+            </Button>
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={triggerUpload}
+            className="pressable flex flex-col items-center gap-3 rounded-lg p-8 text-center outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          >
+            <span className="flex size-12 items-center justify-center rounded-full bg-secondary text-muted-foreground">
+              <Upload className="size-5" />
+            </span>
+            <span className="text-base font-medium text-foreground">Upload a picture to edit</span>
+            <span className="text-sm text-muted-foreground">
+              Click to choose, or drop a PNG, JPEG or WebP here. Or pick an avatar on the left.
+            </span>
+          </button>
+        )}
 
-          {/* Upload Area */}
-          {!currentImage ? (
-            <div
-              onClick={triggerUpload}
-              className="surface-card flex min-h-[280px] flex-1 cursor-pointer flex-col items-center justify-center rounded-[32px] border border-dashed p-8 transition-all group hover:border-primary/50 hover:bg-white/[0.02]"
-            >
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileUpload}
-                accept="image/*"
-                className="hidden"
-              />
-              <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                <Upload className="w-8 h-8 text-muted group-hover:text-primary transition-colors" />
-              </div>
-              <h3 className="text-xl font-bold text-white mb-2">
-                Upload Source Image
-              </h3>
-              <p className="text-sm text-muted">
-                Click or drag and drop to start editing
-              </p>
-            </div>
-          ) : (
-            <div className="surface-card flex flex-1 flex-col space-y-6 rounded-[30px] p-6">
-              <div className="flex items-center justify-between pb-4 border-b border-white/5">
-                <div className="flex items-center gap-2">
-                  <Wand2 className="w-5 h-5 text-primary" />
-                  <h3 className="text-white font-bold">Magic Editor</h3>
-                </div>
-                <div className="flex gap-2">
-                  <Tooltip label="Undo last edit">
-                    <button
-                      onClick={handleUndo}
-                      disabled={history.length <= 1 || isProcessing}
-                      className="p-2 hover:bg-white/10 rounded-lg text-muted disabled:opacity-30 transition-colors"
-                    >
-                      <Undo2 className="w-4 h-4" />
-                    </button>
-                  </Tooltip>
-                  <Tooltip label="Clear all">
-                    <button
-                      onClick={() => {
-                        setSelectedAvatarId(null);
-                        setCurrentImage(null);
-                        setHistory([]);
-                        setPrompt("");
-                        setStatusMessage(null);
-                      }}
-                      className="p-2 hover:bg-red-500/10 hover:text-red-400 rounded-lg text-muted transition-colors"
-                    >
-                      <Eraser className="w-4 h-4" />
-                    </button>
-                  </Tooltip>
-                </div>
-              </div>
-
-              <form
-                onSubmit={handleEdit}
-                className="space-y-4 flex-1 flex flex-col"
-              >
-                <div className="space-y-2">
-                  <label className="block text-xs font-medium text-gray-400 group-focus-within:text-white transition-colors">
-                    Image model
-                  </label>
-                  <select
-                    value={imageEditorModel}
-                    onChange={(event) =>
-                      setImageEditorModel(
-                        event.target.value as ImageEditorModel,
-                      )
-                    }
-                    className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none transition-colors focus:border-primary/50 focus:ring-1 focus:ring-primary/20"
-                  >
-                    {IMAGE_EDITOR_MODEL_OPTIONS.map((option) => (
-                      <option
-                        key={option.id}
-                        value={option.id}
-                        className="bg-[#0b1620] text-white"
-                      >
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex-1 group">
-                  <label className="block text-xs font-medium text-gray-400 mb-2 group-focus-within:text-white transition-colors">
-                    Prompt Instruction
-                  </label>
-                  <textarea
-                    value={prompt}
-                    onChange={(e) => setPrompt(e.target.value)}
-                    placeholder="e.g., Change background to a cyber city, Add a neon glow, Make it black and white..."
-                    className="w-full h-full min-h-[200px] bg-black/20 border border-white/10 rounded-xl p-4 text-white placeholder-gray-600 focus:ring-1 focus:ring-primary focus:border-primary/50 outline-none resize-none transition-all hover:bg-white/5"
-                  />
-                </div>
-
-                <Button
-                  type="submit"
-                  isLoading={isProcessing}
-                  disabled={!prompt}
-                  className="w-full py-4 shadow-lg shadow-primary/20"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  Generate Edit
-                </Button>
-              </form>
-
-              {draftRestoreFailed && (
-                <button
-                  type="button"
-                  className="text-sm text-primary underline"
-                  onClick={() => setDraftRetry((n) => n + 1)}
-                >
-                  Retry draft recovery
-                </button>
-              )}
-              {statusMessage && (
-                <p
-                  className={`text-xs ${statusMessage.type === "error" ? "text-red-400" : "text-green-400"}`}
-                >
-                  {statusMessage.text}
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Image Preview Canvas */}
-        <div className="surface-card-strong relative flex items-center justify-center overflow-hidden rounded-[34px] border border-white/10 p-8 lg:col-span-8">
-          {/* Checkerboard pattern for transparency */}
+        {isProcessing && (
           <div
-            className="absolute inset-0 opacity-10 pointer-events-none"
-            style={{
-              backgroundImage:
-                "linear-gradient(45deg, #222 25%, transparent 25%), linear-gradient(-45deg, #222 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #222 75%), linear-gradient(-45deg, transparent 75%, #222 75%)",
-              backgroundSize: "20px 20px",
-              backgroundPosition: "0 0, 0 10px, 10px -10px, -10px 0px",
-            }}
-          ></div>
-
-          {currentImage ? (
-            <div className="relative w-full h-full flex items-center justify-center group z-10">
-              <img
-                src={currentImage}
-                alt="Current workspace"
-                className="max-w-full max-h-full object-contain shadow-2xl rounded-lg"
-              />
-              <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity transform translate-y-2 group-hover:translate-y-0 duration-300">
-                <Button
-                  variant="secondary"
-                  onClick={handleDownload}
-                  className="shadow-xl"
-                >
-                  <Download className="w-4 h-4" />
-                  Download
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="text-center space-y-6 z-10 opacity-50">
-              <div className="w-24 h-24 rounded-full bg-white/5 flex items-center justify-center mx-auto border border-white/5">
-                <ImageIcon className="w-10 h-10 text-muted" />
-              </div>
-              <p className="text-muted font-medium tracking-wide uppercase text-sm">
-                Workspace Empty
-              </p>
-            </div>
-          )}
-
-          {isProcessing && (
-            <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-20 backdrop-blur-md transition-all duration-500">
-              <div className="relative">
-                <div className="w-16 h-16 border-t-2 border-b-2 border-primary rounded-full animate-spin"></div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <Sparkles className="w-6 h-6 text-primary animate-pulse" />
-                </div>
-              </div>
-              <p className="text-white font-medium mt-6 animate-pulse tracking-wide">
-                Refining pixels...
-              </p>
-            </div>
-          )}
-        </div>
+            role="status"
+            className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 bg-black/70 animate-in fade-in-0 duration-200"
+          >
+            <Spinner className="size-6 text-foreground" />
+            <p className="text-sm font-medium text-foreground">Applying the edit…</p>
+          </div>
+        )}
       </div>
     </div>
   );

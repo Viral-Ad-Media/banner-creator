@@ -45,12 +45,20 @@ const TOUR_STEPS: Step[] = [
   },
 ];
 
+const TOUR_STYLES = {
+  buttonPrimary: { color: '#111112', borderRadius: 6, fontWeight: 600 },
+  buttonBack: { color: '#a3a3a8' },
+  buttonSkip: { color: '#a3a3a8' },
+  tooltip: { borderRadius: 8, border: '1px solid #262628' },
+  tooltipTitle: { fontSize: 16, fontWeight: 600 },
+};
+
 const TOUR_OPTIONS = {
-  primaryColor: '#40d6c3',
-  backgroundColor: '#101b24',
-  textColor: '#f4f8fb',
-  arrowColor: '#101b24',
-  overlayColor: 'rgba(7, 18, 25, 0.82)',
+  primaryColor: '#f4f4f3',
+  backgroundColor: '#1b1b1d',
+  textColor: '#f4f4f3',
+  arrowColor: '#1b1b1d',
+  overlayColor: 'rgba(0, 0, 0, 0.7)',
   spotlightPadding: 8,
   zIndex: 1000,
   showProgress: true,
@@ -75,6 +83,7 @@ export const ProductTour: React.FC<ProductTourProps> = ({ run, onFinish }) => {
       continuous
       onEvent={handleEvent}
       options={TOUR_OPTIONS}
+      styles={TOUR_STYLES}
       locale={{ back: 'Back', close: 'Close', last: 'Done', next: 'Next', skip: 'Skip tour' }}
     />
   );

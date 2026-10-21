@@ -15,7 +15,22 @@ import {
   listAvatarLibrary,
   optimizeAvatarImageDataUrl,
 } from "../../services/avatarLibrary";
-import { Button } from "../ui/Button";
+import { Button } from "../ui/button";
+import { Label } from "../ui/label";
+import { Textarea } from "../ui/textarea";
+import { Skeleton } from "../ui/skeleton";
+import { Hint } from "../ui/hint";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../ui/alert-dialog";
+import { cn } from "@/lib/utils";
 
 const MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024;
 const MAX_AVATARS = 12;
@@ -39,6 +54,7 @@ export const AvatarLibraryPicker: React.FC<AvatarLibraryPickerProps> = ({
 }) => {
   const [avatars, setAvatars] = useState<AvatarAsset[]>([]);
   const [avatarPrompt, setAvatarPrompt] = useState("");
+  const [pendingDelete, setPendingDelete] = useState<AvatarAsset | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isLoadingLibrary, setIsLoadingLibrary] = useState(true);
   const [statusMessage, setStatusMessage] = useState<{
@@ -246,53 +262,49 @@ export const AvatarLibraryPicker: React.FC<AvatarLibraryPickerProps> = ({
     }
   };
 
+  const tile = (selected: boolean) =>
+    cn(
+      "pressable relative block w-full overflow-hidden rounded-lg border text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
+      selected ? "border-foreground" : "border-border hover:border-input",
+    );
+
   return (
-    <section className="rounded-[28px] border border-white/10 bg-black/20 p-4 space-y-4">
-      <div>
-        <h3 className="flex items-center gap-2 text-sm font-semibold text-white">
-          <UserRound className="h-4 w-4 text-primary" />
+    <section className="space-y-4 rounded-xl border border-border bg-card p-4">
+      <div className="flex items-baseline justify-between gap-3">
+        <h3 className="text-sm font-medium text-foreground">
           {title}
-          {!isManageMode && (
-            <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.16em] text-muted">
-              Optional
-            </span>
-          )}
+          {!isManageMode && <span className="font-normal text-muted-foreground"> (optional)</span>}
         </h3>
+        <span className="tabular text-xs text-muted-foreground">
+          {avatars.length} of {MAX_AVATARS} saved
+        </span>
       </div>
 
       {isManageMode && (
-        <div className="grid grid-cols-1 gap-3">
-          <div className="space-y-2">
-            <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted">
-              Generate avatar
-            </label>
-            <textarea
+        <div className="grid gap-3">
+          <div className="grid gap-2">
+            <Label htmlFor="avatar-prompt">Describe a new avatar</Label>
+            <Textarea
+              id="avatar-prompt"
               value={avatarPrompt}
               onChange={(event) => setAvatarPrompt(event.target.value)}
-              placeholder="Stylish female presenter, afro hair, modern streetwear..."
-              className="h-24 w-full rounded-2xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none placeholder:text-muted focus:border-primary/40 focus:ring-1 focus:ring-primary"
+              placeholder="A presenter in her thirties, short natural hair, denim jacket, friendly half-smile, studio light."
+              className="h-24 resize-none"
             />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
             <Button
               type="button"
-              variant="secondary"
               onClick={() => void handleGenerateAvatar()}
               isLoading={isGenerating}
-              disabled={avatars.length >= MAX_AVATARS || isLoadingLibrary}
-              className="w-full"
+              disabled={avatars.length >= MAX_AVATARS || isLoadingLibrary || !avatarPrompt.trim()}
             >
-              <Sparkles className="h-4 w-4" />
-              Create Avatar
+              <Sparkles /> Generate
             </Button>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted">
-              Upload avatar
-            </label>
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*"
+              accept="image/png,image/jpeg,image/webp"
               onChange={handleUpload}
               className="hidden"
             />
@@ -300,114 +312,111 @@ export const AvatarLibraryPicker: React.FC<AvatarLibraryPickerProps> = ({
               type="button"
               variant="secondary"
               onClick={() => fileInputRef.current?.click()}
-              className="w-full"
+              disabled={avatars.length >= MAX_AVATARS}
             >
-              <Upload className="h-4 w-4" />
-              Upload Image
+              <Upload /> Upload
             </Button>
           </div>
+          <p className="text-xs text-muted-foreground">Generating uses 5 credits. Uploads are free.</p>
         </div>
       )}
 
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted">
-            Select avatar
-          </label>
-          <span className="text-[10px] text-muted">
-            {avatars.length}/{MAX_AVATARS} saved
-          </span>
+      {isLoadingLibrary ? (
+        <div className="grid grid-cols-3 gap-3" aria-label="Loading avatars">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="aspect-square rounded-lg" />
+          ))}
         </div>
-
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <button
-            type="button"
-            onClick={() => onSelectedAvatarIdChange(null)}
-            className={`rounded-2xl border p-3 text-left transition-all ${
-              !selectedAvatarId
-                ? "border-primary bg-primary/10"
-                : "border-white/10 bg-black/20 hover:border-white/20 hover:bg-white/5"
-            }`}
-          >
-            <div className="flex aspect-square items-center justify-center rounded-xl bg-white/5">
-              <X className="h-5 w-5 text-muted" />
-            </div>
-            <p className="mt-2 text-xs font-medium text-white">No avatar</p>
-          </button>
+      ) : avatars.length === 0 ? (
+        <p className="rounded-lg border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
+          {resolvedEmptyStateMessage}
+        </p>
+      ) : (
+        <div role={isManageMode ? undefined : "radiogroup"} aria-label={title} className="grid grid-cols-3 gap-3">
+          {!isManageMode && (
+            <button
+              type="button"
+              role="radio"
+              aria-checked={!selectedAvatarId}
+              onClick={() => onSelectedAvatarIdChange(null)}
+              className={tile(!selectedAvatarId)}
+            >
+              <span className="flex aspect-square flex-col items-center justify-center gap-1 bg-secondary text-xs text-muted-foreground">
+                <X className="size-4" />
+                None
+              </span>
+            </button>
+          )}
 
           {avatars.map((avatar) => (
-            <div
-              key={avatar.id}
-              className={`group rounded-2xl border p-3 transition-all ${
-                selectedAvatarId === avatar.id
-                  ? "border-primary bg-primary/10"
-                  : "border-white/10 bg-black/20 hover:border-white/20 hover:bg-white/5"
-              }`}
-            >
+            <div key={avatar.id} className="group relative">
               <button
                 type="button"
+                role={isManageMode ? undefined : "radio"}
+                aria-checked={isManageMode ? undefined : selectedAvatarId === avatar.id}
+                aria-pressed={isManageMode ? selectedAvatarId === avatar.id : undefined}
                 onClick={() => onSelectedAvatarIdChange(avatar.id)}
-                className="w-full text-left"
+                className={tile(selectedAvatarId === avatar.id)}
               >
-                <div className="relative aspect-square overflow-hidden rounded-xl bg-white/5">
-                  <img
-                    src={avatar.imageDataUrl}
-                    alt={avatar.name}
-                    className="h-full w-full object-cover"
-                  />
-                  <div className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-white">
-                    {avatar.source === "generated" ? "AI" : "Upload"}
-                  </div>
-                </div>
-                <p className="mt-2 line-clamp-1 text-xs font-medium text-white">
+                <img
+                  src={avatar.imageDataUrl}
+                  alt=""
+                  className="aspect-square w-full bg-secondary object-cover"
+                />
+                <span className="block truncate px-2 py-1.5 text-xs text-foreground">
                   {avatar.name}
-                </p>
+                </span>
               </button>
-
               {isManageMode && (
-                <button
-                  type="button"
-                  onClick={() => handleDeleteAvatar(avatar.id)}
-                  className="mt-3 inline-flex items-center gap-1 text-[11px] text-red-300 opacity-80 transition-opacity hover:opacity-100"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  Remove
-                </button>
+                <Hint label="Remove avatar">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="icon-xs"
+                    aria-label={`Remove ${avatar.name}`}
+                    onClick={() => setPendingDelete(avatar)}
+                    className="absolute right-1.5 top-1.5 bg-black/60 text-white hover:bg-destructive"
+                  >
+                    <Trash2 />
+                  </Button>
+                </Hint>
               )}
             </div>
           ))}
-
-          {!isLoadingLibrary && avatars.length === 0 && (
-            <div className="col-span-full rounded-2xl border border-dashed border-white/10 bg-black/20 p-4 text-center">
-              <ImagePlus className="mx-auto h-5 w-5 text-muted" />
-              <p className="mt-2 text-xs text-muted">
-                {resolvedEmptyStateMessage}
-              </p>
-            </div>
-          )}
-
-          {isLoadingLibrary && (
-            <div className="col-span-full rounded-2xl border border-white/10 bg-black/20 p-4 text-center">
-              <p className="text-xs text-muted">Loading saved avatars...</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {selectedAvatar && (
-        <div className="rounded-2xl border border-primary/15 bg-primary/5 p-3 text-xs text-white/80">
-          Selected avatar:{" "}
-          <span className="font-medium text-white">{selectedAvatar.name}</span>
         </div>
       )}
 
       {statusMessage && (
         <p
-          className={`text-xs ${statusMessage.type === "error" ? "text-red-300" : "text-emerald-300"}`}
+          role={statusMessage.type === "error" ? "alert" : "status"}
+          className={cn("text-sm", statusMessage.type === "error" ? "text-destructive" : "text-positive")}
         >
           {statusMessage.text}
         </p>
       )}
+
+      <AlertDialog open={Boolean(pendingDelete)} onOpenChange={(open) => !open && setPendingDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove {pendingDelete?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              It disappears from every tool. Banners and videos already made with it are not affected.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-white hover:bg-destructive/90"
+              onClick={() => {
+                if (pendingDelete) void handleDeleteAvatar(pendingDelete.id);
+                setPendingDelete(null);
+              }}
+            >
+              Remove avatar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 };

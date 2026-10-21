@@ -1,6 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Eye, EyeOff, Lock, Mail, ShieldCheck, Sparkles, User } from 'lucide-react';
-import { Button } from './ui/Button';
+import { Link } from 'react-router-dom';
+import { Eye, EyeOff } from 'lucide-react';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+import { Tabs, TabsList, TabsTrigger } from './ui/tabs';
+import { Wordmark } from './BrandMark';
 import { loginUser, registerUser, resetPassword, sendPasswordResetEmail } from '../services/authService';
 import type { AuthUser } from '../services/authService';
 
@@ -13,8 +18,12 @@ interface AuthScreenProps {
   isPasswordRecovery: boolean;
 }
 
-const inputShellClass =
-  'flex items-center gap-3 rounded-[18px] border border-white/10 bg-black/20 px-4 py-3 transition-colors focus-within:border-primary/30 focus-within:bg-white/6';
+const TITLES: Record<Mode, { title: string; body: string }> = {
+  login: { title: 'Log in', body: 'Pick up your campaigns where you left them.' },
+  register: { title: 'Create your account', body: 'Free, with 120 credits to try every tool.' },
+  forgot: { title: 'Reset your password', body: 'We will email you a link to choose a new one.' },
+  reset: { title: 'Choose a new password', body: 'Use at least 8 characters.' },
+};
 
 export const AuthScreen: React.FC<AuthScreenProps> = ({
   onAuthenticated,
@@ -54,43 +63,47 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   };
 
   const renderPasswordField = ({
+    id,
     label,
     value,
     onChange,
     visible,
     onToggle,
-    placeholder,
+    autoComplete,
+    minLength,
   }: {
+    id: string;
     label: string;
     value: string;
     onChange: (value: string) => void;
     visible: boolean;
     onToggle: () => void;
-    placeholder: string;
+    autoComplete: string;
+    minLength?: number;
   }) => (
-    <label className="block space-y-1">
-      <span className="text-xs font-semibold uppercase tracking-[0.24em] text-muted">{label}</span>
-      <div className={inputShellClass}>
-        <Lock className="h-4 w-4 text-primary/80" />
-        <input
+    <div className="grid gap-2">
+      <Label htmlFor={id}>{label}</Label>
+      <div className="relative">
+        <Input
+          id={id}
           value={value}
           onChange={(event) => onChange(event.target.value)}
           required
-          minLength={8}
+          minLength={minLength}
           type={visible ? 'text' : 'password'}
-          className="w-full bg-transparent text-sm text-white outline-none placeholder:text-muted"
-          placeholder={placeholder}
+          autoComplete={autoComplete}
+          className="h-11 pr-11"
         />
         <button
           type="button"
           onClick={onToggle}
-          className="text-muted transition-colors hover:text-white"
+          className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-muted-foreground transition-colors duration-150 hover:text-foreground"
           aria-label={visible ? `Hide ${label.toLowerCase()}` : `Show ${label.toLowerCase()}`}
         >
-          {visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          {visible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
         </button>
       </div>
-    </label>
+    </div>
   );
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -132,176 +145,137 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     }
   };
 
+  const copy = TITLES[mode];
+
   return (
-    <div className="flex min-h-screen items-center justify-center py-10">
-      <div className="grid w-full max-w-6xl overflow-hidden rounded-[36px] border border-white/10 bg-[linear-gradient(180deg,rgba(14,25,35,0.94),rgba(8,16,24,0.92))] shadow-[0_40px_120px_-50px_rgba(0,0,0,0.82)] lg:grid-cols-[0.92fr_1.08fr]">
-        <div className="relative hidden overflow-hidden border-r border-white/10 lg:block">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(64,214,195,0.24),transparent_34%),radial-gradient(circle_at_82%_18%,rgba(255,177,102,0.2),transparent_30%),linear-gradient(180deg,rgba(9,19,27,0.96),rgba(8,15,22,0.88))]" />
-          <div className="relative flex h-full flex-col justify-between p-10">
-            <div>
-              <span className="section-kicker">
-                <Sparkles className="h-4 w-4" />
-                Secure Access
-              </span>
-              <h1 className="mt-8 max-w-sm text-5xl font-semibold leading-tight text-white">
-                Build social campaigns without breaking your creative flow.
-              </h1>
-              <p className="mt-5 max-w-md text-base leading-7 text-[#c2d2df]">
-                Sign in to manage banners, avatars, image edits, and video experiments from one focused workspace.
-              </p>
-            </div>
+    <div className="mx-auto grid min-h-[calc(100vh-5rem)] w-full max-w-6xl items-center gap-16 py-10 lg:grid-cols-2">
+      <div className="hidden lg:block">
+        <p className="text-[clamp(2.5rem,4.5vw,4rem)] font-semibold leading-[0.98] tracking-[-0.035em] text-foreground">
+          One brief.
+          <br />
+          Every format.
+        </p>
+        <p className="mt-6 max-w-sm text-lg leading-relaxed text-muted-foreground">
+          Banners, edits and video from one workspace, on credits you can see.
+        </p>
+      </div>
 
-            <div className="space-y-4">
-              {[
-                'Campaign planning, visuals, and editing stay in one system.',
-                'Account data and API access stay protected behind Supabase auth.',
-                'Recovery flow and password reset are built directly into the product.',
-              ].map((item) => (
-                <div key={item} className="flex items-start gap-3 rounded-[22px] border border-white/10 bg-white/6 px-4 py-4">
-                  <ShieldCheck className="mt-0.5 h-5 w-5 text-primary" />
-                  <p className="text-sm leading-6 text-white/85">{item}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+      <div className="enter w-full max-w-md justify-self-center rounded-xl border border-border bg-card p-6 sm:p-8 lg:justify-self-end">
+        <Link to="/" aria-label="Social Studio home" className="inline-flex">
+          <Wordmark />
+        </Link>
 
-        <div className="p-6 sm:p-8 lg:p-10">
-          <div className="mx-auto w-full max-w-lg">
-            <div className="mb-8 flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-[18px] bg-[linear-gradient(135deg,#83efe0_0%,#48d9c8_42%,#168d87_100%)] text-[#04161a]">
-                <Sparkles className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-primary/90">Social Studio</p>
-                <h2 className="text-2xl font-semibold text-white">Welcome back</h2>
-              </div>
-            </div>
+        {(mode === 'login' || mode === 'register') && (
+          <Tabs value={mode} onValueChange={(value) => switchMode(value as Mode)} className="mt-8">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="login">Log in</TabsTrigger>
+              <TabsTrigger value="register">Create account</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        )}
 
-            {mode === 'login' || mode === 'register' ? (
-              <div className="mb-7 flex rounded-full border border-white/10 bg-black/20 p-1.5">
-                <button
-                  type="button"
-                  onClick={() => switchMode('login')}
-                  className={`flex-1 rounded-full py-2.5 text-sm font-semibold transition-colors ${
-                    mode === 'login' ? 'bg-primary/14 text-primary' : 'text-muted hover:text-white'
-                  }`}
-                >
-                  Login
-                </button>
-                <button
-                  type="button"
-                  onClick={() => switchMode('register')}
-                  className={`flex-1 rounded-full py-2.5 text-sm font-semibold transition-colors ${
-                    mode === 'register' ? 'bg-primary/14 text-primary' : 'text-muted hover:text-white'
-                  }`}
-                >
-                  Register
-                </button>
-              </div>
-            ) : (
-              <div className="mb-7 flex items-center justify-between">
-                <p className="text-sm text-white">{mode === 'forgot' ? 'Reset your password' : 'Choose a new password'}</p>
-                {!isPasswordRecovery && (
-                  <button
-                    type="button"
-                    onClick={() => switchMode('login')}
-                    className="text-xs font-semibold uppercase tracking-[0.24em] text-primary transition-colors hover:text-white"
-                  >
-                    Back to login
-                  </button>
-                )}
-              </div>
+        <h1 className="mt-8 text-2xl font-semibold tracking-[-0.02em] text-foreground">{copy.title}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{copy.body}</p>
+
+        <form onSubmit={handleSubmit} className="mt-6 grid gap-4">
+          {mode === 'register' && (
+            <div className="grid gap-2">
+              <Label htmlFor="auth-name">Name</Label>
+              <Input
+                id="auth-name"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                required
+                minLength={2}
+                autoComplete="name"
+                className="h-11"
+              />
+            </div>
+          )}
+
+          {mode !== 'reset' && (
+            <div className="grid gap-2">
+              <Label htmlFor="auth-email">Email</Label>
+              <Input
+                id="auth-email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                required
+                type="email"
+                autoComplete="email"
+                inputMode="email"
+                placeholder="you@company.com"
+                className="h-11"
+              />
+            </div>
+          )}
+
+          {mode !== 'forgot' &&
+            renderPasswordField({
+              id: 'auth-password',
+              label: mode === 'reset' ? 'New password' : 'Password',
+              value: password,
+              onChange: setPassword,
+              visible: showPassword,
+              onToggle: () => setShowPassword((current) => !current),
+              autoComplete: mode === 'login' ? 'current-password' : 'new-password',
+              // Existing accounts may predate the 8-character rule; only new passwords enforce it.
+              minLength: mode === 'login' ? undefined : 8,
+            })}
+
+          {mode === 'reset' &&
+            renderPasswordField({
+              id: 'auth-password-confirm',
+              label: 'Confirm password',
+              value: confirmPassword,
+              onChange: setConfirmPassword,
+              visible: showConfirmPassword,
+              onToggle: () => setShowConfirmPassword((current) => !current),
+              autoComplete: 'new-password',
+              minLength: 8,
+            })}
+
+          {mode === 'login' && (
+            <button
+              type="button"
+              onClick={() => switchMode('forgot')}
+              className="-mt-1 w-fit text-sm text-muted-foreground underline-offset-4 transition-colors duration-150 hover:text-foreground hover:underline"
+            >
+              Forgot password?
+            </button>
+          )}
+
+          <div aria-live="polite">
+            {notice && (
+              <p className="rounded-md bg-positive/10 px-3 py-2.5 text-sm text-positive">{notice}</p>
             )}
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {mode === 'register' && (
-                <label className="block space-y-1">
-                  <span className="text-xs font-semibold uppercase tracking-[0.24em] text-muted">Name</span>
-                  <div className={inputShellClass}>
-                    <User className="h-4 w-4 text-primary/80" />
-                    <input
-                      value={name}
-                      onChange={(event) => setName(event.target.value)}
-                      required
-                      minLength={2}
-                      className="w-full bg-transparent text-sm text-white outline-none placeholder:text-muted"
-                      placeholder="Your name"
-                    />
-                  </div>
-                </label>
-              )}
-
-              {mode !== 'reset' && (
-                <label className="block space-y-1">
-                  <span className="text-xs font-semibold uppercase tracking-[0.24em] text-muted">Email</span>
-                  <div className={inputShellClass}>
-                    <Mail className="h-4 w-4 text-primary/80" />
-                    <input
-                      value={email}
-                      onChange={(event) => setEmail(event.target.value)}
-                      required
-                      type="email"
-                      className="w-full bg-transparent text-sm text-white outline-none placeholder:text-muted"
-                      placeholder="you@company.com"
-                    />
-                  </div>
-                </label>
-              )}
-
-              {mode !== 'forgot' &&
-                renderPasswordField({
-                  label: mode === 'reset' ? 'New Password' : 'Password',
-                  value: password,
-                  onChange: setPassword,
-                  visible: showPassword,
-                  onToggle: () => setShowPassword((current) => !current),
-                  placeholder: mode === 'reset' ? 'Enter a new password' : '********',
-                })}
-
-              {mode === 'reset' &&
-                renderPasswordField({
-                  label: 'Confirm Password',
-                  value: confirmPassword,
-                  onChange: setConfirmPassword,
-                  visible: showConfirmPassword,
-                  onToggle: () => setShowConfirmPassword((current) => !current),
-                  placeholder: 'Confirm your new password',
-                })}
-
-              {notice && (
-                <p className="rounded-[18px] border border-emerald-400/15 bg-emerald-500/8 px-4 py-3 text-sm text-emerald-200">
-                  {notice}
-                </p>
-              )}
-              {error && (
-                <p className="rounded-[18px] border border-red-400/15 bg-red-500/8 px-4 py-3 text-sm text-red-200">
-                  {error}
-                </p>
-              )}
-
-              <Button type="submit" isLoading={isLoading} className="w-full">
-                {mode === 'register'
-                  ? 'Create Account'
-                  : mode === 'forgot'
-                    ? 'Send Reset Link'
-                    : mode === 'reset'
-                      ? 'Update Password'
-                      : 'Login'}
-              </Button>
-
-              {mode === 'login' && (
-                <button
-                  type="button"
-                  onClick={() => switchMode('forgot')}
-                  className="w-full text-center text-xs font-semibold uppercase tracking-[0.24em] text-primary transition-colors hover:text-white"
-                >
-                  Forgot password?
-                </button>
-              )}
-            </form>
           </div>
-        </div>
+          {error && (
+            <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2.5 text-sm text-destructive">
+              {error}
+            </p>
+          )}
+
+          <Button type="submit" size="lg" isLoading={isLoading} className="w-full">
+            {mode === 'register'
+              ? 'Create account'
+              : mode === 'forgot'
+                ? 'Send reset link'
+                : mode === 'reset'
+                  ? 'Update password'
+                  : 'Log in'}
+          </Button>
+
+          {(mode === 'forgot' || mode === 'reset') && !isPasswordRecovery && (
+            <button
+              type="button"
+              onClick={() => switchMode('login')}
+              className="text-sm text-muted-foreground transition-colors duration-150 hover:text-foreground"
+            >
+              Back to log in
+            </button>
+          )}
+        </form>
       </div>
     </div>
   );

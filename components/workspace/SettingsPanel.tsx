@@ -1,9 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { CreditCard, Mail, PlayCircle, Save, Settings, Sparkles, UserCircle2 } from 'lucide-react';
 import type { AuthUser } from '../../services/authService';
 import { updateProfile } from '../../services/authService';
 import { getBillingSummary, type BillingSummary as BillingSummaryRecord, type PlanSummary, type UsageSummary } from '../../services/workspaceService';
-import { Button } from '../ui/Button';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { Progress } from '../ui/progress';
+import { Skeleton } from '../ui/skeleton';
+import { cn } from '@/lib/utils';
 
 interface SettingsPanelProps {
   user: AuthUser;
@@ -11,8 +15,13 @@ interface SettingsPanelProps {
   onReplayTour: () => void;
 }
 
+const PLAN_NAME = { FREE: 'Free', PRO: 'Pro', ENTERPRISE: 'Enterprise' } as const;
+
+const formatCredits = (value: number | undefined) =>
+  value === undefined ? '—' : new Intl.NumberFormat('en-US').format(value);
+
 const formatDate = (value: string | null) => {
-  if (!value) return 'Not available';
+  if (!value) return '—';
 
   return new Intl.DateTimeFormat('en-US', {
     dateStyle: 'medium',
@@ -27,7 +36,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ user, onUserUpdate
   const [isBillingLoading, setIsBillingLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const usagePercentage = Math.min(100, Math.round(((usage?.usedCredits ?? 0) / Math.max(1, usage?.limit ?? 1)) * 100));
+  const remainingPercentage = Math.max(0, Math.min(100, Math.round(((usage?.remainingCredits ?? 0) / Math.max(1, usage?.limit ?? 1)) * 100)));
 
   useEffect(() => {
     setName(user.name);
@@ -87,132 +96,109 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ user, onUserUpdate
     }
   };
 
+  const held = usage?.reservedCredits ?? 0;
+
   return (
-    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.1fr)_380px]">
-      <section className="surface-card rounded-[32px] p-6">
-        <div className="border-b border-white/8 pb-5">
-          <span className="section-kicker">
-            <Settings className="h-5 w-5 text-primary" />
-            Workspace Settings
-          </span>
-          <p className="mt-4 text-sm leading-7 text-[#c0d1de]">Keep your profile details current and review the plan attached to this account.</p>
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_380px] xl:items-start">
+      <section aria-labelledby="profile-heading" className="rounded-xl border border-border bg-card">
+        <div className="border-b border-border px-6 py-4">
+          <h2 id="profile-heading" className="text-base font-semibold text-foreground">Profile</h2>
+          <p className="mt-0.5 text-sm text-muted-foreground">The name shown on your workspace.</p>
         </div>
 
-        <form onSubmit={handleSave} className="mt-6 space-y-5">
+        <form onSubmit={handleSave} className="space-y-5 p-6">
           <div className="grid gap-5 md:grid-cols-2">
-            <div className="space-y-2">
-              <label className="text-[11px] uppercase tracking-[0.24em] text-muted">Display Name</label>
-              <div className="flex items-center gap-3 rounded-[20px] border border-white/10 bg-black/20 px-4 py-3 transition-colors focus-within:border-primary/30">
-                <UserCircle2 className="h-4 w-4 text-primary" />
-                <input
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  className="w-full bg-transparent text-sm text-white outline-none placeholder:text-muted"
-                  placeholder="Your name"
-                />
-              </div>
+            <div className="grid gap-2">
+              <Label htmlFor="settings-name">Display name</Label>
+              <Input
+                id="settings-name"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                autoComplete="name"
+                minLength={2}
+                maxLength={120}
+              />
             </div>
-
-            <div className="space-y-2">
-              <label className="text-[11px] uppercase tracking-[0.24em] text-muted">Email</label>
-              <div className="flex items-center gap-3 rounded-[20px] border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/85">
-                <Mail className="h-4 w-4 text-primary" />
-                <span>{user.email}</span>
-              </div>
+            <div className="grid gap-2">
+              <Label htmlFor="settings-email">Email</Label>
+              <Input id="settings-email" value={user.email} readOnly disabled />
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <Button type="submit" isLoading={isSaving} disabled={name.trim() === user.name}>
-              <Save className="h-4 w-4" />
-              Save Changes
+            <Button type="submit" isLoading={isSaving} disabled={name.trim().length < 2 || name.trim() === user.name}>
+              Save changes
             </Button>
-            <span className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-              {user.plan} plan
-            </span>
+            {statusMessage && (
+              <p
+                role={statusMessage.type === 'error' ? 'alert' : 'status'}
+                className={cn('text-sm', statusMessage.type === 'error' ? 'text-destructive' : 'text-positive')}
+              >
+                {statusMessage.text}
+              </p>
+            )}
           </div>
-
-          {statusMessage && (
-            <p className={`text-sm ${statusMessage.type === 'error' ? 'text-red-300' : 'text-emerald-300'}`}>
-              {statusMessage.text}
-            </p>
-          )}
         </form>
       </section>
 
       <div className="space-y-6">
-        <section className="surface-card rounded-[32px] p-6">
-          <h3 className="flex items-center gap-2 text-lg font-semibold text-white">
-            <CreditCard className="h-5 w-5 text-primary" />
-            Billing Snapshot
-          </h3>
-
-          {isBillingLoading ? (
-            <div className="flex min-h-[180px] items-center justify-center">
-              <div className="text-center">
-                <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                <p className="mt-3 text-sm text-muted">Loading billing details...</p>
-              </div>
-            </div>
-          ) : (
-            <div className="mt-5 space-y-4 text-sm">
-              <div className="rounded-[24px] border border-white/10 bg-black/20 p-4">
-                <p className="text-[11px] uppercase tracking-[0.24em] text-muted">Current Plan</p>
-                <p className="mt-2 text-2xl font-semibold text-white">{plan?.tier ?? user.plan}</p>
-                <p className="mt-1 text-muted">{plan?.monthlyCredits ?? 0} monthly credits</p>
-                <div className="mt-4 h-2 rounded-full bg-white/6">
-                  <div
-                    className="h-full rounded-full bg-[linear-gradient(90deg,#83efe0_0%,#48d9c8_55%,#168d87_100%)]"
-                    style={{ width: `${usagePercentage}%` }}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-[24px] border border-white/10 bg-black/20 p-4">
-                  <p className="text-[11px] uppercase tracking-[0.2em] text-muted">Used</p>
-                  <p className="mt-2 text-xl font-semibold text-white">{usage?.usedCredits ?? 0}</p>
-                </div>
-                <div className="rounded-[24px] border border-white/10 bg-black/20 p-4">
-                  <p className="text-[11px] uppercase tracking-[0.2em] text-muted">Remaining</p>
-                  <p className="mt-2 text-xl font-semibold text-white">{usage?.remainingCredits ?? 0}</p>
-                </div>
-              </div>
-
-              <div className="rounded-[24px] border border-white/10 bg-black/20 p-4">
-                <p className="text-[11px] uppercase tracking-[0.24em] text-muted">Subscription Status</p>
-                <p className="mt-2 text-white">{billing?.status ?? 'No active subscription record'}</p>
-                <p className="mt-1 text-muted">Period ends: {formatDate(billing?.current_period_end ?? null)}</p>
-              </div>
-            </div>
-          )}
-        </section>
-
-        <section className="surface-card rounded-[32px] p-6">
-          <h3 className="flex items-center gap-2 text-lg font-semibold text-white">
-            <PlayCircle className="h-5 w-5 text-primary" />
-            Product Tour
-          </h3>
-          <p className="mt-3 text-sm leading-6 text-muted">
-            Replay the guided walkthrough of the workspace sidebar anytime you need a refresher.
-          </p>
-          <Button variant="secondary" onClick={onReplayTour} className="mt-4 w-full">
-            <PlayCircle className="h-4 w-4" />
-            Replay Tour
-          </Button>
-        </section>
-
-        <section className="rounded-[32px] border border-primary/15 bg-primary/5 p-6 shadow-[0_28px_80px_-44px_rgba(0,0,0,0.8)]">
-          <div className="flex items-start gap-3">
-            <Sparkles className="mt-1 h-5 w-5 text-primary" />
-            <div>
-              <h3 className="text-lg font-semibold text-white">Team-ready foundation</h3>
-              <p className="mt-2 text-sm leading-6 text-white/75">
-                We now have a real settings surface for profile and plan visibility, so expanding this into team roles,
-                brand preferences, and notification settings later will be straightforward.
-              </p>
-            </div>
+        <section aria-labelledby="plan-heading" className="rounded-xl border border-border bg-card">
+          <div className="flex items-baseline justify-between border-b border-border px-6 py-4">
+            <h2 id="plan-heading" className="text-base font-semibold text-foreground">Plan and credits</h2>
+            <span className="text-sm text-muted-foreground">{PLAN_NAME[plan?.tier ?? user.plan]} plan</span>
           </div>
+
+          <div className="space-y-5 p-6">
+            {isBillingLoading ? (
+              <div className="space-y-3" aria-label="Loading credits">
+                <Skeleton className="h-6 w-32" />
+                <Skeleton className="h-2 w-full" />
+                <Skeleton className="h-4 w-48" />
+              </div>
+            ) : (
+              <>
+                <div>
+                  <p className="tabular text-2xl font-semibold text-foreground">
+                    {formatCredits(usage?.remainingCredits)}
+                    <span className="text-base font-normal text-muted-foreground"> of {formatCredits(usage?.limit ?? plan?.monthlyCredits)} left</span>
+                  </p>
+                  <Progress value={remainingPercentage} className="mt-3 h-1.5 bg-secondary [&>div]:bg-brand" aria-label="Credits left this month" />
+                  <p className="tabular mt-2 text-sm text-muted-foreground">
+                    {formatCredits(usage?.usedCredits)} used this month
+                    {held > 0 ? ` · ${formatCredits(held)} held by runs in progress` : ''}
+                  </p>
+                </div>
+
+                <dl className="divide-y divide-border border-t border-border text-sm">
+                  <div className="flex justify-between py-3">
+                    <dt className="text-muted-foreground">Saved projects</dt>
+                    <dd className="tabular text-foreground">up to {formatCredits(plan?.projectLimit)}</dd>
+                  </div>
+                  <div className="flex justify-between py-3">
+                    <dt className="text-muted-foreground">Subscription</dt>
+                    <dd className="text-foreground">{billing?.status ?? 'None'}</dd>
+                  </div>
+                  <div className="flex justify-between py-3">
+                    <dt className="text-muted-foreground">Renews</dt>
+                    <dd className="text-foreground">{formatDate(billing?.current_period_end ?? null)}</dd>
+                  </div>
+                </dl>
+                <p className="text-xs text-muted-foreground">
+                  A banner plan costs 3 credits, each picture or edit 5, each video clip 25. Credits reset on the first of the month (UTC).
+                </p>
+              </>
+            )}
+          </div>
+        </section>
+
+        <section aria-labelledby="tour-heading" className="rounded-xl border border-border bg-card p-6">
+          <h2 id="tour-heading" className="text-base font-semibold text-foreground">Product tour</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Walk through the sidebar again, one tool at a time.
+          </p>
+          <Button variant="secondary" onClick={onReplayTour} className="mt-4">
+            Replay the tour
+          </Button>
         </section>
       </div>
     </div>

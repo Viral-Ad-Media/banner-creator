@@ -2,16 +2,24 @@ import { downloadGeneratedVideo } from "../../services/videoService";
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  Activity,
-  AlertTriangle,
-  Clock3,
   Image as ImageIcon,
   RefreshCcw,
   Sparkles,
   Video,
   Wand2,
 } from "lucide-react";
-import { Button } from "../ui/Button";
+import { Button } from "../ui/button";
+import { Progress } from "../ui/progress";
+import { Skeleton } from "../ui/skeleton";
+import { Spinner } from "../ui/spinner";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "../ui/sheet";
+import { cn } from "@/lib/utils";
 import {
   getGenerationActivity,
   getGenerationDetail,
@@ -22,13 +30,13 @@ import {
 const formatGenerationType = (value: GenerationRecord["type"]) => {
   switch (value) {
     case "BANNER_PLAN":
-      return "Banner Plan";
+      return "Banner plan";
     case "IMAGE_GENERATION":
-      return "Image Generation";
+      return "Picture";
     case "IMAGE_EDIT":
-      return "Image Edit";
+      return "Image edit";
     case "VIDEO_GENERATION":
-      return "Video Generation";
+      return "Video";
     default:
       return value;
   }
@@ -39,6 +47,21 @@ const formatTimestamp = (value: string) =>
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
+
+const STATUS: Record<GenerationRecord["status"], { label: string; className: string }> = {
+  SUCCESS: { label: "Done", className: "text-muted-foreground" },
+  FAILED: { label: "Failed, credits returned", className: "text-destructive" },
+  QUEUED: { label: "Queued", className: "text-warning" },
+  RUNNING: { label: "Running", className: "text-warning" },
+  UNKNOWN: { label: "Being checked, credits held", className: "text-warning" },
+};
+
+const COST: Record<GenerationRecord["type"], number> = {
+  BANNER_PLAN: 3,
+  IMAGE_GENERATION: 5,
+  IMAGE_EDIT: 5,
+  VIDEO_GENERATION: 25,
+};
 
 const getGenerationIcon = (type: GenerationRecord["type"]) => {
   if (type === "BANNER_PLAN") return Sparkles;
@@ -60,10 +83,13 @@ export const ActivitiesPanel: React.FC = () => {
   const [generations, setGenerations] = useState<GenerationRecord[]>([]);
   const [usage, setUsage] = useState<UsageSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [openingId, setOpeningId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const loadActivity = async (append = false) => {
-    setIsLoading(true);
+    // Paging keeps the list on screen; only a full refresh shows the loading state.
+    (append ? setIsLoadingMore : setIsLoading)(true);
     setErrorMessage(null);
 
     try {
@@ -82,7 +108,7 @@ export const ActivitiesPanel: React.FC = () => {
           : "Could not load activity right now.",
       );
     } finally {
-      setIsLoading(false);
+      (append ? setIsLoadingMore : setIsLoading)(false);
     }
   };
 
@@ -91,6 +117,7 @@ export const ActivitiesPanel: React.FC = () => {
   }, []);
 
   const openResult = async (id: string) => {
+    setOpeningId(id);
     try {
       const { generation } = await getGenerationDetail(id);
       setSelected(generation);
@@ -102,6 +129,8 @@ export const ActivitiesPanel: React.FC = () => {
         setResultUrl(URL.createObjectURL(await downloadGeneratedVideo(id)));
     } catch (error) {
       setErrorMessage((error as Error).message);
+    } finally {
+      setOpeningId(null);
     }
   };
   const successCount = generations.filter(
@@ -111,226 +140,218 @@ export const ActivitiesPanel: React.FC = () => {
     (item) => item.status === "FAILED",
   ).length;
 
+  const plan = selected?.type === "BANNER_PLAN" ? selected.result?.data : null;
+
   return (
     <div className="space-y-6">
-      {selected && (
-        <section className="surface-card rounded-3xl p-6 space-y-3">
-          <button className="text-primary" onClick={() => setSelected(null)}>
-            Close result
-          </button>
-          <p className="text-white">{selected.prompt}</p>
-          {typeof selected.result?.data === "string" ? (
+      <Sheet open={Boolean(selected)} onOpenChange={(open) => !open && setSelected(null)}>
+        <SheetContent className="w-full gap-0 overflow-y-auto sm:max-w-lg">
+          {selected && (
             <>
-              <img
-                alt="Recovered generation"
-                src={selected.result.data}
-                className="max-h-96"
-              />
-              <a
-                href={selected.result.data}
-                download={`generation-${selected.id}.png`}
-                className="text-primary"
-              >
-                Download image
-              </a>
+              <SheetHeader className="border-b border-border p-6">
+                <SheetTitle className="text-lg">
+                  {formatGenerationType(selected.type)}
+                </SheetTitle>
+                <SheetDescription>
+                  {formatTimestamp(selected.created_at)} ·{" "}
+                  {STATUS[selected.status as GenerationRecord["status"]]?.label ?? selected.status}
+                </SheetDescription>
+              </SheetHeader>
+              <div className="space-y-5 p-6">
+                <p className="text-sm leading-relaxed text-foreground">{selected.prompt}</p>
+                {typeof selected.result?.data === "string" ? (
+                  <>
+                    <img
+                      alt={selected.prompt}
+                      src={selected.result.data}
+                      className="w-full rounded-lg border border-border"
+                    />
+                    <Button asChild variant="secondary">
+                      <a href={selected.result.data} download={`generation-${selected.id}.png`}>
+                        Download image
+                      </a>
+                    </Button>
+                  </>
+                ) : selected.type === "VIDEO_GENERATION" ? (
+                  <>
+                    {resultUrl ? (
+                      <>
+                        <video src={resultUrl} controls className="w-full rounded-lg border border-border" />
+                        <Button asChild variant="secondary">
+                          <a href={resultUrl} download={`video-${selected.id}.mp4`}>
+                            Download video
+                          </a>
+                        </Button>
+                      </>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        Not ready yet. Check again in a minute.
+                      </p>
+                    )}
+                    <Button
+                      variant="outline"
+                      isLoading={openingId === selected.id}
+                      onClick={() => void openResult(selected.id)}
+                    >
+                      Check again
+                    </Button>
+                  </>
+                ) : plan?.main_banner ? (
+                  <dl className="divide-y divide-border rounded-lg border border-border text-sm">
+                    <div className="p-4">
+                      <dt className="text-muted-foreground">Headline</dt>
+                      <dd className="mt-1 font-semibold text-foreground">{plan.main_banner.headline}</dd>
+                    </div>
+                    <div className="p-4">
+                      <dt className="text-muted-foreground">Caption</dt>
+                      <dd className="mt-1 whitespace-pre-wrap text-foreground">{plan.seo?.caption}</dd>
+                    </div>
+                    {(plan.additional_banners ?? []).length > 0 && (
+                      <div className="p-4">
+                        <dt className="text-muted-foreground">Variations</dt>
+                        <dd className="mt-1 space-y-1 text-foreground">
+                          {plan.additional_banners.map((b: { title: string }, i: number) => (
+                            <p key={i}>{b.title}</p>
+                          ))}
+                        </dd>
+                      </div>
+                    )}
+                  </dl>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    {selected.error_message ?? "No stored result for this run."}
+                  </p>
+                )}
+              </div>
             </>
-          ) : selected.type === "VIDEO_GENERATION" ? (
-            <>
-              {resultUrl ? (
-                <>
-                  <video src={resultUrl} controls className="max-h-96" />
-                  <a
-                    href={resultUrl}
-                    download={`video-${selected.id}.mp4`}
-                    className="text-primary"
-                  >
-                    Download video
-                  </a>
-                </>
-              ) : (
-                <p className="text-muted">
-                  {selected.status}. Use Refresh result to check again.
-                </p>
-              )}
-              <button
-                className="text-primary"
-                onClick={() => void openResult(selected.id)}
-              >
-                Refresh result
-              </button>
-            </>
-          ) : (
-            <pre className="overflow-auto whitespace-pre-wrap text-xs text-white">
-              {JSON.stringify(selected.result?.data, null, 2)}
-            </pre>
           )}
-        </section>
-      )}
+        </SheetContent>
+      </Sheet>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <section className="surface-card rounded-[28px] p-5">
-          <p className="text-[11px] uppercase tracking-[0.24em] text-muted">
-            Credits Used
+      <section aria-label="Credits this month" className="grid grid-cols-1 divide-y divide-border rounded-xl border border-border bg-card sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+        <div className="p-5">
+          <p className="text-sm text-muted-foreground">Credits left</p>
+          <p className="tabular mt-1 text-2xl font-semibold text-foreground">
+            {usage ? usage.remainingCredits : "—"}
+            <span className="text-base font-normal text-muted-foreground"> of {usage?.limit ?? "—"}</span>
           </p>
-          <div className="mt-4 flex items-end justify-between">
-            <p className="text-3xl font-bold text-white">
-              {usage?.usedCredits ?? 0}
+          <Progress
+            value={Math.min(100, Math.round(((usage?.usedCredits ?? 0) / Math.max(1, usage?.limit ?? 1)) * 100))}
+            className="mt-3 h-1.5 bg-secondary [&>div]:bg-brand"
+            aria-label="Credits used"
+          />
+        </div>
+        <div className="p-5">
+          <p className="text-sm text-muted-foreground">Used this month</p>
+          <p className="tabular mt-1 text-2xl font-semibold text-foreground">{usage ? usage.usedCredits : "—"}</p>
+          {(usage?.reservedCredits ?? 0) > 0 && (
+            <p className="tabular mt-1 text-sm text-muted-foreground">
+              {usage?.reservedCredits} held by runs in progress
             </p>
-            <p className="text-sm text-muted">of {usage?.limit ?? 0}</p>
-          </div>
-          <div className="mt-4 h-2 rounded-full bg-white/6">
-            <div
-              className="h-full rounded-full bg-[linear-gradient(90deg,#83efe0_0%,#48d9c8_55%,#168d87_100%)]"
-              style={{
-                width: `${Math.min(100, Math.round(((usage?.usedCredits ?? 0) / Math.max(1, usage?.limit ?? 1)) * 100))}%`,
-              }}
-            />
-          </div>
-        </section>
-
-        <section className="surface-card rounded-[28px] p-5">
-          <p className="text-[11px] uppercase tracking-[0.24em] text-muted">
-            Credits Left
+          )}
+        </div>
+        <div className="p-5">
+          <p className="text-sm text-muted-foreground">Runs listed below</p>
+          <p className="tabular mt-1 text-2xl font-semibold text-foreground">{generations.length}</p>
+          <p className={cn("tabular mt-1 text-sm", failureCount > 0 ? "text-destructive" : "text-muted-foreground")}>
+            {successCount} done · {failureCount} failed
           </p>
-          <div className="mt-4 flex items-end justify-between">
-            <p className="text-3xl font-bold text-white">
-              {usage?.remainingCredits ?? 0}
-            </p>
-            <p className="text-sm text-emerald-300">available now</p>
-          </div>
-        </section>
+        </div>
+      </section>
 
-        <section className="surface-card rounded-[28px] p-5">
-          <p className="text-[11px] uppercase tracking-[0.24em] text-muted">
-            Recent Results
-          </p>
-          <div className="mt-4 flex items-end justify-between">
-            <p className="text-3xl font-bold text-white">{successCount}</p>
-            <p className="text-sm text-red-300">{failureCount} failed</p>
-          </div>
-        </section>
-      </div>
-
-      <section className="surface-card rounded-[32px] p-6">
-        <div className="flex flex-col gap-4 border-b border-white/8 pb-5 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <span className="section-kicker">
-              <Activity className="h-5 w-5 text-primary" />
-              Activity Feed
-            </span>
-            <p className="mt-4 text-sm leading-7 text-[#c0d1de]">
-              Track recent plans, image renders, edits, and video jobs from your
-              workspace.
-            </p>
-          </div>
-
+      <section aria-labelledby="runs-heading" className="rounded-xl border border-border bg-card">
+        <div className="flex items-center justify-between gap-4 border-b border-border px-5 py-3">
+          <h2 id="runs-heading" className="text-base font-semibold text-foreground">Runs</h2>
           <Button
-            variant="secondary"
+            variant="ghost"
+            size="sm"
             onClick={() => void loadActivity()}
-            isLoading={isLoading}
-            className="sm:self-start"
+            disabled={isLoading}
           >
-            <RefreshCcw className="h-4 w-4" />
+            <RefreshCcw className={cn(isLoading && "animate-spin")} />
             Refresh
           </Button>
         </div>
 
         {isLoading ? (
-          <div className="flex min-h-[260px] items-center justify-center">
-            <div className="text-center">
-              <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-              <p className="mt-3 text-sm text-muted">
-                Loading recent activity...
-              </p>
-            </div>
-          </div>
+          <ul aria-label="Loading runs" className="divide-y divide-border">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <li key={i} className="flex items-center gap-4 px-5 py-4">
+                <Skeleton className="size-4" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-1/3" />
+                  <Skeleton className="h-3 w-2/3" />
+                </div>
+              </li>
+            ))}
+          </ul>
         ) : errorMessage ? (
-          <div className="mt-6 rounded-2xl border border-red-400/20 bg-red-500/5 p-4 text-sm text-red-200">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-              <p>{errorMessage}</p>
-            </div>
+          <div role="alert" className="flex items-center justify-between gap-4 px-5 py-6 text-sm">
+            <p className="text-foreground">Couldn't load runs. {errorMessage}</p>
+            <Button variant="ghost" size="sm" onClick={() => void loadActivity()}>
+              Retry
+            </Button>
           </div>
         ) : generations.length === 0 ? (
-          <div className="mt-6 rounded-[28px] border border-dashed border-white/10 bg-black/20 p-10 text-center">
-            <p className="text-lg font-medium text-white">No activity yet</p>
-            <p className="mt-2 text-sm text-muted">
-              Your banner runs, image edits, and video jobs will show up here
-              once we start generating.
+          <div className="px-5 py-10">
+            <p className="text-base font-medium text-foreground">No runs yet</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Banner plans, pictures, edits and videos appear here with the credits each one used.
             </p>
-            <Link to="/app/banner-generator" className="mt-5 inline-block">
-              <Button variant="secondary" size="sm">
-                <Sparkles className="h-4 w-4" />
-                Generate your first banner
-              </Button>
-            </Link>
+            <Button asChild variant="secondary" size="sm" className="mt-4">
+              <Link to="/app/banner-generator">Write your first brief</Link>
+            </Button>
           </div>
         ) : (
-          <div className="mt-6 space-y-3">
-            {generations.map((generation) => {
+          <ul className="divide-y divide-border">
+            {generations.map((generation, index) => {
               const Icon = getGenerationIcon(generation.type);
-
+              const status = STATUS[generation.status];
               return (
-                <article
+                <li
                   key={generation.id}
-                  className="rounded-[24px] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02))] p-4 transition-colors hover:border-white/15"
+                  className="enter"
+                  style={{ "--i": Math.min(index, 6) } as React.CSSProperties}
                 >
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="min-w-0 space-y-3">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white">
-                          <Icon className="h-3.5 w-3.5 text-primary" />
+                  <button
+                    type="button"
+                    onClick={() => void openResult(generation.id)}
+                    className="flex w-full items-start gap-4 px-5 py-4 text-left transition-colors duration-150 hover:bg-accent/50 focus-visible:bg-accent/50 focus-visible:outline-none"
+                  >
+                    <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                        <span className="text-sm font-medium text-foreground">
                           {formatGenerationType(generation.type)}
                         </span>
-                        <span
-                          className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                            generation.status === "SUCCESS"
-                              ? "bg-emerald-500/10 text-emerald-300"
-                              : generation.status === "FAILED"
-                                ? "bg-red-500/10 text-red-300"
-                                : "bg-amber-500/10 text-amber-200"
-                          }`}
-                        >
-                          {generation.status}
-                        </span>
+                        <span className={cn("text-xs", status.className)}>{status.label}</span>
                         {generation.aspect_ratio && (
-                          <span className="rounded-full bg-white/5 px-2.5 py-1 text-[11px] text-muted">
-                            {generation.aspect_ratio}
-                          </span>
+                          <span className="tabular text-xs text-muted-foreground">{generation.aspect_ratio}</span>
                         )}
                       </div>
-
-                      <button
-                        className="text-primary text-sm"
-                        onClick={() => void openResult(generation.id)}
-                      >
-                        Open result
-                      </button>
-                      <p className="line-clamp-2 text-sm leading-6 text-white/90">
-                        {generation.prompt}
-                      </p>
-
+                      <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{generation.prompt}</p>
                       {generation.error_message && (
-                        <p className="rounded-xl border border-red-400/10 bg-red-500/5 px-3 py-2 text-xs text-red-200">
-                          {generation.error_message}
-                        </p>
+                        <p className="mt-1 text-xs text-destructive">{generation.error_message}</p>
                       )}
                     </div>
-
-                    <div className="flex items-center gap-2 text-xs text-muted lg:shrink-0">
-                      <Clock3 className="h-3.5 w-3.5" />
-                      {formatTimestamp(generation.created_at)}
+                    <div className="shrink-0 text-right">
+                      <p className="tabular text-sm text-foreground">
+                        {generation.status === "FAILED" ? "0" : COST[generation.type]} cr
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {openingId === generation.id ? <Spinner className="ml-auto size-3" /> : formatTimestamp(generation.created_at)}
+                      </p>
                     </div>
-                  </div>
-                </article>
+                  </button>
+                </li>
               );
             })}
-          </div>
+          </ul>
         )}
       </section>
       {nextOffset !== null && (
-        <Button onClick={() => void loadActivity(true)} isLoading={isLoading}>
-          Load older activity
+        <Button variant="outline" onClick={() => void loadActivity(true)} isLoading={isLoadingMore}>
+          Load older runs
         </Button>
       )}
     </div>

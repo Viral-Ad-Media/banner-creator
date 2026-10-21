@@ -44,7 +44,13 @@ import {
   optimizeAvatarImageDataUrl,
   type AvatarAsset,
 } from "../../services/avatarLibrary";
-import { Button } from "../ui/Button";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Textarea } from "../ui/textarea";
+import { NativeSelect, NativeSelectOption } from "../ui/native-select";
+import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
+import { Switch } from "../ui/switch";
+import { cn } from "@/lib/utils";
 import { AvatarLibraryPicker } from "./AvatarLibraryPicker";
 
 const VIDEO_DURATION_OPTIONS_BY_PROVIDER: Record<
@@ -1452,33 +1458,20 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
 
   return (
     <div className="grid grid-cols-1 gap-6 xl:grid-cols-[420px_minmax(0,1fr)]">
-      <section className="surface-card rounded-[32px] p-6">
-        <div className="border-b border-white/8 pb-5">
-          <span className="section-kicker">
-            <Film className="h-5 w-5 text-primary" />
-            Video Director
-          </span>
-          <div className="mt-4 grid grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-black/20 p-1">
+      <section className="rounded-xl border border-border bg-card p-5">
+        <Tabs value={workflowMode} onValueChange={(value) => setWorkflowMode(value as typeof workflowMode)}>
+          <TabsList className="grid w-full grid-cols-2">
             {WORKFLOW_OPTIONS.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                onClick={() => setWorkflowMode(option.id)}
-                className={`rounded-xl px-3 py-2 text-sm font-semibold transition-all ${
-                  workflowMode === option.id
-                    ? "bg-primary text-[#04161a]"
-                    : "text-muted hover:bg-white/5 hover:text-white"
-                }`}
-              >
+              <TabsTrigger key={option.id} value={option.id}>
                 {option.label}
-              </button>
+              </TabsTrigger>
             ))}
-          </div>
-        </div>
+          </TabsList>
+        </Tabs>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-5">
           <div className="space-y-2">
-            <label className="text-xs font-semibold uppercase tracking-[0.24em] text-muted">
+            <label className="text-sm font-medium text-foreground">
               Source
             </label>
             <div className="grid grid-cols-3 gap-2">
@@ -1490,10 +1483,10 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
                     key={option.id}
                     type="button"
                     onClick={() => setSourceMode(option.id)}
-                    className={`flex min-h-20 flex-col items-center justify-center gap-2 rounded-2xl border px-3 py-3 text-sm font-semibold transition-all ${
+                    className={`flex min-h-20 flex-col items-center justify-center gap-2 rounded-lg border px-3 py-3 text-sm font-semibold transition-colors ${
                       sourceMode === option.id
-                        ? "border-primary bg-primary/10 text-white"
-                        : "border-white/10 bg-black/20 text-muted hover:border-white/20 hover:text-white"
+                        ? "border-foreground bg-secondary text-foreground"
+                        : "border-border bg-background text-muted-foreground hover:border-border hover:text-foreground"
                     }`}
                   >
                     <Icon className="h-4 w-4" />
@@ -1505,7 +1498,7 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
           </div>
 
           {sourceMode === "upload" && (
-            <div className="rounded-[24px] border border-white/10 bg-black/20 p-4">
+            <div className="rounded-lg border border-border bg-background p-4">
               <input
                 ref={sourceImageInputRef}
                 type="file"
@@ -1515,7 +1508,7 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
               />
               {uploadedSourceImageDataUrl ? (
                 <div className="space-y-3">
-                  <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/5">
+                  <div className="overflow-hidden rounded-lg border border-border bg-secondary">
                     <img
                       src={uploadedSourceImageDataUrl}
                       alt={uploadedSourceImageName ?? "Uploaded source"}
@@ -1523,7 +1516,7 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
                     />
                   </div>
                   <div className="flex items-center justify-between gap-3">
-                    <p className="min-w-0 truncate text-sm font-medium text-white">
+                    <p className="min-w-0 truncate text-sm font-medium text-foreground">
                       {uploadedSourceImageName}
                     </p>
                     <div className="flex shrink-0 items-center gap-2">
@@ -1576,19 +1569,15 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
             />
           )}
 
-          <div className="rounded-2xl border border-primary/15 bg-primary/5 p-4 text-xs leading-6 text-white/80">
-            Active source:{" "}
-            <span className="font-medium text-white">{sourceLabel}</span>
-          </div>
 
           <div className="space-y-2">
-            <label className="text-xs font-semibold uppercase tracking-[0.24em] text-muted">
+            <label className="text-sm font-medium text-foreground">
               {workflowMode === "storyboard" ? "Master Brief" : "Video Prompt"}
             </label>
-            <textarea
+            <Textarea
               value={prompt}
               onChange={(event) => setPrompt(event.target.value)}
-              className="h-36 w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none transition-colors placeholder:text-muted focus:border-primary/50 focus:ring-1 focus:ring-primary"
+              className="h-36 resize-none"
               placeholder="A kinetic ad for a luxury coffee brand, slow camera push-in, steam in the air, premium product close-up, cinematic lighting..."
             />
             {workflowMode === "storyboard" && (
@@ -1607,78 +1596,78 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div className="space-y-2">
-              <label className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">
+              <label className="text-sm font-medium text-foreground">
                 Motion
               </label>
-              <select
+              <NativeSelect
                 value={cameraMotion}
                 onChange={(event) =>
                   setCameraMotion(event.target.value as CameraMotion)
                 }
-                className="w-full rounded-2xl border border-white/10 bg-black/20 px-3 py-3 text-sm text-white outline-none focus:border-primary/50"
+                className="w-full"
               >
                 {CAMERA_MOTION_OPTIONS.map((option) => (
-                  <option key={option.id} value={option.id}>
+                  <NativeSelectOption key={option.id} value={option.id}>
                     {option.label}
-                  </option>
+                  </NativeSelectOption>
                 ))}
-              </select>
+              </NativeSelect>
             </div>
 
             <div className="space-y-2">
-              <label className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">
+              <label className="text-sm font-medium text-foreground">
                 Style
               </label>
-              <select
+              <NativeSelect
                 value={visualStyle}
                 onChange={(event) =>
                   setVisualStyle(event.target.value as VisualStyle)
                 }
-                className="w-full rounded-2xl border border-white/10 bg-black/20 px-3 py-3 text-sm text-white outline-none focus:border-primary/50"
+                className="w-full"
               >
                 {VISUAL_STYLE_OPTIONS.map((option) => (
-                  <option key={option.id} value={option.id}>
+                  <NativeSelectOption key={option.id} value={option.id}>
                     {option.label}
-                  </option>
+                  </NativeSelectOption>
                 ))}
-              </select>
+              </NativeSelect>
             </div>
 
             <div className="space-y-2">
-              <label className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">
+              <label className="text-sm font-medium text-foreground">
                 Pace
               </label>
-              <select
+              <NativeSelect
                 value={shotPacing}
                 onChange={(event) =>
                   setShotPacing(event.target.value as ShotPacing)
                 }
-                className="w-full rounded-2xl border border-white/10 bg-black/20 px-3 py-3 text-sm text-white outline-none focus:border-primary/50"
+                className="w-full"
               >
                 {SHOT_PACING_OPTIONS.map((option) => (
-                  <option key={option.id} value={option.id}>
+                  <NativeSelectOption key={option.id} value={option.id}>
                     {option.label}
-                  </option>
+                  </NativeSelectOption>
                 ))}
-              </select>
+              </NativeSelect>
             </div>
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs font-semibold uppercase tracking-[0.24em] text-muted">
+            <label className="text-sm font-medium text-foreground">
               Negative Prompt
             </label>
-            <textarea
+            <Textarea
               value={negativePrompt}
               onChange={(event) => setNegativePrompt(event.target.value)}
-              className="h-20 w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none transition-colors placeholder:text-muted focus:border-primary/50 focus:ring-1 focus:ring-primary"
+              className="h-20 resize-none"
               placeholder="Optional. Example: shaky camera, text overlays, extra hands, distorted faces..."
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <label className="text-xs font-semibold uppercase tracking-[0.24em] text-muted">
+              <label className="text-sm font-medium text-foreground">
                 Aspect Ratio
               </label>
               <div className="grid grid-cols-2 gap-2">
@@ -1687,10 +1676,10 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
                     key={ratio}
                     type="button"
                     onClick={() => setAspectRatio(ratio)}
-                    className={`rounded-xl border px-3 py-2 text-sm font-medium transition-all ${
+                    className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
                       aspectRatio === ratio
-                        ? "border-primary bg-primary/15 text-primary"
-                        : "border-white/10 bg-black/20 text-muted hover:border-white/20 hover:text-white"
+                        ? "border-foreground bg-secondary text-foreground"
+                        : "border-border bg-background text-muted-foreground hover:border-border hover:text-foreground"
                     }`}
                   >
                     {ratio}
@@ -1700,7 +1689,7 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
             </div>
 
             <div className="space-y-2">
-              <label className="text-xs font-semibold uppercase tracking-[0.24em] text-muted">
+              <label className="text-sm font-medium text-foreground">
                 Duration
               </label>
               <div className="grid grid-cols-3 gap-2">
@@ -1709,10 +1698,10 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
                     key={seconds}
                     type="button"
                     onClick={() => setDurationSeconds(seconds)}
-                    className={`rounded-xl border px-3 py-2 text-sm font-medium transition-all ${
+                    className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
                       durationSeconds === seconds
-                        ? "border-primary bg-primary/15 text-primary"
-                        : "border-white/10 bg-black/20 text-muted hover:border-white/20 hover:text-white"
+                        ? "border-foreground bg-secondary text-foreground"
+                        : "border-border bg-background text-muted-foreground hover:border-border hover:text-foreground"
                     }`}
                   >
                     {seconds}s
@@ -1723,33 +1712,32 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs font-semibold uppercase tracking-[0.24em] text-muted">
+            <label className="text-sm font-medium text-foreground">
               Video model
             </label>
-            <select
+            <NativeSelect
               value={provider}
               onChange={(event) =>
                 setProvider(event.target.value as VideoProvider)
               }
-              className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none transition-colors focus:border-primary/50 focus:ring-1 focus:ring-primary/20"
+              className="w-full"
             >
               {VIDEO_PROVIDER_OPTIONS.map((option) => (
-                <option
+                <NativeSelectOption
                   key={option.id}
                   value={option.id}
-                  className="bg-[#0b1620] text-white"
                 >
                   {option.label}
-                </option>
+                </NativeSelectOption>
               ))}
-            </select>
-            <p className="text-xs text-muted">
+            </NativeSelect>
+            <p className="text-xs text-muted-foreground">
               Select the available video model for this task.
             </p>
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs font-semibold uppercase tracking-[0.24em] text-muted">
+            <label className="text-sm font-medium text-foreground">
               Render Mode
             </label>
             <div className="grid gap-2">
@@ -1758,23 +1746,23 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
                   key={option.id}
                   type="button"
                   onClick={() => setModelPreset(option.id)}
-                  className={`rounded-2xl border px-4 py-3 text-left transition-all ${
+                  className={`rounded-lg border px-4 py-3 text-left transition-colors ${
                     modelPreset === option.id
-                      ? "border-primary bg-primary/10"
-                      : "border-white/10 bg-black/20 hover:border-white/20 hover:bg-white/5"
+                      ? "border-foreground bg-secondary"
+                      : "border-border bg-background hover:border-border hover:bg-accent"
                   }`}
                 >
                   <div className="flex items-center justify-between">
                     <span
-                      className={`text-sm font-medium ${modelPreset === option.id ? "text-white" : "text-white/85"}`}
+                      className={`text-sm font-medium ${modelPreset === option.id ? "text-foreground" : "text-foreground/85"}`}
                     >
                       {option.label}
                     </span>
                     {modelPreset === option.id && (
-                      <CheckCircle2 className="h-4 w-4 text-primary" />
+                      <CheckCircle2 className="h-4 w-4 text-foreground" />
                     )}
                   </div>
-                  <p className="mt-1 text-xs text-muted">
+                  <p className="mt-1 text-xs text-muted-foreground">
                     {option.description}
                   </p>
                 </button>
@@ -1782,32 +1770,31 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
             </div>
           </div>
 
-          <label className="flex cursor-pointer items-center justify-between rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
+          <label className="flex cursor-pointer items-center justify-between rounded-lg border border-border bg-background px-4 py-3">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary text-muted-foreground">
                 <Volume2 className="h-4 w-4" />
               </div>
               <div>
-                <p className="text-sm font-medium text-white">Generate audio</p>
-                <p className="text-xs text-muted">
+                <p className="text-sm font-medium text-foreground">Generate audio</p>
+                <p className="text-xs text-muted-foreground">
                   Enabled when the selected model supports audio.
                 </p>
               </div>
             </div>
-            <input
-              type="checkbox"
+            <Switch
               checked={includeAudio}
-              onChange={(event) => setIncludeAudio(event.target.checked)}
-              className="h-4 w-4 rounded border-white/20 bg-black/20 text-primary focus:ring-primary"
+              onCheckedChange={setIncludeAudio}
+              aria-label="Generate audio"
             />
           </label>
 
           {workflowMode === "storyboard" && (
-            <div className="space-y-3 rounded-[28px] border border-white/10 bg-black/20 p-4">
+            <div className="space-y-3 rounded-lg border border-border bg-background p-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <h3 className="text-sm font-semibold text-white">Scenes</h3>
-                  <p className="mt-1 text-xs text-muted">
+                  <h3 className="text-sm font-semibold text-foreground">Scenes</h3>
+                  <p className="mt-1 text-xs text-muted-foreground">
                     {validScenes.length}/{scenes.length} ready,{" "}
                     {validScenes.reduce(
                       (total, scene) => total + scene.durationSeconds,
@@ -1831,29 +1818,29 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
                 {scenes.map((scene, index) => (
                   <div
                     key={scene.id}
-                    className="rounded-[24px] border border-white/10 bg-white/[0.03] p-4"
+                    className="rounded-lg border border-border bg-white/[0.03] p-4"
                   >
                     <div className="flex items-start gap-3">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-semibold text-foreground tabular">
                         {index + 1}
                       </div>
                       <div className="min-w-0 flex-1 space-y-3">
-                        <input
+                        <Input
                           value={scene.title}
                           onChange={(event) =>
                             updateScene(scene.id, { title: event.target.value })
                           }
-                          className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm font-medium text-white outline-none focus:border-primary/50"
+                          className="h-9 font-medium"
                           placeholder={`Scene ${index + 1}`}
                         />
-                        <textarea
+                        <Textarea
                           value={scene.prompt}
                           onChange={(event) =>
                             updateScene(scene.id, {
                               prompt: event.target.value,
                             })
                           }
-                          className="h-28 w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none placeholder:text-muted focus:border-primary/50"
+                          className="h-28 resize-none"
                           placeholder="Describe the visual beat, action, camera movement, and subject..."
                         />
                         <div className="flex flex-wrap items-center gap-2">
@@ -1868,8 +1855,8 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
                               }
                               className={`rounded-full border px-3 py-1 text-xs font-semibold ${
                                 scene.durationSeconds === seconds
-                                  ? "border-primary bg-primary/15 text-primary"
-                                  : "border-white/10 bg-black/20 text-muted hover:text-white"
+                                  ? "border-foreground bg-secondary text-foreground"
+                                  : "border-border bg-background text-muted-foreground hover:text-foreground"
                               }`}
                             >
                               {seconds}s
@@ -1881,7 +1868,7 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
                         <button
                           type="button"
                           onClick={() => duplicateScene(scene)}
-                          className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-black/20 text-muted hover:text-white"
+                          className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground hover:text-foreground"
                           aria-label="Duplicate scene"
                         >
                           <Copy className="h-4 w-4" />
@@ -1890,7 +1877,7 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
                           type="button"
                           onClick={() => removeScene(scene.id)}
                           disabled={scenes.length <= 1}
-                          className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-black/20 text-muted hover:text-red-300 disabled:opacity-40"
+                          className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground hover:text-red-300 disabled:opacity-40"
                           aria-label="Remove scene"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -1917,7 +1904,7 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
           {draftRestoreFailed && (
             <button
               type="button"
-              className="text-sm text-primary underline"
+              className="text-sm text-brand underline"
               onClick={() => setDraftRetry((n) => n + 1)}
             >
               Retry draft recovery
@@ -1935,11 +1922,11 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
 
       <div className="space-y-6">
         {workflowMode === "storyboard" && (
-          <section className="surface-card rounded-[32px] p-6">
-            <div className="flex flex-col gap-4 border-b border-white/8 pb-5 lg:flex-row lg:items-center lg:justify-between">
+          <section className="rounded-lg border border-border bg-card p-5 sm:p-6">
+            <div className="flex flex-col gap-4 border-b border-border pb-5 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <h3 className="text-xl font-semibold text-white">Scene Reel</h3>
-                <p className="mt-1 text-sm text-muted">
+                <h3 className="text-xl font-semibold text-foreground">Scene Reel</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
                   {completedSceneJobs.length}/
                   {Math.max(validScenes.length, currentSceneJobs.length)} scenes
                   complete
@@ -1971,27 +1958,27 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
                       sceneJob &&
                       setSelectedOperationName(sceneJob.operationName)
                     }
-                    className={`rounded-[22px] border p-4 text-left transition-all ${
+                    className={`rounded-lg border p-4 text-left transition-colors ${
                       sceneJob &&
                       selectedJob?.operationName === sceneJob.operationName
-                        ? "border-primary/30 bg-primary/10"
-                        : "border-white/10 bg-black/20 hover:border-white/20"
+                        ? "border-foreground/40 bg-secondary"
+                        : "border-border bg-background hover:border-border"
                     }`}
                   >
                     <div className="flex items-center justify-between gap-3">
-                      <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+                      <span className="text-xs font-semibold text-muted-foreground">
                         Scene {index + 1}
                       </span>
                       <span
-                        className={`rounded-full px-2 py-1 text-[10px] font-semibold ${sceneJob ? getStatusTone(sceneJob.status) : "bg-white/5 text-muted"}`}
+                        className={`rounded-full px-2 py-1 text-[10px] font-semibold ${sceneJob ? getStatusTone(sceneJob.status) : "bg-secondary text-muted-foreground"}`}
                       >
                         {sceneJob?.status ?? "Draft"}
                       </span>
                     </div>
-                    <p className="mt-3 line-clamp-1 text-sm font-medium text-white">
+                    <p className="mt-3 line-clamp-1 text-sm font-medium text-foreground">
                       {scene.title || `Scene ${index + 1}`}
                     </p>
-                    <p className="mt-2 line-clamp-2 text-xs leading-5 text-muted">
+                    <p className="mt-2 line-clamp-2 text-xs leading-5 text-muted-foreground">
                       {scene.prompt || "No prompt yet."}
                     </p>
                   </button>
@@ -2000,16 +1987,16 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
             </div>
 
             {mergeProgress && (
-              <p className="mt-4 text-sm text-primary">{mergeProgress}</p>
+              <p className="mt-4 text-sm text-muted-foreground" aria-live="polite">{mergeProgress}</p>
             )}
           </section>
         )}
 
-        <section className="surface-card rounded-[32px] p-6">
-          <div className="flex flex-col gap-4 border-b border-white/8 pb-5 lg:flex-row lg:items-center lg:justify-between">
+        <section className="rounded-lg border border-border bg-card p-5 sm:p-6">
+          <div className="flex flex-col gap-4 border-b border-border pb-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h3 className="text-xl font-semibold text-white">Preview</h3>
-              <p className="mt-1 text-sm text-muted">
+              <h3 className="text-xl font-semibold text-foreground">Preview</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
                 {selectedJob
                   ? `${selectedJob.sceneTitle ? `${selectedJob.sceneTitle} - ` : ""}${formatTimestamp(selectedJob.createdAt)}`
                   : "Start a render to see the generated clip here."}
@@ -2049,25 +2036,25 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
 
           <div className="mt-6">
             {!selectedJob ? (
-              <div className="flex min-h-[420px] items-center justify-center rounded-[28px] border border-dashed border-white/10 bg-black/20 p-8 text-center">
+              <div className="flex min-h-[420px] items-center justify-center rounded-lg border border-dashed border-border bg-background p-8 text-center">
                 <div className="max-w-sm">
-                  <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-white/5">
-                    <Video className="h-8 w-8 text-muted" />
+                  <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-secondary">
+                    <Video className="h-8 w-8 text-muted-foreground" />
                   </div>
-                  <p className="mt-5 text-lg font-medium text-white">
+                  <p className="mt-5 text-lg font-medium text-foreground">
                     No video jobs yet
                   </p>
-                  <p className="mt-2 text-sm text-muted">
+                  <p className="mt-2 text-sm text-muted-foreground">
                     Queued clips and completed scenes will appear here.
                   </p>
-                  <ul className="mt-5 space-y-2 text-left text-xs text-muted">
+                  <ul className="mt-5 space-y-2 text-left text-xs text-muted-foreground">
                     <li className="flex items-start gap-2">
-                      <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                      <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                       Start with a text prompt, or switch Source to an uploaded
                       image or a saved avatar.
                     </li>
                     <li className="flex items-start gap-2">
-                      <Film className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                      <Film className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                       Try Scene Reel for a multi-shot storyboard you can merge
                       into one clip.
                     </li>
@@ -2075,11 +2062,11 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
                 </div>
               </div>
             ) : selectedJob.status === "FAILED" ? (
-              <div className="rounded-[28px] border border-red-400/20 bg-red-500/5 p-6">
+              <div className="rounded-lg border border-red-400/20 bg-red-500/5 p-6">
                 <div className="flex items-start gap-3">
                   <AlertTriangle className="mt-1 h-5 w-5 shrink-0 text-red-300" />
                   <div>
-                    <p className="text-lg font-medium text-white">
+                    <p className="text-lg font-medium text-foreground">
                       Generation failed
                     </p>
                     <p className="mt-2 text-sm leading-6 text-red-200">
@@ -2090,15 +2077,15 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
                 </div>
               </div>
             ) : selectedJob.status !== "SUCCEEDED" ? (
-              <div className="flex min-h-[420px] items-center justify-center rounded-[28px] border border-white/10 bg-black/20 p-8 text-center">
+              <div className="flex min-h-[420px] items-center justify-center rounded-lg border border-border bg-background p-8 text-center">
                 <div>
-                  <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-secondary text-muted-foreground">
                     <Loader2 className="h-8 w-8 animate-spin" />
                   </div>
-                  <p className="mt-5 text-lg font-medium text-white">
+                  <p className="mt-5 text-lg font-medium text-foreground">
                     Video is rendering
                   </p>
-                  <p className="mt-2 text-sm text-muted">
+                  <p className="mt-2 text-sm text-muted-foreground">
                     {getProviderLabel(selectedJob.provider)} is still working on
                     this clip.
                   </p>
@@ -2106,15 +2093,15 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
               </div>
             ) : loadingPreviewFor === selectedJob.operationName ||
               !previewUrls[selectedJob.operationName] ? (
-              <div className="flex min-h-[420px] items-center justify-center rounded-[28px] border border-white/10 bg-black/20 p-8 text-center">
+              <div className="flex min-h-[420px] items-center justify-center rounded-lg border border-border bg-background p-8 text-center">
                 <div>
-                  <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 text-primary">
-                    <Sparkles className="h-8 w-8 animate-pulse" />
+                  <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-secondary text-muted-foreground">
+                    <Sparkles className="h-8 w-8" />
                   </div>
-                  <p className="mt-5 text-lg font-medium text-white">
+                  <p className="mt-5 text-lg font-medium text-foreground">
                     Loading preview
                   </p>
-                  <p className="mt-2 text-sm text-muted">
+                  <p className="mt-2 text-sm text-muted-foreground">
                     Downloading the generated clip so it can play inside the
                     workspace.
                   </p>
@@ -2123,7 +2110,7 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
             ) : (
               <div className="space-y-4">
                 <div
-                  className={`overflow-hidden rounded-[28px] border border-white/10 bg-black/30 ${getVideoAspectRatioClass(selectedJob.aspectRatio)}`}
+                  className={`overflow-hidden rounded-lg border border-border bg-background ${getVideoAspectRatioClass(selectedJob.aspectRatio)}`}
                 >
                   <video
                     key={selectedJob.operationName}
@@ -2134,43 +2121,43 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
                   />
                 </div>
 
-                <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                <div className="rounded-lg border border-border bg-background p-4">
                   <div className="flex flex-wrap items-center gap-2">
                     {selectedJob.workflowMode === "storyboard" &&
                       selectedJob.sceneIndex && (
-                        <span className="rounded-full bg-primary/10 px-3 py-1 text-xs text-primary">
+                        <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-muted-foreground">
                           Scene {selectedJob.sceneIndex}/
                           {selectedJob.sceneCount}
                         </span>
                       )}
-                    <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white">
+                    <span className="rounded-full bg-secondary px-3 py-1 text-xs text-foreground">
                       {selectedJob.aspectRatio}
                     </span>
-                    <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white">
+                    <span className="rounded-full bg-secondary px-3 py-1 text-xs text-foreground">
                       {selectedJob.durationSeconds}s
                     </span>
-                    <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white">
+                    <span className="rounded-full bg-secondary px-3 py-1 text-xs text-foreground">
                       {selectedJob.modelPreset === "fast"
                         ? "Fast render"
                         : "Quality render"}
                     </span>
-                    <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white">
+                    <span className="rounded-full bg-secondary px-3 py-1 text-xs text-foreground">
                       {selectedJob.provider === "openrouter"
                         ? "OpenRouter"
                         : "Gemini"}
                     </span>
-                    <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-white">
+                    <span className="rounded-full bg-secondary px-3 py-1 text-xs text-foreground">
                       {selectedJob.sourceMode === "text"
                         ? "Text-to-video"
                         : "Image-to-video"}
                     </span>
                     {selectedJob.includeAudio && (
-                      <span className="rounded-full bg-primary/10 px-3 py-1 text-xs text-primary">
+                      <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-muted-foreground">
                         Audio enabled
                       </span>
                     )}
                   </div>
-                  <p className="mt-3 text-sm leading-6 text-white/85">
+                  <p className="mt-3 text-sm leading-6 text-foreground/85">
                     {selectedJob.prompt}
                   </p>
                 </div>
@@ -2179,22 +2166,22 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
           </div>
         </section>
 
-        <section className="surface-card rounded-[32px] p-6">
-          <div className="flex items-center justify-between border-b border-white/8 pb-5">
+        <section className="rounded-lg border border-border bg-card p-5 sm:p-6">
+          <div className="flex items-center justify-between border-b border-border pb-5">
             <div>
-              <h3 className="text-xl font-semibold text-white">Recent Jobs</h3>
-              <p className="mt-1 text-sm text-muted">
+              <h3 className="text-xl font-semibold text-foreground">Recent Jobs</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
                 Stored in this browser for preview and download.
               </p>
             </div>
-            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-muted">
+            <span className="rounded-full border border-border bg-secondary px-3 py-1 text-xs text-muted-foreground">
               {jobs.length} saved
             </span>
           </div>
 
           {jobs.length === 0 ? (
-            <div className="mt-6 rounded-[28px] border border-dashed border-white/10 bg-black/20 p-8 text-center">
-              <p className="text-white">No saved video jobs yet.</p>
+            <div className="mt-6 rounded-lg border border-dashed border-border bg-background p-8 text-center">
+              <p className="text-foreground">No saved video jobs yet.</p>
             </div>
           ) : (
             <div className="mt-6 space-y-3">
@@ -2203,10 +2190,10 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
                   key={job.operationName}
                   type="button"
                   onClick={() => setSelectedOperationName(job.operationName)}
-                  className={`w-full rounded-[24px] border p-4 text-left transition-all ${
+                  className={`w-full rounded-lg border p-4 text-left transition-colors ${
                     selectedJob?.operationName === job.operationName
-                      ? "border-primary/25 bg-primary/10"
-                      : "border-white/10 bg-black/20 hover:border-white/20 hover:bg-white/5"
+                      ? "border-foreground/40 bg-secondary"
+                      : "border-border bg-background hover:border-border hover:bg-accent"
                   }`}
                 >
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -2219,33 +2206,33 @@ export const VideoGeneratorPanel: React.FC<VideoGeneratorPanelProps> = ({
                         </span>
                         {job.workflowMode === "storyboard" &&
                           job.sceneIndex && (
-                            <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[11px] text-primary">
+                            <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-muted-foreground">
                               Scene {job.sceneIndex}
                             </span>
                           )}
-                        <span className="rounded-full bg-white/5 px-2.5 py-1 text-[11px] text-muted">
+                        <span className="rounded-full bg-secondary px-2.5 py-1 text-[11px] text-muted-foreground">
                           {job.aspectRatio}
                         </span>
-                        <span className="rounded-full bg-white/5 px-2.5 py-1 text-[11px] text-muted">
+                        <span className="rounded-full bg-secondary px-2.5 py-1 text-[11px] text-muted-foreground">
                           {job.durationSeconds}s
                         </span>
-                        <span className="rounded-full bg-white/5 px-2.5 py-1 text-[11px] text-muted">
+                        <span className="rounded-full bg-secondary px-2.5 py-1 text-[11px] text-muted-foreground">
                           {job.provider === "openrouter"
                             ? "OpenRouter"
                             : "Gemini"}
                         </span>
-                        <span className="rounded-full bg-white/5 px-2.5 py-1 text-[11px] text-muted">
+                        <span className="rounded-full bg-secondary px-2.5 py-1 text-[11px] text-muted-foreground">
                           {job.sourceMode === "text" ? "Text" : "Image"}
                         </span>
                       </div>
-                      <p className="mt-3 line-clamp-2 text-sm leading-6 text-white/90">
+                      <p className="mt-3 line-clamp-2 text-sm leading-6 text-foreground/90">
                         {job.sceneTitle
                           ? `${job.sceneTitle}: ${job.prompt}`
                           : job.prompt}
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-2 text-xs text-muted lg:shrink-0">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground lg:shrink-0">
                       <Clock3 className="h-3.5 w-3.5" />
                       {formatTimestamp(job.updatedAt)}
                     </div>
