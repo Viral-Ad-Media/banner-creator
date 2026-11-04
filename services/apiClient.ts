@@ -1,4 +1,3 @@
-import { supabase } from "./supabaseClient";
 
 const rawBaseUrl =
   (typeof import.meta !== "undefined" &&
@@ -7,15 +6,6 @@ const rawBaseUrl =
 const apiBaseUrl = rawBaseUrl.endsWith("/")
   ? rawBaseUrl.slice(0, -1)
   : rawBaseUrl;
-
-const getAccessToken = async () => {
-  const { data, error } = await supabase.auth.getSession();
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return data.session?.access_token ?? null;
-};
 
 export class HttpError extends Error {
   constructor(
@@ -56,18 +46,12 @@ const createRequestInit = async (
     ...(headers || {}),
   };
 
-  if (auth) {
-    const token = await getAccessToken();
-    if (token) {
-      (mergedHeaders as Record<string, string>).Authorization =
-        `Bearer ${token}`;
-    }
-  }
 
   return {
     url,
     requestInit: {
       ...rest,
+      credentials: "include",
       signal: rest.signal ?? AbortSignal.timeout(55_000),
       headers: mergedHeaders,
       body,

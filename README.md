@@ -1,6 +1,6 @@
 # Banner Creator / Social Studio
 
-React/TypeScript workspace for AI banner planning, image generation/editing, reusable avatars, canvas editing, and short video storyboards. Uses Supabase Auth and the separate [Banner Creator API](https://github.com/Viral-Ad-Media/banner-creator-api); provider and service-role keys stay on the server.
+React/TypeScript workspace for AI banner planning, image generation/editing, reusable avatars, canvas editing, and short video storyboards. Uses Better Auth sessions with Neon PostgreSQL and the separate [Banner Creator API](https://github.com/Viral-Ad-Media/banner-creator-api); provider, auth and database keys stay on the server.
 
 ## Local setup
 
@@ -18,13 +18,11 @@ Configure the frontend:
 ```dotenv
 VITE_API_BASE_URL=/api
 VITE_BACKEND_URL=http://localhost:4000
-VITE_SUPABASE_URL=https://your-project-ref.supabase.co
-VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
 ```
 
-Only public browser configuration belongs in `VITE_*` variables. Set Gemini/OpenRouter and Supabase service-role credentials in the **API's** `.env`. See its [README](https://github.com/Viral-Ad-Media/banner-creator-api#readme) for server configuration.
+Only public browser configuration belongs in `VITE_*` variables. Set Gemini/OpenRouter, Neon `DATABASE_URL` and `BETTER_AUTH_SECRET` credentials in the **API's** `.env`. See its [README](https://github.com/Viral-Ad-Media/banner-creator-api#readme) for server configuration.
 
-Initialize a new Supabase database using the API's `supabase/schema.sql`. For an existing database, apply `supabase/migrations/20261005_audit_hardening.sql` before deploying the matching API. Do not replace an existing database with the fresh schema. Configure Supabase Email Auth and allowed redirect/site URLs; keep email confirmation enabled for production.
+Initialize the API's Neon database with `npm --prefix ../banner-creator-api run db:migrate`. If retaining existing accounts, use its offline `db:import-legacy` procedure **before** opening signup on Neon. The import preserves account UUIDs, profiles, entitlements and saved work; existing sessions must sign in again. See the API README for source access, backups and validation. No Supabase SDK or public database keys are required.
 
 In separate terminals:
 
@@ -79,15 +77,14 @@ Deploy the frontend and API as separate projects, each using its own repository 
 Production frontend environment:
 
 ```dotenv
-VITE_API_BASE_URL=https://your-api-domain/api
-VITE_BACKEND_URL=https://your-api-domain
-VITE_SUPABASE_URL=https://your-project-ref.supabase.co
-VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+VITE_API_BASE_URL=/api
 ```
 
-`VITE_BACKEND_URL` controls the development proxy; production calls use `VITE_API_BASE_URL`. Vite embeds these values at build time, so rebuild after changing them. Set the exact frontend origin in API `CORS_ORIGIN`. [vercel.json](vercel.json) supports SPA deep links. Tailwind CSS is compiled during the build; there is no runtime Tailwind CDN dependency.
+`VITE_BACKEND_URL` controls the development proxy only. Keep production `VITE_API_BASE_URL=/api`: [vercel.json](vercel.json) proxies `/api/:path*` to `https://banner-creator-api.onrender.com/api/:path*` before the SPA fallback. Change that destination if the backend hostname changes. API, auth and downloads all use same-origin requests with cookies. Do not override the API base with a cross-site Render URL; third-party-cookie restrictions can break login. Remove old Supabase environment variables and rebuild after changing frontend configuration.
 
-Rollout order: apply the API database migration → deploy API → deploy this frontend → configure reconciliation. Generation requests require `Idempotency-Key` and video routes require `generationId`; old API/frontend versions are not interchangeable. Verify login, project save/load, composited PNG exports, activity recovery, credits, and video/reel audio in staging before production deployment. These source changes do not apply migrations, merge PRs, or deploy production automatically.
+Set the exact deployed frontend origin in the API's `CORS_ORIGIN` and the API public origin in `BETTER_AUTH_URL`. No database connection URL or auth secret belongs in frontend `VITE_*` values. Password reset uses `/auth?mode=reset&token=...`; the API needs a configured recovery mail sender. Tailwind CSS is compiled during the build.
+
+Rollout order: initialize Neon and optionally import existing data → deploy API → deploy this frontend → configure reconciliation. Generation requests require `Idempotency-Key` and video routes require `generationId`; old API/frontend versions are not interchangeable. Verify login, project save/load, composited PNG exports, activity recovery, credits, and video/reel audio in staging before production deployment. These source changes do not apply migrations, merge PRs, or deploy production automatically.
 
 ## Routes and code
 
@@ -107,7 +104,7 @@ For request schemas, credit lifecycle, shared limits, and operator procedures, u
 
 ## Troubleshooting
 
-- **401:** verify the Supabase project/public key and active login. Transient API failures should be retried, not handled by deleting the session.
+- **401:** verify active login, the same-origin `/api` proxy, API `BETTER_AUTH_URL`, and exact frontend origin in `CORS_ORIGIN`. Transient API failures should be retried, not handled by deleting the session.
 - **400/413:** verify supported image types, compress inputs, or use smaller cloud project snapshots. API JSON requests are limited to 4 MB.
 - **402:** available credits or resource quota is exhausted, including held credits. Check Activity; paid checkout is unavailable.
 - **409 / UNKNOWN:** keep the existing request key and inspect Activity. Operators must verify uncertain provider outcomes before releasing or settling credits.

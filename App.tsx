@@ -10,7 +10,7 @@ import { ContactPage } from "./pages/ContactPage";
 import { PrivacyPage } from "./pages/PrivacyPage";
 import { TermsPage } from "./pages/TermsPage";
 import { getCurrentUser, logoutUser } from "./services/authService";
-import { supabase } from "./services/supabaseClient";
+import { authClient } from "./services/authClient";
 import type { AuthUser } from "./services/authService";
 import { Button } from "./components/ui/button";
 import { Spinner } from "./components/ui/spinner";
@@ -76,48 +76,25 @@ const App: React.FC = () => {
       }, 0);
     };
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
-      if (!isMounted) return;
-
-      if (event === "SIGNED_OUT") {
-        sync.invalidate();
-        setAuthError(null);
-        setUser(null);
-        setIsPasswordRecovery(false);
-        setIsAuthLoading(false);
-        return;
-      }
-
-      if (event === "PASSWORD_RECOVERY") {
-        setIsPasswordRecovery(true);
-        queueUserSync();
-        return;
-      }
-
-      if (
-        event === "INITIAL_SESSION" ||
-        event === "SIGNED_IN" ||
-        event === "TOKEN_REFRESHED" ||
-        event === "USER_UPDATED"
-      ) {
-        queueUserSync();
-      }
+    void sync.refresh();
+    const unsubscribe = authClient.$store.atoms.$sessionSignal.subscribe( () => {
+      if (isMounted) queueUserSync();
     });
+    const onFocus = () => queueUserSync();
+    window.addEventListener("focus", onFocus);
 
     return () => {
       isMounted = false;
       sync.dispose();
-      authListener.subscription.unsubscribe();
+      unsubscribe();
+      window.removeEventListener("focus", onFocus);
     };
   }, [authRetry]);
 
   const handleLogout = async () => {
-    try {
-      await logoutUser();
-    } finally {
-      setUser(null);
-      setIsPasswordRecovery(false);
-    }
+    await logoutUser();
+    setUser(null);
+    setIsPasswordRecovery(false);
   };
 
   const handleAuthenticated = (nextUser: AuthUser) => {
