@@ -1,14 +1,14 @@
 import { dispatchWithRequestKey } from "./requestLifecycle";
 import { apiFetch, HttpError } from "./apiClient";
-import { supabase } from "./supabaseClient";
+import { authClient } from "./authClient";
 import { getOrCreateRequestKey, clearRequestKey } from "./draftStore";
 // An interrupted dispatch keeps its key across navigation/reload. Repeating it never buys a second job.
 export const generationPost = async <T>(
   path: string,
   payload: unknown,
 ): Promise<T> => {
-  const { data } = await supabase.auth.getSession();
-  const userId = data.session?.user.id;
+  const { data } = await authClient.getSession({ query: {} });
+  const userId = data?.user.id;
   if (!userId) throw new HttpError(401, "Sign in before generating.");
   const body = JSON.stringify(payload);
   const hash = Array.from(
